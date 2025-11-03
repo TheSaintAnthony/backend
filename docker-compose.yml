@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:18
+    container_name: postgresql
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: stanthony
+      POSTGRES_USER: stanthony
+      POSTGRES_DB: stanthony
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
