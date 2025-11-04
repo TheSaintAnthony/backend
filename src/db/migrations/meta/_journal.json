@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1762172154428,
+      "tag": "0000_lookup-tables-done",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762180957049,
+      "tag": "0001_core-tables-done",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762184605585,
+      "tag": "0002_activities-table-done",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1762254183175,
+      "tag": "0003_improved-db-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1762255149146,
+      "tag": "0004_no_overlaping_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1762256856158,
+      "tag": "0005_updated_reservations_rooms",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1762256985169,
+      "tag": "0006_no_overlaping_room_bookins",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1762264665099,
+      "tag": "0007_general-db-improvements",
+      "breakpoints": true
+    }
+  ]
+}
