@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -44,5 +44,25 @@ export class UsersService {
       .returning();
 
     return createdUser;
+  }
+
+  async resetPassword(email: string, newPasswordHash: string) {
+    const result = await this.db
+      .select({
+        userId: schema.users.id,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.email, email));
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+
+    const { userId } = result[0];
+
+    return await this.db
+      .update(schema.users)
+      .set({ passwordHash: newPasswordHash })
+      .where(eq(schema.users.id, userId));
   }
 }

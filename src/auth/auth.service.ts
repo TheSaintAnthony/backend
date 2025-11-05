@@ -1,6 +1,9 @@
+/* eslint-disable */
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
@@ -8,12 +11,16 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SignInDto, SignUpDto } from './dto/auth.dto';
 import { JwtPayload } from './interfaces';
+import { EmailService } from 'src/email/email.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private emailService: EmailService,
+    private configService: ConfigService,
   ) {}
 
   async signIn(data: SignInDto): Promise<{ access_token: string }> {
@@ -50,7 +57,45 @@ export class AuthService {
     return result;
   }
 
-  recoverPassword(email: string) {
-    console.log(email);
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findOne(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.emailService.sendResetPasswordLink(email);
+  }
+
+  async resetPassword(token: string, password: string) {
+    const email = await this.decodeResetPasswordTokenToEmail(token);
+
+    const user = await this.usersService.findOne(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const passwordHashed = await bcrypt.hash(password, 10);
+    const result = await this.usersService.resetPassword(email, passwordHashed);
+
+    return result;
+  }
+
+  private async decodeResetPasswordTokenToEmail(token: string) {
+    try {
+      const payload: { email: string } = await this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
+      });
+
+      if (typeof payload === 'object' && 'email' in payload) {
+        return payload.email;
+      }
+      throw new BadRequestException();
+    } catch (error) {
+      if (error?.name === 'TokenExpiredError') {
+        throw new BadRequestException('Password reset token expired');
+      }
+      throw new BadRequestException('Bad confirmation token');
+    }
   }
 }

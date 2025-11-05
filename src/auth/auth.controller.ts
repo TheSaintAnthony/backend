@@ -17,4 +17,16 @@ export class AuthController {
   async signIn(@Body() data: SignInDto) {
     return this.authService.signIn(data);
   }
+
+  @Post('password/forgot')
+  async forgotPassword(@Body() { email }: { email: string }) {
+    return this.authService.forgotPassword(email);
+  }
+
+  @Post('password/reset')
+  async resetPassword(
+    @Body() { token, password }: { token: string; password: string },
+  ) {
+    return this.authService.resetPassword(token, password);
+  }
 }
