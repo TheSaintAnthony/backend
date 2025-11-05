@@ -18,3 +18,8 @@ class AddressDto {
   zipCode: string;
   country: string;
 }
+
+export class PasswordResetDto {
+  token: string;
+  password: string;
+}

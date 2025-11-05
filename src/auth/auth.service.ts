@@ -9,7 +9,7 @@ import {
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { SignInDto, SignUpDto } from './dto/auth.dto';
+import { PasswordResetDto, SignInDto, SignUpDto } from './dto/auth.dto';
 import { JwtPayload } from './interfaces';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
@@ -67,15 +67,15 @@ export class AuthService {
     return this.emailService.sendResetPasswordLink(email);
   }
 
-  async resetPassword(token: string, password: string) {
-    const email = await this.decodeResetPasswordTokenToEmail(token);
+  async resetPassword(data: PasswordResetDto) {
+    const email = await this.decodeResetPasswordTokenToEmail(data.token);
 
     const user = await this.usersService.findOne(email);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const passwordHashed = await bcrypt.hash(password, 10);
+    const passwordHashed = await bcrypt.hash(data.password, 10);
     const result = await this.usersService.resetPassword(email, passwordHashed);
 
     return result;
