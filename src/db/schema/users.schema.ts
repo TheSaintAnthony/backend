@@ -8,7 +8,9 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 50 }),
-  addressId: integer('address_id').references(() => addresses.id),
+  addressId: integer('address_id').references(() => addresses.id, {
+    onDelete: 'cascade',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
