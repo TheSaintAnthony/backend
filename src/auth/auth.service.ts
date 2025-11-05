@@ -49,4 +49,8 @@ export class AuthService {
 
     return result;
   }
+
+  recoverPassword(email: string) {
+    console.log(email);
+  }
 }
