@@ -18,7 +18,8 @@ type LookupTable =
   | typeof schema.occurrenceStatus
   | typeof schema.roles
   | typeof schema.paymentStatus
-  | typeof schema.paymentMethods;
+  | typeof schema.paymentMethods
+  | typeof schema.activities;
 
 @Injectable()
 export class LookupsService {
@@ -254,5 +255,31 @@ export class LookupsService {
 
   deletePaymentMethod(id: number) {
     return this.deleteValue(schema.paymentMethods, id);
+  }
+
+  addActivity(data: { name: string; description: string }) {
+    return this.addValue(schema.activities, {
+      name: data.name,
+      description: data.description,
+    });
+  }
+
+  getActivities() {
+    return this.getAll(schema.activities);
+  }
+
+  getActivityById(id: number) {
+    return this.getById(schema.activities, id);
+  }
+
+  editActivity(id: number, data: { name: string; description: string }) {
+    return this.updateValue(schema.activities, id, {
+      name: data.name,
+      description: data.description,
+    });
+  }
+
+  deleteActivity(id: number) {
+    return this.deleteValue(schema.activities, id);
   }
 }

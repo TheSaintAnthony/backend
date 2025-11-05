@@ -262,4 +262,32 @@ export class LookupsController {
   deletePaymentMethod(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.deletePaymentMethod(id);
   }
+
+  @Post('activities')
+  addActivity(@Body() body: { name: string; description: string }) {
+    return this.lookupsService.addActivity(body);
+  }
+
+  @Get('activities')
+  getActivities() {
+    return this.lookupsService.getActivities();
+  }
+
+  @Get('activities/:id')
+  getActivityById(@Param('id', ParseIntPipe) id: number) {
+    return this.lookupsService.getActivityById(id);
+  }
+
+  @Patch('activities/:id')
+  editActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { name: string; description: string },
+  ) {
+    return this.lookupsService.editActivity(id, body);
+  }
+
+  @Delete('activities/:id')
+  deleteActivity(@Param('id', ParseIntPipe) id: number) {
+    return this.lookupsService.deleteActivity(id);
+  }
 }
