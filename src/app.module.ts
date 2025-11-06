@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { LookupsModule } from './lookups/lookups.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { PropertiesModule } from './properties/properties.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AddressesModule } from './addresses/addresses.module';
     EmailModule,
     LookupsModule,
     AddressesModule,
+    PropertiesModule,
   ],
   controllers: [],
   providers: [],

@@ -13,12 +13,7 @@ export class AddressesService {
   ) {}
 
   async createAddress(data: CreateAddressDto) {
-    return await this.db.insert(schema.addresses).values({
-      street: data.street,
-      city: data.city,
-      zip_code: data.zipCode,
-      country: data.country,
-    });
+    return await this.db.insert(schema.addresses).values({ ...data });
   }
 
   async getAddresses() {
