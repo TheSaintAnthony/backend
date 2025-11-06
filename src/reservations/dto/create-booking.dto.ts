@@ -29,10 +29,6 @@ export class BookingRoomDto {
 }
 
 export class CreateBookingDto {
-  @IsInt()
-  @IsPositive()
-  userId: number;
-
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -39,10 +39,10 @@ export class ReservationsService {
     private roomHoldsService: RoomHoldsService,
   ) {}
 
-  async createReservation(data: CreateReservationDto) {
+  async createReservation(userId: number, data: CreateReservationDto) {
     return await this.db
       .insert(schema.reservations)
-      .values({ ...data })
+      .values({ userId, ...data })
       .returning();
   }
 
@@ -213,9 +213,8 @@ export class ReservationsService {
     };
   }
 
-  async createBooking(data: CreateBookingDto) {
-    const { userId, rooms, specialRequests, paymentMethodId, transactionId } =
-      data;
+  async createBooking(userId: number, data: CreateBookingDto) {
+    const { rooms, specialRequests, paymentMethodId, transactionId } = data;
 
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
@@ -278,21 +277,21 @@ export class ReservationsService {
       });
     }
 
-    const [reservation] = await this.db
-      .insert(schema.reservations)
-      .values({
-        userId,
-        statusId: 1,
-        totalPrice: totalPrice.toString(),
-        paymentStatusId: 1,
-        depositAmount: '0.0',
-        specialRequests,
-      })
-      .returning();
+    return await this.db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .insert(schema.reservations)
+        .values({
+          userId,
+          statusId: 1,
+          totalPrice: totalPrice.toString(),
+          paymentStatusId: 1,
+          depositAmount: '0.0',
+          specialRequests,
+        })
+        .returning();
 
-    try {
       for (const roomBooking of roomValidations) {
-        await this.reservationRoomsService.createReservationRoom({
+        await tx.insert(schema.reservationRooms).values({
           reservationId: reservation.id,
           roomId: roomBooking.roomId,
           checkIn: roomBooking.checkIn,
@@ -301,24 +300,28 @@ export class ReservationsService {
         });
       }
 
-      const [invoice] = await this.invoicesService.createInvoice({
-        reservationId: reservation.id,
-        amount: totalPrice.toString(),
-        statusId: 1,
-      });
+      const [invoice] = await tx
+        .insert(schema.invoices)
+        .values({
+          reservationId: reservation.id,
+          amount: totalPrice.toString(),
+          statusId: 1,
+        })
+        .returning();
 
-      await this.paymentsService.createPayment({
+      await tx.insert(schema.payments).values({
         invoiceId: invoice.id,
         amount: totalPrice.toString(),
         paymentMethodId,
         transactionId,
       });
 
-      await this.invoicesService.editInvoice(invoice.id, {
-        statusId: 2,
-      });
+      await tx
+        .update(schema.invoices)
+        .set({ statusId: 2 })
+        .where(eq(schema.invoices.id, invoice.id));
 
-      await this.db
+      await tx
         .update(schema.reservations)
         .set({
           statusId: 2,
@@ -327,12 +330,16 @@ export class ReservationsService {
         .where(eq(schema.reservations.id, reservation.id));
 
       for (const roomBooking of roomValidations) {
-        await this.roomHoldsService.releaseHold(
-          userId,
-          roomBooking.roomId,
-          roomBooking.checkIn,
-          roomBooking.checkOut,
-        );
+        await tx
+          .delete(schema.roomHolds)
+          .where(
+            and(
+              eq(schema.roomHolds.userId, userId),
+              eq(schema.roomHolds.roomId, roomBooking.roomId),
+              eq(schema.roomHolds.checkIn, roomBooking.checkIn),
+              eq(schema.roomHolds.checkOut, roomBooking.checkOut),
+            ),
+          );
       }
 
       return {
@@ -346,15 +353,7 @@ export class ReservationsService {
         totalPrice: totalPrice.toString(),
         message: 'Booking completed successfully',
       };
-    } catch (error: unknown) {
-      await this.db
-        .delete(schema.reservations)
-        .where(eq(schema.reservations.id, reservation.id));
-
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new BadRequestException(`Booking failed: ${errorMessage}`);
-    }
+    });
   }
 
   private async checkRoomAvailability(

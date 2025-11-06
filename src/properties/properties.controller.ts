@@ -11,16 +11,19 @@ import {
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { EditPropertyDto } from './dto/edit-property.dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('properties')
 export class PropertiesController {
   constructor(private propertiesService: PropertiesService) {}
 
+  @Public()
   @Get()
   async getProperties() {
     return this.propertiesService.getProperties();
   }
 
+  @Public()
   @Get(':id')
   async getPropertyById(@Param('id', ParseIntPipe) id: number) {
     return await this.propertiesService.getPropertyById(id);

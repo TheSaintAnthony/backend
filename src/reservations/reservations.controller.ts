@@ -7,7 +7,6 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Query,
   Request,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
@@ -18,17 +17,17 @@ import {
   GetPriceQuoteDto,
   CheckAvailabilityDto,
 } from './dto';
+import { Public } from 'src/decorators/public.decorator';
+import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @Controller('reservations')
 export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
 
   @Get()
-  async getReservations(@Query('userId', ParseIntPipe) userId?: number) {
-    if (userId) {
-      return await this.reservationsService.getReservationsByUser(userId);
-    }
-    return await this.reservationsService.getReservations();
+  async getReservations(@Request() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return await this.reservationsService.getReservationsByUser(userId);
   }
 
   @Get(':id')
@@ -37,10 +36,15 @@ export class ReservationsController {
   }
 
   @Post()
-  async createReservation(@Body() body: CreateReservationDto) {
-    return await this.reservationsService.createReservation(body);
+  async createReservation(
+    @Body() body: CreateReservationDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user.sub;
+    return await this.reservationsService.createReservation(userId, body);
   }
 
+  @Public()
   @Post('check-availability')
   async checkAvailability(@Body() body: CheckAvailabilityDto) {
     return await this.reservationsService.checkAvailability(body);
@@ -56,8 +60,12 @@ export class ReservationsController {
   }
 
   @Post('booking')
-  async createBooking(@Body() body: CreateBookingDto) {
-    return await this.reservationsService.createBooking(body);
+  async createBooking(
+    @Body() body: CreateBookingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user.sub;
+    return await this.reservationsService.createBooking(userId, body);
   }
 
   @Patch(':id')

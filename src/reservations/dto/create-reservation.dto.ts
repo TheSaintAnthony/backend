@@ -7,10 +7,6 @@ import {
 } from 'class-validator';
 
 export class CreateReservationDto {
-  @IsInt()
-  @IsPositive()
-  userId: number;
-
   @IsOptional()
   @IsInt()
   @IsPositive()

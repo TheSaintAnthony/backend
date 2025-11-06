@@ -6,21 +6,20 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  Query,
+  Request,
 } from '@nestjs/common';
 import { UserRolesService } from './user-roles.service';
 import { CreateUserRoleDto } from './dto';
+import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @Controller('user-roles')
 export class UserRolesController {
   constructor(private userRolesService: UserRolesService) {}
 
   @Get()
-  async getUserRoles(@Query('userId', ParseIntPipe) userId?: number) {
-    if (userId) {
-      return await this.userRolesService.getUserRolesByUser(userId);
-    }
-    return await this.userRolesService.getUserRoles();
+  async getUserRoles(@Request() req: AuthenticatedRequest) {
+    const userId = req.user.sub;
+    return await this.userRolesService.getUserRolesByUser(userId);
   }
 
   @Get(':id')

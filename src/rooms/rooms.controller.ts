@@ -11,11 +11,13 @@ import {
 } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, EditRoomDto } from './dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('rooms')
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}
 
+  @Public()
   @Get()
   async getRooms(@Query('propertyId', ParseIntPipe) propertyId?: number) {
     if (propertyId) {
@@ -24,6 +26,7 @@ export class RoomsController {
     return await this.roomsService.getRooms();
   }
 
+  @Public()
   @Get(':id')
   async getRoomById(@Param('id', ParseIntPipe) id: number) {
     return await this.roomsService.getRoomById(id);
