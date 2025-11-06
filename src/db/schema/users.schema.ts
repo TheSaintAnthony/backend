@@ -14,6 +14,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

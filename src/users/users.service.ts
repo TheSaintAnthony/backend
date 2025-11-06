@@ -139,4 +139,11 @@ export class UsersService {
 
     return await this.db.delete(schema.users).where(eq(schema.users.id, id));
   }
+
+  async verifyUser(id: number) {
+    return await this.db
+      .update(schema.users)
+      .set({ verifiedAt: new Date() })
+      .where(eq(schema.users.id, id));
+  }
 }

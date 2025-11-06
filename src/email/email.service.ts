@@ -52,4 +52,24 @@ export class EmailService {
       text,
     });
   }
+
+  async sendVerifyUserLink(id: number, email: string) {
+    const payload = { subb: id, email };
+
+    const token = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
+      expiresIn: this.configService.get('JWT_USER_VERIFY_EXPIRATION_TIME'),
+    });
+    const verifyUrl = this.configService.get<string>('USER_VERIFY_ACCOUNT_URL');
+    const url = `${verifyUrl}?token=${token}`;
+
+    const text = `Hi, \nTo verify your account, click here:\n ${url}`;
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: email,
+      subject: 'Verify account',
+      text,
+    });
+  }
 }
