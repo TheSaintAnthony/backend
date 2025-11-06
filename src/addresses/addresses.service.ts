@@ -13,7 +13,10 @@ export class AddressesService {
   ) {}
 
   async createAddress(data: CreateAddressDto) {
-    return await this.db.insert(schema.addresses).values({ ...data });
+    return await this.db
+      .insert(schema.addresses)
+      .values({ ...data })
+      .returning();
   }
 
   async getAddresses() {
@@ -21,7 +24,7 @@ export class AddressesService {
   }
 
   async getAddressById(id: number) {
-    const address = await this.db
+    const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));
@@ -34,7 +37,7 @@ export class AddressesService {
   }
 
   async editAddress(id: number, data: EditAddressDto) {
-    const address = await this.db
+    const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));
@@ -43,13 +46,16 @@ export class AddressesService {
       throw new NotFoundException('Address not found');
     }
 
-    return this.db.update(schema.addresses).set({
-      ...data,
-    });
+    return this.db
+      .update(schema.addresses)
+      .set({
+        ...data,
+      })
+      .where(eq(schema.addresses.id, id));
   }
 
   async deleteAddress(id: number) {
-    const address = await this.db
+    const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));

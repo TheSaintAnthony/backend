@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -26,19 +21,17 @@ export class PropertiesService {
       .values({ ...address })
       .returning({ id: schema.addresses.id });
 
-    return await this.db.insert(schema.properties).values({
-      addressId: createdAddress.id,
-      ...propertyData,
-    });
+    return await this.db
+      .insert(schema.properties)
+      .values({
+        addressId: createdAddress.id,
+        ...propertyData,
+      })
+      .returning();
   }
 
   async getProperties() {
-    const properties = await this.db.select().from(schema.properties);
-    if (properties.length > 0) {
-      throw new BadRequestException('Could not get properties');
-    }
-
-    return properties;
+    return await this.db.select().from(schema.properties);
   }
 
   async getPropertyById(id: number) {

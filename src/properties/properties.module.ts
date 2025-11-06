@@ -4,6 +4,6 @@ import { PropertiesController } from './properties.controller';
 
 @Module({
   providers: [PropertiesService],
-  controllers: [PropertiesController]
+  controllers: [PropertiesController],
 })
 export class PropertiesModule {}

@@ -27,6 +27,16 @@ export class UsersService {
     return user;
   }
 
+  async findByEmail(email: string) {
+    const [user] = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+
+    return user || null;
+  }
+
   async getUserById(id: number) {
     const [user] = await this.db
       .select({

@@ -22,7 +22,7 @@ export class PropertiesController {
   }
 
   @Get(':id')
-  async getPropertyById(id: number) {
+  async getPropertyById(@Param('id', ParseIntPipe) id: number) {
     return await this.propertiesService.getPropertyById(id);
   }
 
@@ -31,7 +31,7 @@ export class PropertiesController {
     return await this.propertiesService.createProperty(dto);
   }
 
-  @Patch()
+  @Patch(':id')
   async editProperty(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: EditPropertyDto,
@@ -39,7 +39,7 @@ export class PropertiesController {
     return await this.propertiesService.editProperty(id, dto);
   }
 
-  @Delete()
+  @Delete(':id')
   async deleteProperty(@Param('id', ParseIntPipe) id: number) {
     return await this.propertiesService.deleteProperty(id);
   }

@@ -4,6 +4,6 @@ import { LookupsService } from './lookups.service';
 
 @Module({
   controllers: [LookupsController],
-  providers: [LookupsService]
+  providers: [LookupsService],
 })
 export class LookupsModule {}

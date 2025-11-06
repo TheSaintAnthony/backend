@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   ConflictException,
   Inject,
@@ -28,6 +29,10 @@ export class LookupsService {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
+  private getTableName(): string {
+    return 'lookup table';
+  }
+
   private async ensureNotExists(table: LookupTable, name: string) {
     const existing = await this.db
       .select()
@@ -36,7 +41,9 @@ export class LookupsService {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new ConflictException(`Value already exists on table ${table}`);
+      throw new ConflictException(
+        `Value already exists on ${this.getTableName()}`,
+      );
     }
   }
 
@@ -47,16 +54,20 @@ export class LookupsService {
       .where(eq(table.id, id))
       .limit(1);
     if (record.length === 0) {
-      throw new NotFoundException(`Record on table ${table} not found`);
+      throw new NotFoundException(`Record on ${this.getTableName()} not found`);
     }
     return record[0];
   }
 
-  async addValue(table: LookupTable, value: any) {
-    if ('name' in table) {
-      await this.ensureNotExists(table, value.name ?? value);
+  async addValue(
+    table: LookupTable,
+    value: { name?: string; [key: string]: unknown },
+  ) {
+    if ('name' in table && value.name) {
+      await this.ensureNotExists(table, value.name);
     }
-    return this.db.insert(table).values(value);
+
+    return this.db.insert(table).values(value as any);
   }
 
   async getAll(table: LookupTable) {
@@ -67,9 +78,17 @@ export class LookupsService {
     return this.ensureExistsById(table, id);
   }
 
-  async updateValue(table: LookupTable, id: number, value: any) {
+  async updateValue(
+    table: LookupTable,
+    id: number,
+    value: { [key: string]: unknown },
+  ) {
     await this.ensureExistsById(table, id);
-    return this.db.update(table).set(value).where(eq(table.id, id));
+
+    return this.db
+      .update(table)
+      .set(value as any)
+      .where(eq(table.id, id));
   }
 
   async deleteValue(table: LookupTable, id: number) {

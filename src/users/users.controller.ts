@@ -4,7 +4,6 @@ import { EditUserDto } from './dto';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @Controller('users')
-//@UseGuards(AuthGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
