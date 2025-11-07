@@ -13,11 +13,12 @@ import {
   EditReservationDto,
   CreateBookingDto,
 } from './dto';
-import { RoomValidation } from './interfaces';
+import { EmailConfirmation, RoomValidation } from './interfaces';
 import { eq, and } from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class ReservationsService {
@@ -27,6 +28,7 @@ export class ReservationsService {
     private roomsService: RoomsService,
     private usersService: UsersService,
     private roomHoldsService: RoomHoldsService,
+    private emailService: EmailService,
   ) {}
 
   async createReservation(userId: number, data: CreateReservationDto) {
@@ -221,6 +223,17 @@ export class ReservationsService {
             ),
           );
       }
+
+      const emailPayload: EmailConfirmation = {
+        userName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        totalPrice: reservation.totalPrice,
+        depositAmount: reservation.depositAmount,
+        rooms: [...roomValidations],
+        specialRequests: reservation.specialRequests?.toString(),
+      };
+
+      await this.emailService.sendReservationConfirmationEmail(emailPayload);
 
       return {
         success: true,
