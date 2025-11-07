@@ -7,10 +7,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { PasswordResetDto, SignInDto, SignUpDto } from './dto/auth.dto';
 import { Public } from 'src/decorators/public.decorator';
 
+@ApiTags('Auth')
 @Public()
 @Controller('auth')
 export class AuthController {

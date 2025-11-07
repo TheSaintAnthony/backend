@@ -9,12 +9,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, EditRoomDto } from './dto';
 import { Public } from 'src/decorators/public.decorator';
-import { ApiBearerAuth } from '@nestjs/swagger';
 
-@ApiBearerAuth()
+@ApiTags('Rooms')
+@ApiBearerAuth('access-token')
 @Controller('rooms')
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}

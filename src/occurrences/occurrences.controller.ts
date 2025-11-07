@@ -9,9 +9,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OccurrencesService } from './occurrences.service';
 import { CreateOccurrenceDto, EditOccurrenceDto } from './dto';
 
+@ApiTags('Occurrences')
+@ApiBearerAuth('access-token')
 @Controller('occurrences')
 export class OccurrencesController {
   constructor(private occurrencesService: OccurrencesService) {}

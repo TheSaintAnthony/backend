@@ -8,9 +8,12 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AddressesService } from './addresses.service';
 import { CreateAddressDto, EditAddressDto } from './dto';
 
+@ApiTags('Addresses')
+@ApiBearerAuth('access-token')
 @Controller('addresses')
 export class AddressesController {
   constructor(private addressesService: AddressesService) {}

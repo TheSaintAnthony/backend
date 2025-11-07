@@ -8,8 +8,11 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LookupsService } from './lookups.service';
 
+@ApiTags('Lookups')
+@ApiBearerAuth('access-token')
 @Controller()
 export class LookupsController {
   constructor(private readonly lookupsService: LookupsService) {}

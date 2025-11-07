@@ -9,6 +9,7 @@ import {
   Post,
   Request,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
 import {
   CreateReservationDto,
@@ -20,6 +21,8 @@ import {
 import { Public } from 'src/decorators/public.decorator';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
+@ApiTags('Reservations')
+@ApiBearerAuth('access-token')
 @Controller('reservations')
 export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}

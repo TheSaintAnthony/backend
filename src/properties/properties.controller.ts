@@ -8,11 +8,14 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { EditPropertyDto } from './dto/edit-property.dto';
 import { Public } from 'src/decorators/public.decorator';
 
+@ApiTags('Properties')
+@ApiBearerAuth('access-token')
 @Controller('properties')
 export class PropertiesController {
   constructor(private propertiesService: PropertiesService) {}

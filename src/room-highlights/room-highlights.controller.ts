@@ -8,9 +8,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomHighlightsService } from './room-highlights.service';
 import { CreateRoomHighlightDto } from './dto';
 
+@ApiTags('Room Highlights')
+@ApiBearerAuth('access-token')
 @Controller('room-highlights')
 export class RoomHighlightsController {
   constructor(private roomHighlightsService: RoomHighlightsService) {}

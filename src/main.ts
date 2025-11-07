@@ -14,12 +14,30 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('St. Anthony')
-    .setDescription('St. Anthony API description')
-    .setVersion('1.0')
+    .setTitle('St. Anthony API')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter your JWT token',
+        in: 'header',
+      },
+      'access-token',
+    )
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+    customSiteTitle: 'St. Anthony API Documentation',
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }

@@ -8,10 +8,13 @@ import {
   Post,
   Request,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRolesService } from './user-roles.service';
 import { CreateUserRoleDto } from './dto';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
+@ApiTags('User Roles')
+@ApiBearerAuth('access-token')
 @Controller('user-roles')
 export class UserRolesController {
   constructor(private userRolesService: UserRolesService) {}

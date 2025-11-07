@@ -8,9 +8,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ActivityPropertyService } from './activity-property.service';
 import { CreateActivityPropertyDto } from './dto';
 
+@ApiTags('Activities')
+@ApiBearerAuth('access-token')
 @Controller('activity-property')
 export class ActivityPropertyController {
   constructor(private activityPropertyService: ActivityPropertyService) {}
