@@ -9,18 +9,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-
-type LookupTable =
-  | typeof schema.amenities
-  | typeof schema.roomTypes
-  | typeof schema.highlights
-  | typeof schema.reservationStatus
-  | typeof schema.invoiceStatus
-  | typeof schema.occurrenceStatus
-  | typeof schema.roles
-  | typeof schema.paymentStatus
-  | typeof schema.paymentMethods
-  | typeof schema.activities;
+import { LookupTable } from './interfaces';
 
 @Injectable()
 export class LookupsService {

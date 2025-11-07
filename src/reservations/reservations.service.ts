@@ -1,4 +1,3 @@
-/* eslint-disable */
 import {
   Injectable,
   Inject,
@@ -199,7 +198,12 @@ export class ReservationsService {
       });
 
       if (isAvailable && userId) {
-        await this.roomHoldsService.createHold(userId, roomId, checkIn, checkOut);
+        await this.roomHoldsService.createHold(
+          userId,
+          roomId,
+          checkIn,
+          checkOut,
+        );
       }
     }
 

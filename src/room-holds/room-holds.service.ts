@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { eq, and, gte, lte, or, lt } from 'drizzle-orm';
+import { eq, and, gte, lte, or, lt, ne } from 'drizzle-orm';
 
 @Injectable()
 export class RoomHoldsService {
@@ -91,7 +91,8 @@ export class RoomHoldsService {
     ];
 
     if (excludeUserId) {
-      conditions.push(eq(schema.roomHolds.userId, excludeUserId));
+      // Exclude holds from this user (use ne instead of eq)
+      conditions.push(ne(schema.roomHolds.userId, excludeUserId));
     }
 
     const holds = await this.db

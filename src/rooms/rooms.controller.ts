@@ -12,7 +12,9 @@ import {
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, EditRoomDto } from './dto';
 import { Public } from 'src/decorators/public.decorator';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
 @Controller('rooms')
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}
