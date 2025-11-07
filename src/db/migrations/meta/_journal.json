@@ -64,6 +64,20 @@
       "when": 1762274746552,
       "tag": "0008_added-cascade-address",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1762443442885,
+      "tag": "0009_room-hold",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1762447879410,
+      "tag": "0010_add-verified-at",
+      "breakpoints": true
     }
   ]
 }
