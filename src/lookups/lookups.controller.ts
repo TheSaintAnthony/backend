@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LookupsService } from './lookups.service';
+import { CreateLookupDto, CreateRoomTypeDto, CreateActivityDto } from './dto';
 
 @ApiTags('Lookups')
 @ApiBearerAuth('access-token')
@@ -18,8 +19,8 @@ export class LookupsController {
   constructor(private readonly lookupsService: LookupsService) {}
 
   @Post('amenities')
-  addAmenity(@Body('name') name: string) {
-    return this.lookupsService.addAmenity(name);
+  addAmenity(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addAmenity(dto.name);
   }
 
   @Get('amenities')
@@ -35,9 +36,9 @@ export class LookupsController {
   @Patch('amenities/:id')
   editAmenity(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editAmenity(id, name);
+    return this.lookupsService.editAmenity(id, dto.name);
   }
 
   @Delete('amenities/:id')
@@ -46,8 +47,8 @@ export class LookupsController {
   }
 
   @Post('room/types')
-  addRoomType(@Body() body: { name: string; maxCapacity: number }) {
-    return this.lookupsService.addRoomType(body.name, body.maxCapacity);
+  addRoomType(@Body() dto: CreateRoomTypeDto) {
+    return this.lookupsService.addRoomType(dto.name, dto.maxCapacity);
   }
 
   @Get('room/types')
@@ -63,9 +64,9 @@ export class LookupsController {
   @Patch('room/types/:id')
   editRoomType(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { name: string; maxCapacity: number },
+    @Body() dto: CreateRoomTypeDto,
   ) {
-    return this.lookupsService.editRoomType(id, body.name, body.maxCapacity);
+    return this.lookupsService.editRoomType(id, dto.name, dto.maxCapacity);
   }
 
   @Delete('room/types/:id')
@@ -74,8 +75,8 @@ export class LookupsController {
   }
 
   @Post('highlights')
-  addHighlight(@Body('name') name: string) {
-    return this.lookupsService.addHighlight(name);
+  addHighlight(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addHighlight(dto.name);
   }
 
   @Get('highlights')
@@ -91,9 +92,9 @@ export class LookupsController {
   @Patch('highlights/:id')
   editHighlight(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editHighlight(id, name);
+    return this.lookupsService.editHighlight(id, dto.name);
   }
 
   @Delete('highlights/:id')
@@ -102,8 +103,8 @@ export class LookupsController {
   }
 
   @Post('reservation/status')
-  addReservationStatus(@Body('name') name: string) {
-    return this.lookupsService.addReservationStatus(name);
+  addReservationStatus(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addReservationStatus(dto.name);
   }
 
   @Get('reservation/status')
@@ -119,9 +120,9 @@ export class LookupsController {
   @Patch('reservation/status/:id')
   editReservationStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editReservationStatus(id, name);
+    return this.lookupsService.editReservationStatus(id, dto.name);
   }
 
   @Delete('reservation/status/:id')
@@ -130,8 +131,8 @@ export class LookupsController {
   }
 
   @Post('invoice/status')
-  addInvoiceStatus(@Body('name') name: string) {
-    return this.lookupsService.addInvoiceStatus(name);
+  addInvoiceStatus(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addInvoiceStatus(dto.name);
   }
 
   @Get('invoice/status')
@@ -147,9 +148,9 @@ export class LookupsController {
   @Patch('invoice/status/:id')
   editInvoiceStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editInvoiceStatus(id, name);
+    return this.lookupsService.editInvoiceStatus(id, dto.name);
   }
 
   @Delete('invoice/status/:id')
@@ -158,8 +159,8 @@ export class LookupsController {
   }
 
   @Post('occurrence/status')
-  addOccurrenceStatus(@Body('name') name: string) {
-    return this.lookupsService.addOccurrenceStatus(name);
+  addOccurrenceStatus(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addOccurrenceStatus(dto.name);
   }
 
   @Get('occurrence/status')
@@ -175,9 +176,9 @@ export class LookupsController {
   @Patch('occurrence/status/:id')
   editOccurrenceStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editOccurrenceStatus(id, name);
+    return this.lookupsService.editOccurrenceStatus(id, dto.name);
   }
 
   @Delete('occurrence/status/:id')
@@ -186,8 +187,8 @@ export class LookupsController {
   }
 
   @Post('roles')
-  addRole(@Body('name') name: string) {
-    return this.lookupsService.addRole(name);
+  addRole(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addRole(dto.name);
   }
 
   @Get('roles')
@@ -201,8 +202,11 @@ export class LookupsController {
   }
 
   @Patch('roles/:id')
-  editRole(@Param('id', ParseIntPipe) id: number, @Body('name') name: string) {
-    return this.lookupsService.editRole(id, name);
+  editRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateLookupDto,
+  ) {
+    return this.lookupsService.editRole(id, dto.name);
   }
 
   @Delete('roles/:id')
@@ -211,8 +215,8 @@ export class LookupsController {
   }
 
   @Post('payment/status')
-  addPaymentStatus(@Body('name') name: string) {
-    return this.lookupsService.addPaymentStatus(name);
+  addPaymentStatus(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addPaymentStatus(dto.name);
   }
 
   @Get('payment/status')
@@ -228,9 +232,9 @@ export class LookupsController {
   @Patch('payment/status/:id')
   editPaymentStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editPaymentStatus(id, name);
+    return this.lookupsService.editPaymentStatus(id, dto.name);
   }
 
   @Delete('payment/status/:id')
@@ -239,8 +243,8 @@ export class LookupsController {
   }
 
   @Post('payment/methods')
-  addPaymentMethod(@Body('name') name: string) {
-    return this.lookupsService.addPaymentMethod(name);
+  addPaymentMethod(@Body() dto: CreateLookupDto) {
+    return this.lookupsService.addPaymentMethod(dto.name);
   }
 
   @Get('payment/methods')
@@ -256,9 +260,9 @@ export class LookupsController {
   @Patch('payment/methods/:id')
   editPaymentMethod(
     @Param('id', ParseIntPipe) id: number,
-    @Body('name') name: string,
+    @Body() dto: CreateLookupDto,
   ) {
-    return this.lookupsService.editPaymentMethod(id, name);
+    return this.lookupsService.editPaymentMethod(id, dto.name);
   }
 
   @Delete('payment/methods/:id')
@@ -267,8 +271,8 @@ export class LookupsController {
   }
 
   @Post('activities')
-  addActivity(@Body() body: { name: string; description: string }) {
-    return this.lookupsService.addActivity(body);
+  addActivity(@Body() dto: CreateActivityDto) {
+    return this.lookupsService.addActivity(dto);
   }
 
   @Get('activities')
@@ -284,9 +288,9 @@ export class LookupsController {
   @Patch('activities/:id')
   editActivity(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { name: string; description: string },
+    @Body() dto: CreateActivityDto,
   ) {
-    return this.lookupsService.editActivity(id, body);
+    return this.lookupsService.editActivity(id, dto);
   }
 
   @Delete('activities/:id')
