@@ -8,10 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomsService } from './rooms.service';
-import { CreateRoomDto, EditRoomDto } from './dto';
+import { CreateRoomDto, EditRoomDto, CheckAvailabilityDto, GetPriceQuoteDto } from './dto';
 import { Public } from 'src/decorators/public.decorator';
 
 @ApiTags('Rooms')
@@ -33,6 +34,21 @@ export class RoomsController {
   @Get(':id')
   async getRoomById(@Param('id', ParseIntPipe) id: number) {
     return await this.roomsService.getRoomById(id);
+  }
+
+  @Public()
+  @Post('availability')
+  async checkAvailability(@Body() body: CheckAvailabilityDto) {
+    return await this.roomsService.checkAvailability(body);
+  }
+
+  @Post('quotes')
+  async getPriceQuote(
+    @Body() body: GetPriceQuoteDto,
+    @Request() req: { user?: { sub: number } },
+  ) {
+    const userId = req.user?.sub;
+    return await this.roomsService.getPriceQuote(body, userId);
   }
 
   @Post()

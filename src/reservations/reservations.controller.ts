@@ -15,10 +15,7 @@ import {
   CreateReservationDto,
   EditReservationDto,
   CreateBookingDto,
-  GetPriceQuoteDto,
-  CheckAvailabilityDto,
 } from './dto';
-import { Public } from 'src/decorators/public.decorator';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @ApiTags('Reservations')
@@ -47,22 +44,7 @@ export class ReservationsController {
     return await this.reservationsService.createReservation(userId, body);
   }
 
-  @Public()
-  @Post('check-availability')
-  async checkAvailability(@Body() body: CheckAvailabilityDto) {
-    return await this.reservationsService.checkAvailability(body);
-  }
-
-  @Post('quote')
-  async getPriceQuote(
-    @Body() body: GetPriceQuoteDto,
-    @Request() req: { user?: { sub: number } },
-  ) {
-    const userId = req.user?.sub;
-    return await this.reservationsService.getPriceQuote(body, userId);
-  }
-
-  @Post('booking')
+  @Post('bookings')
   async createBooking(
     @Body() body: CreateBookingDto,
     @Request() req: AuthenticatedRequest,
