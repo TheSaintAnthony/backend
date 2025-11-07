@@ -14,7 +14,7 @@ import { CreateRoomAmenityDto } from './dto';
 
 @ApiTags('Room Amenities')
 @ApiBearerAuth('access-token')
-@Controller('room-amenities')
+@Controller('room/amenities')
 export class RoomAmenitiesController {
   constructor(private roomAmenitiesService: RoomAmenitiesService) {}
 

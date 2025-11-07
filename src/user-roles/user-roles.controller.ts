@@ -15,7 +15,7 @@ import type { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @ApiTags('User Roles')
 @ApiBearerAuth('access-token')
-@Controller('user-roles')
+@Controller('user/roles')
 export class UserRolesController {
   constructor(private userRolesService: UserRolesService) {}
 

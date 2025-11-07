@@ -15,7 +15,7 @@ import { CreateReservationRoomDto, EditReservationRoomDto } from './dto';
 
 @ApiTags('Reservation Rooms')
 @ApiBearerAuth('access-token')
-@Controller('reservation-rooms')
+@Controller('reservation/rooms')
 export class ReservationRoomsController {
   constructor(private reservationRoomsService: ReservationRoomsService) {}
 

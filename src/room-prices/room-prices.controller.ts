@@ -15,7 +15,7 @@ import { CreateRoomPriceDto, EditRoomPriceDto } from './dto';
 
 @ApiTags('Room Prices')
 @ApiBearerAuth('access-token')
-@Controller('room-prices')
+@Controller('room/prices')
 export class RoomPricesController {
   constructor(private roomPricesService: RoomPricesService) {}
 

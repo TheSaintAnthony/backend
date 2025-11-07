@@ -14,7 +14,7 @@ import { CreateActivityPropertyDto } from './dto';
 
 @ApiTags('Activities')
 @ApiBearerAuth('access-token')
-@Controller('activity-property')
+@Controller('activity/property')
 export class ActivityPropertyController {
   constructor(private activityPropertyService: ActivityPropertyService) {}
 

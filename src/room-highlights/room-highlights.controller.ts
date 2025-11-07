@@ -14,7 +14,7 @@ import { CreateRoomHighlightDto } from './dto';
 
 @ApiTags('Room Highlights')
 @ApiBearerAuth('access-token')
-@Controller('room-highlights')
+@Controller('room/highlights')
 export class RoomHighlightsController {
   constructor(private roomHighlightsService: RoomHighlightsService) {}
 
