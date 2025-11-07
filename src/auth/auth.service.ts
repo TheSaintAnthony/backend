@@ -35,7 +35,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    if (!user.verifiedAt) {
+      throw new UnauthorizedException('User not verified');
+    }
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      verifiedAt: user.verifiedAt,
+    };
     return {
       access_token: await this.jwtService.signAsync(payload),
     };
