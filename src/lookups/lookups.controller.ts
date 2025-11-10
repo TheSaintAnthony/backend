@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LookupsService } from './lookups.service';
 import { CreateLookupDto, CreateRoomTypeDto, CreateActivityDto } from './dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @ApiTags('Lookups')
 @ApiBearerAuth('access-token')
@@ -23,11 +24,13 @@ export class LookupsController {
     return this.lookupsService.addAmenity(dto.name);
   }
 
+  @Public()
   @Get('amenities')
   getAmenities() {
     return this.lookupsService.getAmenities();
   }
 
+  @Public()
   @Get('amenities/:id')
   getAmenityById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getAmenityById(id);
@@ -51,11 +54,13 @@ export class LookupsController {
     return this.lookupsService.addRoomType(dto.name, dto.maxCapacity);
   }
 
+  @Public()
   @Get('room/types')
   getRoomTypes() {
     return this.lookupsService.getRoomTypes();
   }
 
+  @Public()
   @Get('room/types/:id')
   getRoomTypeById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getRoomTypeById(id);
@@ -79,11 +84,13 @@ export class LookupsController {
     return this.lookupsService.addHighlight(dto.name);
   }
 
+  @Public()
   @Get('highlights')
   getHighlights() {
     return this.lookupsService.getHighlights();
   }
 
+  @Public()
   @Get('highlights/:id')
   getHighlightById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getHighlightById(id);
@@ -107,11 +114,13 @@ export class LookupsController {
     return this.lookupsService.addReservationStatus(dto.name);
   }
 
+  @Public()
   @Get('reservation/status')
   getReservationStatus() {
     return this.lookupsService.getReservationStatus();
   }
 
+  @Public()
   @Get('reservation/status/:id')
   getReservationStatusById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getReservationStatusById(id);
@@ -135,11 +144,13 @@ export class LookupsController {
     return this.lookupsService.addInvoiceStatus(dto.name);
   }
 
+  @Public()
   @Get('invoice/status')
   getInvoiceStatus() {
     return this.lookupsService.getInvoiceStatus();
   }
 
+  @Public()
   @Get('invoice/status/:id')
   getInvoiceStatusById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getInvoiceStatusById(id);
@@ -163,11 +174,13 @@ export class LookupsController {
     return this.lookupsService.addOccurrenceStatus(dto.name);
   }
 
+  @Public()
   @Get('occurrence/status')
   getOccurrenceStatus() {
     return this.lookupsService.getOccurrenceStatus();
   }
 
+  @Public()
   @Get('occurrence/status/:id')
   getOccurrenceStatusById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getOccurrenceStatusById(id);
@@ -191,11 +204,13 @@ export class LookupsController {
     return this.lookupsService.addRole(dto.name);
   }
 
+  @Public()
   @Get('roles')
   getRoles() {
     return this.lookupsService.getRoles();
   }
 
+  @Public()
   @Get('roles/:id')
   getRoleById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getRoleById(id);
@@ -219,11 +234,13 @@ export class LookupsController {
     return this.lookupsService.addPaymentStatus(dto.name);
   }
 
+  @Public()
   @Get('payment/status')
   getPaymentStatus() {
     return this.lookupsService.getPaymentStatus();
   }
 
+  @Public()
   @Get('payment/status/:id')
   getPaymentStatusById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getPaymentStatusById(id);
@@ -247,11 +264,13 @@ export class LookupsController {
     return this.lookupsService.addPaymentMethod(dto.name);
   }
 
+  @Public()
   @Get('payment/methods')
   getPaymentMethods() {
     return this.lookupsService.getPaymentMethods();
   }
 
+  @Public()
   @Get('payment/methods/:id')
   getPaymentMethodById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getPaymentMethodById(id);
@@ -275,11 +294,13 @@ export class LookupsController {
     return this.lookupsService.addActivity(dto);
   }
 
+  @Public()
   @Get('activities')
   getActivities() {
     return this.lookupsService.getActivities();
   }
 
+  @Public()
   @Get('activities/:id')
   getActivityById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getActivityById(id);

@@ -19,6 +19,7 @@ import { ReservationRoomsModule } from './reservation-rooms/reservation-rooms.mo
 import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { OccurrencesModule } from './occurrences/occurrences.module';
+import { PaypalModule } from './payments/paypal/paypal.module';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { OccurrencesModule } from './occurrences/occurrences.module';
       isGlobal: true,
     }),
     DrizzleModule,
-    AuthModule,
+    AuthModule, // AuthModule provides APP_GUARD internally
     UsersModule,
     EmailModule,
     LookupsModule,
@@ -44,6 +45,7 @@ import { OccurrencesModule } from './occurrences/occurrences.module';
     InvoicesModule,
     PaymentsModule,
     OccurrencesModule,
+    PaypalModule,
   ],
   controllers: [],
   providers: [],

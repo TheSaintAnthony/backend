@@ -23,7 +23,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async signIn(data: SignInDto): Promise<{ access_token: string }> {
+  async signIn(data: SignInDto): Promise<{ accessToken: string }> {
     const user = await this.usersService.findOne(data.email);
 
     if (!user) {
@@ -45,7 +45,7 @@ export class AuthService {
       verifiedAt: user.verifiedAt,
     };
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      accessToken: await this.jwtService.signAsync(payload),
     };
   }
 

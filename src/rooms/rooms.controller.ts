@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomsService } from './rooms.service';
-import { CreateRoomDto, EditRoomDto, CheckAvailabilityDto, GetPriceQuoteDto } from './dto';
+import {
+  CreateRoomDto,
+  EditRoomDto,
+  CheckAvailabilityDto,
+  GetPriceQuoteDto,
+} from './dto';
 import { Public } from 'src/decorators/public.decorator';
 
 @ApiTags('Rooms')
@@ -45,9 +50,9 @@ export class RoomsController {
   @Post('quotes')
   async getPriceQuote(
     @Body() body: GetPriceQuoteDto,
-    @Request() req: { user?: { sub: number } },
+    @Request() req: { user: { sub: number } },
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user.sub;
     return await this.roomsService.getPriceQuote(body, userId);
   }
 

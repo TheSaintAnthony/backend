@@ -75,4 +75,34 @@ export class PaymentsService {
       .where(eq(schema.payments.id, id))
       .returning();
   }
+
+  async findByTransactionId(transactionId: string) {
+    const [payment] = await this.db
+      .select()
+      .from(schema.payments)
+      .where(eq(schema.payments.transactionId, transactionId));
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return payment;
+  }
+
+  async updatePayment(id: number, data: EditPaymentDto) {
+    const [payment] = await this.db
+      .select()
+      .from(schema.payments)
+      .where(eq(schema.payments.id, id));
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return await this.db
+      .update(schema.payments)
+      .set({ ...data })
+      .where(eq(schema.payments.id, id))
+      .returning();
+  }
 }

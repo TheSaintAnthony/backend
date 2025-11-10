@@ -91,7 +91,7 @@ export class RoomHoldsService {
     ];
 
     if (excludeUserId) {
-      // Exclude holds from this user (use ne instead of eq)
+      
       conditions.push(ne(schema.roomHolds.userId, excludeUserId));
     }
 
