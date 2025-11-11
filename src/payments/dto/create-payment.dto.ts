@@ -4,29 +4,42 @@ import {
   IsNumberString,
   IsString,
   IsOptional,
+  IsDateString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePaymentDto {
-  @ApiProperty({ description: 'Invoice ID', example: 1 })
+  @ApiProperty()
   @IsInt()
   @IsPositive()
   invoiceId: number;
 
-  @ApiProperty({ description: 'Payment amount', example: '500.00' })
+  @ApiProperty()
   @IsNumberString()
   amount: string;
 
-  @ApiProperty({ description: 'Payment method ID', example: 1 })
+  @ApiProperty()
   @IsInt()
   @IsPositive()
   paymentMethodId: number;
 
-  @ApiPropertyOptional({
-    description: 'Transaction ID from payment gateway',
-    example: 'txn_abc123',
-  })
+  @ApiProperty()
+  @IsInt()
+  @IsPositive()
+  paymentStatusId: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   transactionId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  externalReferenceId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  paidAt?: Date;
 }

@@ -75,7 +75,6 @@ export class EmailService {
   }
 
   async sendReservationConfirmationEmail(emailPayload: EmailConfirmation) {
-    // Format room details
     const roomDetails = emailPayload.rooms
       .map((room, index) => {
         return `\n\tRoom ${index + 1}:

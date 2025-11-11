@@ -21,4 +21,3 @@ export class CheckAvailabilityDto {
   @IsDateString()
   checkOut: string;
 }
-

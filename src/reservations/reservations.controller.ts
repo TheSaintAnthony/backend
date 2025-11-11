@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
@@ -17,9 +18,11 @@ import {
   CreateBookingDto,
 } from './dto';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @ApiTags('Reservations')
 @ApiBearerAuth('access-token')
+@UseGuards(AuthGuard)
 @Controller('reservations')
 export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
@@ -51,6 +54,20 @@ export class ReservationsController {
   ) {
     const userId = req.user.sub;
     return await this.reservationsService.createBooking(userId, body);
+  }
+
+  @Post('bookings/paypal')
+  async createPaypalBooking(
+    @Body() body: CreateBookingDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user.sub;
+    return await this.reservationsService.createPaypalBooking(userId, body);
+  }
+
+  @Post('bookings/paypal/:orderId/complete')
+  async completePaypalBooking(@Param('orderId') orderId: string) {
+    return await this.reservationsService.completePaypalBooking(orderId);
   }
 
   @Patch(':id')

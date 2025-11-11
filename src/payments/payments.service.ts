@@ -3,7 +3,9 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreatePaymentDto, EditPaymentDto } from './dto';
-import { eq } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { PaymentStatus } from 'src/constants';
 
 @Injectable()
 export class PaymentsService {
@@ -74,5 +76,57 @@ export class PaymentsService {
       .delete(schema.payments)
       .where(eq(schema.payments.id, id))
       .returning();
+  }
+
+  async findByTransactionId(transactionId: string) {
+    const [payment] = await this.db
+      .select()
+      .from(schema.payments)
+      .where(eq(schema.payments.transactionId, transactionId));
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return payment;
+  }
+
+  async updatePayment(id: number, data: EditPaymentDto) {
+    const [payment] = await this.db
+      .select()
+      .from(schema.payments)
+      .where(eq(schema.payments.id, id));
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    return await this.db
+      .update(schema.payments)
+      .set({ ...data })
+      .where(eq(schema.payments.id, id))
+      .returning();
+  }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async deleteExpiredPendingPayments() {
+    const [paymentPending] = await this.db
+      .select({ id: schema.paymentStatus.id })
+      .from(schema.paymentStatus)
+      .where(eq(schema.paymentStatus.name, PaymentStatus.PENDING));
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+    const result = await this.db
+      .delete(schema.reservations)
+      .where(
+        and(
+          eq(schema.reservations.paymentStatusId, paymentPending.id),
+          lt(schema.reservations.createdAt, tenMinutesAgo),
+        ),
+      );
+
+    console.log('Cron job executed');
+    console.log(result);
   }
 }

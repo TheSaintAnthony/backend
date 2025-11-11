@@ -39,6 +39,7 @@ async function bootstrap() {
     customSiteTitle: 'St. Anthony API Documentation',
   });
 
+  app.enableCors();
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

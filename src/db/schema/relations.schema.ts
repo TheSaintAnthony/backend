@@ -12,6 +12,8 @@ import {
   reservationStatus,
   invoiceStatus,
   occurrenceStatus,
+  paymentStatus,
+  paymentMethods,
 } from './lookup-tables.schema';
 import { roomAmenities } from './room-amenities.schema';
 import { roomHighlights } from './room-highlights.schema';
@@ -126,6 +128,14 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   invoice: one(invoices, {
     fields: [payments.invoiceId],
     references: [invoices.id],
+  }),
+  status: one(paymentStatus, {
+    fields: [payments.paymentStatusId],
+    references: [paymentStatus.id],
+  }),
+  paymentMethod: one(paymentMethods, {
+    fields: [payments.paymentMethodId],
+    references: [paymentMethods.id],
   }),
 }));
 

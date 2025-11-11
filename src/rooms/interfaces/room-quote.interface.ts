@@ -8,4 +8,3 @@ export interface RoomQuote {
   available: boolean;
   error?: string;
 }
-

@@ -1,8 +1,18 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { CreateRoomDto, EditRoomDto, CheckAvailabilityDto, GetPriceQuoteDto } from './dto';
+import {
+  CreateRoomDto,
+  EditRoomDto,
+  CheckAvailabilityDto,
+  GetPriceQuoteDto,
+} from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
 import { eq, and, lte, gte, or } from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
@@ -222,7 +232,6 @@ export class RoomsService {
       )
       .where(eq(schema.rooms.propertyId, propertyId));
 
-    // Group rooms and aggregate amenities/highlights
     const roomsMap = new Map<number, RoomWithDetails>();
 
     for (const row of roomsData) {
@@ -323,8 +332,8 @@ export class RoomsService {
     };
   }
 
-  async getPriceQuote(data: GetPriceQuoteDto, userId?: number) {
-    const { rooms } = data;
+  async getPriceQuote(data: GetPriceQuoteDto, userId: number) {
+    const { rooms, createHolds = true } = data;
 
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
@@ -393,7 +402,8 @@ export class RoomsService {
         available: isAvailable,
       });
 
-      if (isAvailable && userId) {
+      // Only create holds if explicitly requested (e.g., on room details page)
+      if (isAvailable && createHolds) {
         await this.roomHoldsService.createHold(
           userId,
           roomId,

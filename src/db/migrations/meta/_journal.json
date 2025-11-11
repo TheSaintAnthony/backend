@@ -78,6 +78,13 @@
       "when": 1762447879410,
       "tag": "0010_add-verified-at",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1762769817453,
+      "tag": "0011_refactor-payments",
+      "breakpoints": true
     }
   ]
 }

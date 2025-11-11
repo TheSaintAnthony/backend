@@ -65,7 +65,10 @@ export class UsersService {
     const [createdAddress] = await this.db
       .insert(schema.addresses)
       .values({
-        ...address,
+        street: address.street,
+        city: address.city,
+        zipCode: address.zipCode,
+        country: address.country,
       })
       .returning({ id: schema.addresses.id });
 
