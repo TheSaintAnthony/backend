@@ -13,6 +13,8 @@ import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { EditPropertyDto } from './dto/edit-property.dto';
 import { Public } from 'src/decorators/public.decorator';
+import { Roles } from 'src/decorators/role.decorator';
+import { UserRole } from 'src/constants';
 
 @ApiTags('Properties')
 @ApiBearerAuth('access-token')
@@ -32,11 +34,13 @@ export class PropertiesController {
     return await this.propertiesService.getPropertyById(id);
   }
 
+  @Roles(UserRole.ADMIN)
   @Post()
   async createProperty(@Body() dto: CreatePropertyDto) {
     return await this.propertiesService.createProperty(dto);
   }
 
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   async editProperty(
     @Param('id', ParseIntPipe) id: number,
@@ -45,6 +49,7 @@ export class PropertiesController {
     return await this.propertiesService.editProperty(id, dto);
   }
 
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteProperty(@Param('id', ParseIntPipe) id: number) {
     return await this.propertiesService.deleteProperty(id);
