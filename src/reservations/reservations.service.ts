@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -24,6 +25,7 @@ import { PaypalService } from 'src/payments/paypal/paypal.service';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
+  private readonly logger = new Logger(ReservationsService.name);
   private completedPaymentStatusId: number;
   private pendingPaymentStatusId: number;
   private paypalMethodId: number;
@@ -214,6 +216,12 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException(`Room ${roomId} not found`);
       }
 
+      if (room.maxCapacity && roomBooking.guestsCount > room.maxCapacity) {
+        throw new BadRequestException(
+          'Guests count is bigger than room max capacity',
+        );
+      }
+
       const hasHold = await this.roomHoldsService.hasActiveHold(
         userId,
         roomId,
@@ -233,6 +241,7 @@ export class ReservationsService implements OnModuleInit {
         checkOut,
         userId,
       );
+
       if (!isAvailable) {
         throw new BadRequestException(
           `Room ${roomId} is not available for the selected dates`,
@@ -348,7 +357,6 @@ export class ReservationsService implements OnModuleInit {
 
   async createPaypalBooking(userId: number, data: CreateBookingDto) {
     const { rooms, specialRequests } = data;
-
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
     }
@@ -365,8 +373,15 @@ export class ReservationsService implements OnModuleInit {
       const { roomId, checkIn, checkOut } = roomBooking;
 
       const room = await this.roomsService.getRoomById(roomId);
+
       if (!room) {
         throw new NotFoundException(`Room ${roomId} not found`);
+      }
+
+      if (room.maxCapacity && roomBooking.guestsCount > room.maxCapacity) {
+        throw new BadRequestException(
+          'Guests count is bigger than room max capacity',
+        );
       }
 
       const hasHold = await this.roomHoldsService.hasActiveHold(

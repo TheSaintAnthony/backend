@@ -25,7 +25,7 @@ export class AuthService {
   ) {}
 
   async signIn(data: SignInDto): Promise<{ accessToken: string }> {
-    const user = await this.usersService.findOne(data.email);
+    const user = await this.usersService.findOneByEmail(data.email);
     console.log(user);
 
     if (!user) {
@@ -81,7 +81,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    const user = await this.usersService.findOne(email);
+    const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -93,7 +93,7 @@ export class AuthService {
   async resetPassword(data: PasswordResetDto) {
     const email = await this.decodeResetPasswordTokenToEmail(data.token);
 
-    const user = await this.usersService.findOne(email);
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('User not found');
     }

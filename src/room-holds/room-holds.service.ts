@@ -168,8 +168,9 @@ export class RoomHoldsService {
       throw new InternalServerErrorException('Error fetching room holds');
     }
 
-    this.logger.log(
-      `${result.rowCount} expired room holds deleted successfully`,
-    );
+    if (result && result.rowCount && result.rowCount > 0)
+      this.logger.log(
+        `${result.rowCount} expired room holds deleted successfully`,
+      );
   }
 }

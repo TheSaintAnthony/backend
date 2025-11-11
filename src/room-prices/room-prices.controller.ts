@@ -23,8 +23,10 @@ export class RoomPricesController {
 
   @Roles(UserRole.ADMIN)
   @Get()
-  async getRoomPrices(@Query('roomId', ParseIntPipe) roomId?: number) {
-    if (roomId) {
+  async getRoomPrices(
+    @Query('roomId', new ParseIntPipe({ optional: true })) roomId?: number,
+  ) {
+    if (roomId !== undefined) {
       return await this.roomPricesService.getRoomPricesByRoom(roomId);
     }
     return await this.roomPricesService.getRoomPrices();

@@ -29,6 +29,12 @@ export class UserRolesController {
   }
 
   @Roles(UserRole.ADMIN)
+  @Get('user/:userId')
+  async getUserRolesByUserId(@Param('userId', ParseIntPipe) userId: number) {
+    return await this.userRolesService.getUserRolesByUser(userId);
+  }
+
+  @Roles(UserRole.ADMIN)
   @Get(':id')
   async getUserRoleById(@Param('id', ParseIntPipe) id: number) {
     return await this.userRolesService.getUserRoleById(id);

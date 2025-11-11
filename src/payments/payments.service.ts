@@ -138,8 +138,10 @@ export class PaymentsService {
       throw new InternalServerErrorException('Error fetching reservations');
     }
 
-    this.logger.log(
-      `${result.rowCount} expired pending payments deleted successfully`,
-    );
+    if (result && result.rowCount && result.rowCount > 0) {
+      this.logger.log(
+        `${result.rowCount} expired pending payments deleted successfully`,
+      );
+    }
   }
 }

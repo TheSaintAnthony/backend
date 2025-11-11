@@ -30,8 +30,11 @@ export class RoomsController {
 
   @Public()
   @Get()
-  async getRooms(@Query('propertyId', ParseIntPipe) propertyId?: number) {
-    if (propertyId) {
+  async getRooms(
+    @Query('propertyId', new ParseIntPipe({ optional: true }))
+    propertyId?: number,
+  ) {
+    if (propertyId !== undefined) {
       return await this.roomsService.getRoomsByProperty(propertyId);
     }
     return await this.roomsService.getRooms();

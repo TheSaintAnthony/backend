@@ -8,6 +8,7 @@ import {
   IsString,
   Min,
   ArrayMinSize,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -37,10 +38,10 @@ export class BookingRoomDto {
     example: 2,
     minimum: 1,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsInt()
   @Min(1)
-  guestsCount?: number;
+  guestsCount: number;
 }
 
 export class CreateBookingDto {
