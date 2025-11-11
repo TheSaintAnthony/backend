@@ -20,14 +20,16 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { OccurrencesModule } from './occurrences/occurrences.module';
 import { PaypalModule } from './payments/paypal/paypal.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     DrizzleModule,
-    AuthModule, // AuthModule provides APP_GUARD internally
+    AuthModule,
     UsersModule,
     EmailModule,
     LookupsModule,
