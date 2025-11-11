@@ -52,12 +52,13 @@ export class RoomsController {
     return await this.roomsService.checkAvailability(body);
   }
 
+  @Public()
   @Post('quotes')
   async getPriceQuote(
     @Body() body: GetPriceQuoteDto,
-    @Request() req: { user: { sub: number } },
+    @Request() req?: { user?: { sub: number } },
   ) {
-    const userId = req.user.sub;
+    const userId = req?.user?.sub || 0;
     return await this.roomsService.getPriceQuote(body, userId);
   }
 

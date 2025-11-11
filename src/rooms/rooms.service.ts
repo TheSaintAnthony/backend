@@ -402,8 +402,7 @@ export class RoomsService {
         available: isAvailable,
       });
 
-      // Only create holds if explicitly requested (e.g., on room details page)
-      if (isAvailable && createHolds) {
+      if (isAvailable && createHolds && userId > 0) {
         await this.roomHoldsService.createHold(
           userId,
           roomId,
