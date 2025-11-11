@@ -11,6 +11,8 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomAmenitiesService } from './room-amenities.service';
 import { CreateRoomAmenityDto } from './dto';
+import { Roles } from 'src/decorators/role.decorator';
+import { UserRole } from 'src/constants';
 
 @ApiTags('Room Amenities')
 @ApiBearerAuth('access-token')
@@ -31,11 +33,13 @@ export class RoomAmenitiesController {
     return await this.roomAmenitiesService.getRoomAmenityById(id);
   }
 
+  @Roles(UserRole.ADMIN)
   @Post()
   async createRoomAmenity(@Body() body: CreateRoomAmenityDto) {
     return await this.roomAmenitiesService.createRoomAmenity(body);
   }
 
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoomAmenity(@Param('id', ParseIntPipe) id: number) {
     return await this.roomAmenitiesService.deleteRoomAmenity(id);

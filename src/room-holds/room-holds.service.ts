@@ -1,12 +1,20 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { eq, and, gte, lte, or, lt, ne } from 'drizzle-orm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class RoomHoldsService {
   private readonly HOLD_DURATION_MINUTES = 10;
+
+  private readonly logger = new Logger(RoomHoldsService.name);
 
   constructor(
     @Inject(DB_PROVIDER)
@@ -91,7 +99,6 @@ export class RoomHoldsService {
     ];
 
     if (excludeUserId) {
-      
       conditions.push(ne(schema.roomHolds.userId, excludeUserId));
     }
 
@@ -147,5 +154,22 @@ export class RoomHoldsService {
       .returning();
 
     return result.length;
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async deleteExpiredPendingPayments() {
+    const now = new Date(Date.now());
+
+    const result = await this.db
+      .delete(schema.roomHolds)
+      .where(and(lt(schema.roomHolds.expiresAt, now)));
+
+    if (!result) {
+      throw new InternalServerErrorException('Error fetching room holds');
+    }
+
+    this.logger.log(
+      `${result.rowCount} expired room holds deleted successfully`,
+    );
   }
 }

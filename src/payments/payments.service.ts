@@ -1,4 +1,10 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -9,6 +15,8 @@ import { PaymentStatus } from 'src/constants';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -108,7 +116,7 @@ export class PaymentsService {
       .returning();
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  @Cron(CronExpression.EVERY_MINUTE)
   async deleteExpiredPendingPayments() {
     const [paymentPending] = await this.db
       .select({ id: schema.paymentStatus.id })
@@ -126,7 +134,12 @@ export class PaymentsService {
         ),
       );
 
-    console.log('Cron job executed');
-    console.log(result);
+    if (!result) {
+      throw new InternalServerErrorException('Error fetching reservations');
+    }
+
+    this.logger.log(
+      `${result.rowCount} expired pending payments deleted successfully`,
+    );
   }
 }

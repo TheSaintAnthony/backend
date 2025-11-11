@@ -11,6 +11,8 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoomHighlightsService } from './room-highlights.service';
 import { CreateRoomHighlightDto } from './dto';
+import { Roles } from 'src/decorators/role.decorator';
+import { UserRole } from 'src/constants';
 
 @ApiTags('Room Highlights')
 @ApiBearerAuth('access-token')
@@ -31,11 +33,13 @@ export class RoomHighlightsController {
     return await this.roomHighlightsService.getRoomHighlightById(id);
   }
 
+  @Roles(UserRole.ADMIN)
   @Post()
   async createRoomHighlight(@Body() body: CreateRoomHighlightDto) {
     return await this.roomHighlightsService.createRoomHighlight(body);
   }
 
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoomHighlight(@Param('id', ParseIntPipe) id: number) {
     return await this.roomHighlightsService.deleteRoomHighlight(id);

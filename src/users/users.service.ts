@@ -5,6 +5,7 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { SignUpDto } from 'src/auth/dto/auth.dto';
 import { EditUserDto } from './dto';
+import { UserRole } from 'src/constants';
 
 @Injectable()
 export class UsersService {
@@ -17,14 +18,22 @@ export class UsersService {
     const [user] = await this.db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, email))
-      .limit(1);
+      .where(eq(schema.users.email, email));
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    const roles = await this.db
+      .select({ name: schema.roles.name })
+      .from(schema.roles)
+      .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
+      .where(eq(schema.userRoles.userId, user.id));
+
+    return {
+      ...user,
+      roles,
+    };
   }
 
   async findByEmail(email: string) {
@@ -80,6 +89,15 @@ export class UsersService {
         addressId: createdAddress.id,
       })
       .returning();
+
+    const [role] = await this.db
+      .select({ id: schema.roles.id })
+      .from(schema.roles)
+      .where(eq(schema.roles.name, UserRole.USER));
+
+    await this.db
+      .insert(schema.userRoles)
+      .values({ userId: createdUser.id, roleId: role.id });
 
     return createdUser;
   }

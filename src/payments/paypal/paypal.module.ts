@@ -1,12 +1,15 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PaypalService } from './paypal.service';
 import { PaypalController } from './paypal.controller';
 import { ConfigModule } from '@nestjs/config';
-import { PaymentsService } from '../payments.service';
+import { PaymentsModule } from '../payments.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
-  providers: [PaypalService, PaymentsService],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    forwardRef(() => PaymentsModule),
+  ],
+  providers: [PaypalService],
   controllers: [PaypalController],
   exports: [PaypalService],
 })

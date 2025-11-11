@@ -19,6 +19,8 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { Public } from 'src/decorators/public.decorator';
+import { Roles } from 'src/decorators/role.decorator';
+import { UserRole } from 'src/constants';
 
 @ApiTags('Rooms')
 @ApiBearerAuth('access-token')
@@ -56,11 +58,13 @@ export class RoomsController {
     return await this.roomsService.getPriceQuote(body, userId);
   }
 
+  @Roles(UserRole.ADMIN)
   @Post()
   async createRoom(@Body() body: CreateRoomDto) {
     return await this.roomsService.createRoom(body);
   }
 
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   async editRoom(
     @Param('id', ParseIntPipe) id: number,
@@ -69,6 +73,7 @@ export class RoomsController {
     return await this.roomsService.editRoom(id, body);
   }
 
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoom(@Param('id', ParseIntPipe) id: number) {
     return await this.roomsService.deleteRoom(id);

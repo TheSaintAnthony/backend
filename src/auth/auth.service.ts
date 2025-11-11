@@ -13,6 +13,7 @@ import { PasswordResetDto, SignInDto, SignUpDto } from './dto/auth.dto';
 import { JwtPayload } from './interfaces';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { UserRole } from 'src/constants';
 
 @Injectable()
 export class AuthService {
@@ -25,12 +26,14 @@ export class AuthService {
 
   async signIn(data: SignInDto): Promise<{ accessToken: string }> {
     const user = await this.usersService.findOne(data.email);
+    console.log(user);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isMatch = await bcrypt.compare(data.password, user.passwordHash);
+
     if (!isMatch) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -39,11 +42,17 @@ export class AuthService {
       throw new UnauthorizedException('User not verified');
     }
 
+    const userRoles: UserRole[] = user.roles.map((role) =>
+      role.name === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER,
+    );
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       verifiedAt: user.verifiedAt,
+      roles: userRoles,
     };
+
     return {
       accessToken: await this.jwtService.signAsync(payload),
     };

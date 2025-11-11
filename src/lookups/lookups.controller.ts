@@ -204,13 +204,11 @@ export class LookupsController {
     return this.lookupsService.addRole(dto.name);
   }
 
-  @Public()
   @Get('roles')
   getRoles() {
     return this.lookupsService.getRoles();
   }
 
-  @Public()
   @Get('roles/:id')
   getRoleById(@Param('id', ParseIntPipe) id: number) {
     return this.lookupsService.getRoleById(id);
