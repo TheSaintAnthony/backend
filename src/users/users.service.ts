@@ -148,12 +148,10 @@ export class UsersService {
     }
 
     const addressId: number = user.addressId!;
-    const resultAddress = await this.db
+    await this.db
       .update(schema.addresses)
       .set({ ...address })
       .where(eq(schema.addresses.id, addressId));
-
-    console.log(resultAddress);
 
     return await this.db
       .update(schema.users)

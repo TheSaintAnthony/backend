@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -151,7 +152,6 @@ describe('Booking Flow (e2e)', () => {
       expect(response.body.length).toBeGreaterThan(0);
 
       roomId = response.body[0].id;
-      console.log('Room Id: ', roomId);
       expect(roomId).toBeDefined();
     });
 
@@ -187,7 +187,7 @@ describe('Booking Flow (e2e)', () => {
     });
 
     it('should handle check availability with invalid dates gracefully', async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/rooms/availability')
         .send({
           roomId,
