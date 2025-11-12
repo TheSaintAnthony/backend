@@ -22,12 +22,22 @@ import { OccurrencesModule } from './occurrences/occurrences.module';
 import { PaypalModule } from './payments/paypal/paypal.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from './config/validation';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: validationSchema,
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60,
+          limit: 15,
+        },
+      ],
     }),
     ScheduleModule.forRoot(),
     DrizzleModule,
@@ -52,6 +62,11 @@ import { validationSchema } from './config/validation';
     PaypalModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

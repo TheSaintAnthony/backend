@@ -46,7 +46,9 @@ async function bootstrap() {
     customSiteTitle: 'St. Anthony API Documentation',
   });
 
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:4200',
+  });
   app.use(helmet());
   app.useGlobalInterceptors(new LoggingInterceptor());
   await app.listen(process.env.PORT ?? 3000);
