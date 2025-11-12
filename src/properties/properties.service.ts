@@ -1,4 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { NotFoundException, DatabaseException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -41,7 +42,7 @@ export class PropertiesService {
       .where(eq(schema.properties.id, id));
 
     if (!property) {
-      throw new NotFoundException('Property not found');
+      throw new NotFoundException('Property', String(id));
     }
 
     return property;
@@ -55,7 +56,7 @@ export class PropertiesService {
       .limit(1);
 
     if (!property) {
-      throw new NotFoundException('Property not found');
+      throw new NotFoundException('Property', String(id));
     }
 
     const { address, ...propertyData } = data;
@@ -68,7 +69,7 @@ export class PropertiesService {
       .returning();
 
     if (!updateAddressResult) {
-      throw new NotFoundException('Address not found or not updated');
+      throw new NotFoundException('Address', String(addressId));
     }
 
     return await this.db
@@ -84,7 +85,7 @@ export class PropertiesService {
       .where(eq(schema.properties.id, id));
 
     if (!property) {
-      throw new NotFoundException('Property not found');
+      throw new NotFoundException('Property', String(id));
     }
 
     const [result] = await this.db
@@ -93,7 +94,10 @@ export class PropertiesService {
       .returning();
 
     if (!result) {
-      throw new NotFoundException('Impossible to delete property');
+      throw new DatabaseException('Failed to delete property', {
+        propertyId: id,
+        operation: 'delete',
+      });
     }
   }
 }

@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  Inject,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { DatabaseException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -165,7 +161,9 @@ export class RoomHoldsService {
       .where(and(lt(schema.roomHolds.expiresAt, now)));
 
     if (!result) {
-      throw new InternalServerErrorException('Error fetching room holds');
+      throw new DatabaseException('Error fetching room holds', {
+        operation: 'fetch',
+      });
     }
 
     if (result && result.rowCount && result.rowCount > 0)

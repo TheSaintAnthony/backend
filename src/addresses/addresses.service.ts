@@ -1,4 +1,5 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { NotFoundException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -30,7 +31,7 @@ export class AddressesService {
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address not found');
+      throw new NotFoundException('Address', String(id));
     }
 
     return address;
@@ -43,7 +44,7 @@ export class AddressesService {
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address not found');
+      throw new NotFoundException('Address', String(id));
     }
 
     return this.db
@@ -61,7 +62,7 @@ export class AddressesService {
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address not found');
+      throw new NotFoundException('Address', String(id));
     }
 
     return await this.db

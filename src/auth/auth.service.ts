@@ -1,11 +1,11 @@
 /* eslint-disable */
+import { Injectable } from '@nestjs/common';
 import {
   BadRequestException,
   ConflictException,
-  Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
+} from 'src/filters';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -61,7 +61,9 @@ export class AuthService {
     const user = await this.usersService.findByEmail(data.email);
 
     if (user) {
-      throw new ConflictException('User already exists');
+      throw new ConflictException('User with this email already exists', {
+        email: data.email,
+      });
     }
 
     const passwordHash = await bcrypt.hash(data.password, 10);
@@ -83,7 +85,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', email);
     }
 
     return this.emailService.sendResetPasswordLink(email);
@@ -94,7 +96,7 @@ export class AuthService {
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', email);
     }
 
     const passwordHashed = await bcrypt.hash(data.password, 10);
@@ -112,12 +114,12 @@ export class AuthService {
       if (typeof payload === 'object' && 'email' in payload) {
         return payload.email;
       }
-      throw new BadRequestException();
+      throw new BadRequestException('Invalid token payload');
     } catch (error) {
       if (error?.name === 'TokenExpiredError') {
         throw new BadRequestException('Password reset token expired');
       }
-      throw new BadRequestException('Bad confirmation token');
+      throw new BadRequestException('Invalid or malformed confirmation token');
     }
   }
 
@@ -131,12 +133,12 @@ export class AuthService {
       if (typeof payload === 'object' && 'subb' in payload) {
         return payload.subb;
       }
-      throw new BadRequestException();
+      throw new BadRequestException('Invalid token payload');
     } catch (error) {
       if (error?.name === 'TokenExpiredError') {
         throw new BadRequestException('User verification token expired');
       }
-      throw new BadRequestException('Bad confirmation token');
+      throw new BadRequestException('Invalid or malformed confirmation token');
     }
   }
 }

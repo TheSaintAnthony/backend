@@ -30,7 +30,7 @@ export class InvoicesService {
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Invoice', String(id));
     }
 
     return invoice;
@@ -50,7 +50,7 @@ export class InvoicesService {
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Invoice', String(id));
     }
 
     return await this.db
@@ -67,7 +67,7 @@ export class InvoicesService {
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Invoice', String(id));
     }
 
     return await this.db

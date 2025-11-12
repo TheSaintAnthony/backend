@@ -30,7 +30,7 @@ export class ActivityPropertyService {
       .where(eq(schema.activityProperty.id, id));
 
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException('Activity property', String(id));
     }
 
     return activityProperty;
@@ -57,7 +57,7 @@ export class ActivityPropertyService {
       .where(eq(schema.activityProperty.id, id));
 
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException('Activity property', String(id));
     }
 
     return await this.db
@@ -81,7 +81,10 @@ export class ActivityPropertyService {
       );
 
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException(
+        'Activity property',
+        `${activityId}-${propertyId}`,
+      );
     }
 
     return await this.db

@@ -30,7 +30,7 @@ export class RoomHighlightsService {
       .where(eq(schema.roomHighlights.id, id));
 
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', String(id));
     }
 
     return roomHighlight;
@@ -50,7 +50,7 @@ export class RoomHighlightsService {
       .where(eq(schema.roomHighlights.id, id));
 
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', String(id));
     }
 
     return await this.db
@@ -74,7 +74,7 @@ export class RoomHighlightsService {
       );
 
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', `${roomId}-${highlightId}`);
     }
 
     return await this.db

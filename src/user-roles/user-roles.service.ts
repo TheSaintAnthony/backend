@@ -30,7 +30,7 @@ export class UserRolesService {
       .where(eq(schema.userRoles.id, id));
 
     if (!userRole) {
-      throw new NotFoundException('User role not found');
+      throw new NotFoundException('User role', String(id));
     }
 
     return userRole;
@@ -50,7 +50,7 @@ export class UserRolesService {
       .where(eq(schema.userRoles.id, id));
 
     if (!userRole) {
-      throw new NotFoundException('User role not found');
+      throw new NotFoundException('User role', String(id));
     }
 
     return await this.db
@@ -71,7 +71,7 @@ export class UserRolesService {
       );
 
     if (!userRole) {
-      throw new NotFoundException('User role not found');
+      throw new NotFoundException('User role', `${userId}-${roleId}`);
     }
 
     return await this.db

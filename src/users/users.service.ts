@@ -1,4 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from 'src/filters';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -21,7 +22,9 @@ export class UsersService {
       .where(eq(schema.users.email, email));
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UnauthorizedException(
+        'Login failed. Incorrect login credentials.',
+      );
     }
 
     const roles = await this.db
@@ -43,7 +46,7 @@ export class UsersService {
       .where(eq(schema.users.email, email));
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', email);
     }
 
     const roles = await this.db
@@ -75,7 +78,7 @@ export class UsersService {
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', String(id));
     }
 
     return user;
@@ -124,7 +127,7 @@ export class UsersService {
       .where(eq(schema.users.email, email));
 
     if (!result) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', email);
     }
 
     const { userId } = result;
@@ -144,7 +147,7 @@ export class UsersService {
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', String(id));
     }
 
     const addressId: number = user.addressId!;
@@ -166,7 +169,7 @@ export class UsersService {
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', String(id));
     }
 
     return await this.db.delete(schema.users).where(eq(schema.users.id, id));

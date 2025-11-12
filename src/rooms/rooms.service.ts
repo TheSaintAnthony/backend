@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -154,7 +150,7 @@ export class RoomsService {
       .where(eq(schema.rooms.id, id));
 
     if (!roomsData || roomsData.length === 0) {
-      throw new NotFoundException('Room not found');
+      throw new NotFoundException('Room', String(id));
     }
 
     const room: RoomWithDetails = {
@@ -281,7 +277,7 @@ export class RoomsService {
       .where(eq(schema.rooms.id, id));
 
     if (!room) {
-      throw new NotFoundException('Room not found');
+      throw new NotFoundException('Room', String(id));
     }
 
     return await this.db
@@ -298,7 +294,7 @@ export class RoomsService {
       .where(eq(schema.rooms.id, id));
 
     if (!room) {
-      throw new NotFoundException('Room not found');
+      throw new NotFoundException('Room', String(id));
     }
 
     return await this.db
@@ -312,7 +308,7 @@ export class RoomsService {
 
     const room = await this.getRoomById(roomId);
     if (!room) {
-      throw new NotFoundException('Room not found');
+      throw new NotFoundException('Room', String(roomId));
     }
 
     const isAvailable = await this.checkRoomAvailability(
@@ -348,7 +344,7 @@ export class RoomsService {
 
       const room = await this.getRoomById(roomId);
       if (!room) {
-        throw new NotFoundException(`Room ${roomId} not found`);
+        throw new NotFoundException('Room', String(roomId));
       }
 
       const isAvailable = await this.checkRoomAvailability(

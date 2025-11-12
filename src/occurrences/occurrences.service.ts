@@ -30,7 +30,7 @@ export class OccurrencesService {
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException('Occurrence', String(id));
     }
 
     return occurrence;
@@ -50,7 +50,7 @@ export class OccurrencesService {
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException('Occurrence', String(id));
     }
 
     return await this.db
@@ -67,7 +67,7 @@ export class OccurrencesService {
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence not found');
+      throw new NotFoundException('Occurrence', String(id));
     }
 
     return await this.db

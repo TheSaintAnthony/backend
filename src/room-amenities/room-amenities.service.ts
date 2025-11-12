@@ -30,7 +30,7 @@ export class RoomAmenitiesService {
       .where(eq(schema.roomAmenities.id, id));
 
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', String(id));
     }
 
     return roomAmenity;
@@ -50,7 +50,7 @@ export class RoomAmenitiesService {
       .where(eq(schema.roomAmenities.id, id));
 
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', String(id));
     }
 
     return await this.db
@@ -71,7 +71,7 @@ export class RoomAmenitiesService {
       );
 
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', `${roomId}-${amenityId}`);
     }
 
     return await this.db

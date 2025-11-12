@@ -1,11 +1,5 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-  OnModuleInit,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -97,7 +91,7 @@ export class ReservationsService implements OnModuleInit {
       .where(eq(schema.reservations.id, id));
 
     if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException('Reservation', String(id));
     }
 
     return reservation;
@@ -167,7 +161,7 @@ export class ReservationsService implements OnModuleInit {
       .where(eq(schema.reservations.id, id));
 
     if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException('Reservation', String(id));
     }
 
     return await this.db
@@ -184,7 +178,7 @@ export class ReservationsService implements OnModuleInit {
       .where(eq(schema.reservations.id, id));
 
     if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException('Reservation', String(id));
     }
 
     return await this.db
@@ -202,7 +196,7 @@ export class ReservationsService implements OnModuleInit {
 
     const user = await this.usersService.getUserById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', String(userId));
     }
 
     let totalPrice = 0;
@@ -213,7 +207,7 @@ export class ReservationsService implements OnModuleInit {
 
       const room = await this.roomsService.getRoomById(roomId);
       if (!room) {
-        throw new NotFoundException(`Room ${roomId} not found`);
+        throw new NotFoundException('Room', String(roomId));
       }
 
       if (room.maxCapacity && roomBooking.guestsCount > room.maxCapacity) {
@@ -363,7 +357,7 @@ export class ReservationsService implements OnModuleInit {
 
     const user = await this.usersService.getUserById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User', String(userId));
     }
 
     let totalPrice = 0;
@@ -375,7 +369,7 @@ export class ReservationsService implements OnModuleInit {
       const room = await this.roomsService.getRoomById(roomId);
 
       if (!room) {
-        throw new NotFoundException(`Room ${roomId} not found`);
+        throw new NotFoundException('Room', String(roomId));
       }
 
       if (room.maxCapacity && roomBooking.guestsCount > room.maxCapacity) {
@@ -499,7 +493,7 @@ export class ReservationsService implements OnModuleInit {
       .limit(1);
 
     if (!payment || payment.length === 0) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', String(captureResult.paymentId));
     }
 
     const [invoice] = await this.db
@@ -509,7 +503,7 @@ export class ReservationsService implements OnModuleInit {
       .limit(1);
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Invoice', String(payment[0].invoiceId));
     }
 
     await this.db
@@ -524,7 +518,7 @@ export class ReservationsService implements OnModuleInit {
       .limit(1);
 
     if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException('Reservation', String(invoice.reservationId));
     }
 
     await this.db

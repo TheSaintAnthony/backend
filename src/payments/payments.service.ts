@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { NotFoundException, DatabaseException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -40,7 +35,7 @@ export class PaymentsService {
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', String(id));
     }
 
     return payment;
@@ -60,7 +55,7 @@ export class PaymentsService {
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', String(id));
     }
 
     return await this.db
@@ -77,7 +72,7 @@ export class PaymentsService {
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', String(id));
     }
 
     return await this.db
@@ -93,7 +88,7 @@ export class PaymentsService {
       .where(eq(schema.payments.transactionId, transactionId));
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', transactionId);
     }
 
     return payment;
@@ -106,7 +101,7 @@ export class PaymentsService {
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Payment', String(id));
     }
 
     return await this.db
@@ -135,7 +130,9 @@ export class PaymentsService {
       );
 
     if (!result) {
-      throw new InternalServerErrorException('Error fetching reservations');
+      throw new DatabaseException('Error fetching reservations', {
+        operation: 'fetch',
+      });
     }
 
     if (result && result.rowCount && result.rowCount > 0) {
