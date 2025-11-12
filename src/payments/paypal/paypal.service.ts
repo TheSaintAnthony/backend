@@ -201,4 +201,27 @@ export class PaypalService implements OnModuleInit {
       throw error;
     }
   }
+
+  async checkConnection(): Promise<boolean> {
+    try {
+      try {
+        await this.ordersController.getOrder({ id: 'TEST_CONNECTION' });
+      } catch (error) {
+        if (error instanceof ApiError) {
+          if (error.statusCode === 401) {
+            return false;
+          }
+          if (error.statusCode === 404) {
+            return true;
+          }
+          return true;
+        }
+        throw error;
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

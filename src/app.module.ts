@@ -24,6 +24,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from './config/validation';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { APP_GUARD } from '@nestjs/core';
     PaymentsModule,
     OccurrencesModule,
     PaypalModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [
