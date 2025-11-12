@@ -1,4 +1,4 @@
-import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -9,7 +9,7 @@ import {
   CreateBookingDto,
 } from './dto';
 import { EmailConfirmation, RoomValidation } from './interfaces';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
@@ -19,7 +19,6 @@ import { PaypalService } from 'src/payments/paypal/paypal.service';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
-  private readonly logger = new Logger(ReservationsService.name);
   private completedPaymentStatusId: number;
   private pendingPaymentStatusId: number;
   private paypalMethodId: number;
@@ -98,9 +97,9 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async getReservationsByUser(userId: number) {
-    const reservations = await this.db
+    const results = await this.db
       .select({
-        id: schema.reservations.id,
+        reservationId: schema.reservations.id,
         userId: schema.reservations.userId,
         statusId: schema.reservations.statusId,
         statusName: schema.reservationStatus.name,
@@ -111,6 +110,14 @@ export class ReservationsService implements OnModuleInit {
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
+        roomId: schema.reservationRooms.id,
+        roomReservationId: schema.reservationRooms.reservationId,
+        roomRoomId: schema.reservationRooms.roomId,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        roomName: schema.rooms.name,
+        roomDescription: schema.rooms.description,
       })
       .from(schema.reservations)
       .leftJoin(
@@ -121,37 +128,54 @@ export class ReservationsService implements OnModuleInit {
         schema.paymentStatus,
         eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
       )
+      .leftJoin(
+        schema.reservationRooms,
+        eq(schema.reservations.id, schema.reservationRooms.reservationId),
+      )
+      .leftJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
       .where(eq(schema.reservations.userId, userId))
       .orderBy(schema.reservations.createdAt);
 
-    const reservationsWithRooms = await Promise.all(
-      reservations.map(async (reservation) => {
-        const rooms = await this.db
-          .select({
-            id: schema.reservationRooms.id,
-            reservationId: schema.reservationRooms.reservationId,
-            roomId: schema.reservationRooms.roomId,
-            checkIn: schema.reservationRooms.checkIn,
-            checkOut: schema.reservationRooms.checkOut,
-            guestsCount: schema.reservationRooms.guestsCount,
-            roomName: schema.rooms.name,
-            roomDescription: schema.rooms.description,
-          })
-          .from(schema.reservationRooms)
-          .leftJoin(
-            schema.rooms,
-            eq(schema.reservationRooms.roomId, schema.rooms.id),
-          )
-          .where(eq(schema.reservationRooms.reservationId, reservation.id));
+    const reservationsMap = new Map();
 
-        return {
-          ...reservation,
-          rooms,
-        };
-      }),
-    );
+    for (const row of results) {
+      const reservationId = row.reservationId;
 
-    return reservationsWithRooms;
+      if (!reservationsMap.has(reservationId)) {
+        reservationsMap.set(reservationId, {
+          id: row.reservationId,
+          userId: row.userId,
+          statusId: row.statusId,
+          statusName: row.statusName,
+          totalPrice: row.totalPrice,
+          paymentStatusId: row.paymentStatusId,
+          paymentStatusName: row.paymentStatusName,
+          depositAmount: row.depositAmount,
+          specialRequests: row.specialRequests,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          rooms: [],
+        });
+      }
+
+      if (row.roomId !== null) {
+        reservationsMap.get(reservationId).rooms.push({
+          id: row.roomId,
+          reservationId: row.roomReservationId,
+          roomId: row.roomRoomId,
+          checkIn: row.checkIn,
+          checkOut: row.checkOut,
+          guestsCount: row.guestsCount,
+          roomName: row.roomName,
+          roomDescription: row.roomDescription,
+        });
+      }
+    }
+
+    return Array.from(reservationsMap.values());
   }
 
   async editReservation(id: number, data: EditReservationDto) {
@@ -199,13 +223,35 @@ export class ReservationsService implements OnModuleInit {
       throw new NotFoundException('User', String(userId));
     }
 
+    const roomIds = rooms.map((r) => r.roomId);
+    const roomRecords = await this.db
+      .select({
+        id: schema.rooms.id,
+        propertyId: schema.rooms.propertyId,
+        roomTypeId: schema.rooms.roomTypeId,
+        name: schema.rooms.name,
+        description: schema.rooms.description,
+        bedCount: schema.rooms.bedCount,
+        bathroomCount: schema.rooms.bathroomCount,
+        available: schema.rooms.available,
+        maxCapacity: schema.roomTypes.maxCapacity,
+      })
+      .from(schema.rooms)
+      .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .where(inArray(schema.rooms.id, roomIds));
+
+    const roomsMap = new Map(roomRecords.map((room) => [room.id, room]));
+
     let totalPrice = 0;
     const roomValidations: RoomValidation[] = [];
 
     for (const roomBooking of rooms) {
       const { roomId, checkIn, checkOut } = roomBooking;
 
-      const room = await this.roomsService.getRoomById(roomId);
+      const room = roomsMap.get(roomId);
       if (!room) {
         throw new NotFoundException('Room', String(roomId));
       }
@@ -360,13 +406,35 @@ export class ReservationsService implements OnModuleInit {
       throw new NotFoundException('User', String(userId));
     }
 
+    const roomIds = rooms.map((r) => r.roomId);
+    const roomRecords = await this.db
+      .select({
+        id: schema.rooms.id,
+        propertyId: schema.rooms.propertyId,
+        roomTypeId: schema.rooms.roomTypeId,
+        name: schema.rooms.name,
+        description: schema.rooms.description,
+        bedCount: schema.rooms.bedCount,
+        bathroomCount: schema.rooms.bathroomCount,
+        available: schema.rooms.available,
+        maxCapacity: schema.roomTypes.maxCapacity,
+      })
+      .from(schema.rooms)
+      .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .where(inArray(schema.rooms.id, roomIds));
+
+    const roomsMap = new Map(roomRecords.map((room) => [room.id, room]));
+
     let totalPrice = 0;
     const roomValidations: RoomValidation[] = [];
 
     for (const roomBooking of rooms) {
       const { roomId, checkIn, checkOut } = roomBooking;
 
-      const room = await this.roomsService.getRoomById(roomId);
+      const room = roomsMap.get(roomId);
 
       if (!room) {
         throw new NotFoundException('Room', String(roomId));

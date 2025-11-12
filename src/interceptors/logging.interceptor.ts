@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { AuthenticatedRequest } from 'src/auth/interfaces';
+import { CorrelationIdService } from './correlation-id.service';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -24,48 +25,77 @@ export class LoggingInterceptor implements NestInterceptor {
     'accessToken',
   ];
 
+  constructor(private readonly correlationIdService: CorrelationIdService) {}
+
   intercept(
     context: ExecutionContext,
     next: CallHandler<any>,
   ): Observable<any> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const res = context.switchToHttp().getResponse();
     const { method, url } = req;
 
-    if (req.body) {
-      const maskedBody = { ...req.body };
-      this.sensitiveFields.forEach((field) => {
-        if (maskedBody[field]) maskedBody[field] = '*****';
-      });
-      this.logger.log(`Request: ${JSON.stringify(maskedBody)}`);
-    }
+    const correlationId = this.correlationIdService.extractOrGenerate(
+      req.headers,
+    );
 
-    this.logger.log(`Invoking: [${method}] ${url}`);
+    res.setHeader('X-Correlation-Id', correlationId);
 
-    return next.handle().pipe(
-      tap((response) => {
-        const maskedResponse = { ...response };
-        this.sensitiveFields.forEach((field) => {
-          if (maskedResponse[field]) maskedResponse[field] = '*****';
-        });
-        this.logger.log(`Response: ${JSON.stringify(maskedResponse)}`);
-      }),
-      catchError((err) => {
-        let errorResponse: any;
-
-        if (err instanceof HttpException) {
-          errorResponse = err.getResponse();
-          if (typeof errorResponse === 'object') {
-            errorResponse = this.maskSensitive(errorResponse);
-          }
-        } else {
-          errorResponse = { message: err.message || err };
+    return new Observable((subscriber) => {
+      this.correlationIdService.run(correlationId, () => {
+        if (req.body) {
+          const maskedBody = { ...req.body };
+          this.sensitiveFields.forEach((field) => {
+            if (maskedBody[field]) maskedBody[field] = '*****';
+          });
+          this.log(`Request: ${JSON.stringify(maskedBody)}`);
         }
 
-        this.logger.error(`Error: ${JSON.stringify(errorResponse)}`, err.stack);
+        this.logger.log(`Invoking: [${method}] ${url}`);
 
-        return throwError(() => err);
-      }),
-    );
+        next
+          .handle()
+          .pipe(
+            tap((response) => {
+              const maskedResponse = { ...response };
+              this.sensitiveFields.forEach((field) => {
+                if (maskedResponse[field]) maskedResponse[field] = '*****';
+              });
+              this.log(`Response: ${JSON.stringify(maskedResponse)}`);
+            }),
+            catchError((err) => {
+              let errorResponse: any;
+
+              if (err instanceof HttpException) {
+                errorResponse = err.getResponse();
+                if (typeof errorResponse === 'object') {
+                  errorResponse = this.maskSensitive(errorResponse);
+                }
+              } else {
+                errorResponse = { message: err.message || err };
+              }
+
+              this.logError(
+                `Error: ${JSON.stringify(errorResponse)}`,
+                err.stack,
+              );
+
+              return throwError(() => err);
+            }),
+          )
+          .subscribe(subscriber);
+      });
+    });
+  }
+
+  private log(message: string): void {
+    const correlationId = this.correlationIdService.get();
+    this.logger.log(`${message}; correlationId: ${correlationId}`);
+  }
+
+  private logError(message: string, trace?: string): void {
+    const correlationId = this.correlationIdService.get();
+    this.logger.error(`${message}; correlationId: ${correlationId}`, trace);
   }
 
   private maskSensitive(obj: any): any {

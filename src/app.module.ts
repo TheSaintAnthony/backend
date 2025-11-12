@@ -23,8 +23,10 @@ import { PaypalModule } from './payments/paypal/paypal.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from './config/validation';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
+import { LoggingInterceptor } from './interceptors/logging.interceptor';
+import { CorrelationIdService } from './interceptors/correlation-id.service';
 
 @Module({
   imports: [
@@ -68,6 +70,11 @@ import { HealthModule } from './health/health.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    CorrelationIdService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
     },
   ],
 })

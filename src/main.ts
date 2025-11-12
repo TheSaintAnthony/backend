@@ -3,7 +3,6 @@ import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
 async function bootstrap() {
@@ -52,7 +51,6 @@ async function bootstrap() {
   });
   app.use(helmet());
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor());
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

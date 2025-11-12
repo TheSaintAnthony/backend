@@ -20,6 +20,7 @@ interface ErrorResponse {
   message: string | string[];
   error?: string;
   details?: any;
+  correlationId?: string;
 }
 
 @Catch()
@@ -29,7 +30,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const errorResponse = this.buildErrorResponse(exception, request);
+    const correlationId = response.getHeader('X-Correlation-Id') as string;
+
+    const errorResponse = this.buildErrorResponse(
+      exception,
+      request,
+      correlationId,
+    );
 
     response.status(errorResponse.statusCode).json(errorResponse);
   }
@@ -37,6 +44,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private buildErrorResponse(
     exception: unknown,
     request: Request,
+    correlationId?: string,
   ): ErrorResponse {
     const timestamp = new Date().toISOString();
     const path = request.url;
@@ -56,6 +64,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message: responseObj.message || exception.message,
           error: responseObj.error || exception.name,
           details: responseObj.details,
+          correlationId,
         };
       }
 
@@ -66,18 +75,37 @@ export class AllExceptionsFilter implements ExceptionFilter {
         method,
         message: exceptionResponse,
         error: exception.name,
+        correlationId,
       };
     }
 
     if (this.isDatabaseError(exception)) {
-      return this.handleDatabaseError(exception, timestamp, path, method);
+      return this.handleDatabaseError(
+        exception,
+        timestamp,
+        path,
+        method,
+        correlationId,
+      );
     }
 
     if (this.isValidationError(exception)) {
-      return this.handleValidationError(exception, timestamp, path, method);
+      return this.handleValidationError(
+        exception,
+        timestamp,
+        path,
+        method,
+        correlationId,
+      );
     }
 
-    return this.handleUnknownError(exception, timestamp, path, method);
+    return this.handleUnknownError(
+      exception,
+      timestamp,
+      path,
+      method,
+      correlationId,
+    );
   }
 
   private handleDatabaseError(
@@ -85,6 +113,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     timestamp: string,
     path: string,
     method: string,
+    correlationId?: string,
   ): ErrorResponse {
     const message = 'Database operation failed';
     let details: any = {};
@@ -102,6 +131,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             details: {
               constraint: exception.constraint,
             },
+            correlationId,
           };
         case '23503':
           return {
@@ -111,6 +141,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             method,
             message: 'Invalid reference to related resource',
             error: 'Bad Request',
+            correlationId,
           };
         case '23502':
           return {
@@ -123,6 +154,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             details: {
               column: exception.column,
             },
+            correlationId,
           };
         default:
           details = {
@@ -139,6 +171,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       error: 'Database Error',
       details,
+      correlationId,
     };
   }
 
@@ -147,6 +180,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     timestamp: string,
     path: string,
     method: string,
+    correlationId?: string,
   ): ErrorResponse {
     return {
       statusCode: HttpStatus.BAD_REQUEST,
@@ -156,6 +190,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: exception.message || 'Validation failed',
       error: 'Validation Error',
       details: exception.errors,
+      correlationId,
     };
   }
 
@@ -164,6 +199,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     timestamp: string,
     path: string,
     method: string,
+    correlationId?: string,
   ): ErrorResponse {
     const message = exception?.message || 'An unexpected error occurred';
 
@@ -174,6 +210,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       method,
       message,
       error: 'Internal Server Error',
+      correlationId,
     };
   }
 
