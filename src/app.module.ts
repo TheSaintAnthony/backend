@@ -21,11 +21,13 @@ import { PaymentsModule } from './payments/payments.module';
 import { OccurrencesModule } from './occurrences/occurrences.module';
 import { PaypalModule } from './payments/paypal/paypal.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { validationSchema } from './config/validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: validationSchema,
     }),
     ScheduleModule.forRoot(),
     DrizzleModule,
