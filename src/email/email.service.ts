@@ -43,7 +43,9 @@ export class EmailService {
     });
     const resetUrl = this.configService.get<string>('EMAIL_RESET_PASSWORD_URL');
     const url = `${resetUrl}?token=${token}`;
-    const expirationTime = this.configService.get('JWT_PASSWORD_RESET_EXPIRATION_TIME') || '15m';
+    const expirationTime =
+      this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
+      '15m';
 
     const text = `Hi,
 
@@ -148,8 +150,6 @@ St. Anthony Team`;
   }
 
   async sendVerifyUserLink(data: { id: number; email: string }) {
-    console.log('DATA\n');
-    console.log(data);
     const payload = { subb: data.id, email: data.email };
 
     const token = await this.jwtService.signAsync(payload, {

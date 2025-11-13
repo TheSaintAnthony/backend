@@ -17,6 +17,7 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class RoomsService {
@@ -25,6 +26,7 @@ export class RoomsService {
     private db: NodePgDatabase<typeof schema>,
     private roomPricesService: RoomPricesService,
     private roomHoldsService: RoomHoldsService,
+    private cacheService: CacheService,
   ) {}
 
   async createRoom(data: CreateRoomDto) {
@@ -142,6 +144,9 @@ export class RoomsService {
   }
 
   async getRoomById(id: number): Promise<RoomResponse> {
+    const cacheKey = `room:${id}`;
+    const cached = await this.cacheService.get<RoomResponse>(cacheKey);
+    if (cached) return cached;
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -213,11 +218,14 @@ export class RoomsService {
       }
     }
 
-    return {
+    const result = {
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
     };
+
+    await this.cacheService.set(cacheKey, result, 3600);
+    return result;
   }
 
   async getRoomsByProperty(propertyId: number, pagination?: PaginationDto) {
@@ -339,11 +347,14 @@ export class RoomsService {
       throw new NotFoundException('Room', String(id));
     }
 
-    return await this.db
+    const result = await this.db
       .update(schema.rooms)
       .set({ ...data })
       .where(eq(schema.rooms.id, id))
       .returning();
+
+    await this.cacheService.del(`room:${id}`);
+    return result;
   }
 
   async deleteRoom(id: number) {
@@ -356,10 +367,13 @@ export class RoomsService {
       throw new NotFoundException('Room', String(id));
     }
 
-    return await this.db
+    const result = await this.db
       .delete(schema.rooms)
       .where(eq(schema.rooms.id, id))
       .returning();
+
+    await this.cacheService.del(`room:${id}`);
+    return result;
   }
 
   async checkAvailability(data: CheckAvailabilityDto) {

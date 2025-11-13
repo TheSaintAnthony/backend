@@ -12,8 +12,14 @@ import {
 import { eq, inArray, count, and, or, ne, gt, sql } from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
-import { EmailService } from 'src/email/email.service';
-import { PaymentStatus, PaymentMethod } from 'src/constants';
+import {
+  PaymentStatus,
+  PaymentMethod,
+  RESERVATION_STATUS_NAMES,
+  INVOICE_STATUS_NAMES,
+  DEFAULT_DEPOSIT_AMOUNT,
+} from 'src/constants';
+import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
 import { PaypalService } from 'src/payments/paypal/paypal.service';
 import {
   PaginationDto,
@@ -21,6 +27,7 @@ import {
 } from 'src/common/dto/pagination.dto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
@@ -34,12 +41,29 @@ export class ReservationsService implements OnModuleInit {
     private db: NodePgDatabase<typeof schema>,
     private roomsService: RoomsService,
     private usersService: UsersService,
-    private emailService: EmailService,
     private paypalService: PaypalService,
     @InjectQueue('email') private readonly emailQueue: Queue,
+    private cacheService: CacheService,
+    private statusLookupService: StatusLookupService,
   ) {}
 
   async onModuleInit() {
+    const completedStatusCached = await this.cacheService.get<{ id: number }>(
+      'payment_status:completed',
+    );
+    const pendingStatusCached = await this.cacheService.get<{ id: number }>(
+      'payment_status:pending',
+    );
+    const paypalMethodCached = await this.cacheService.get<{ id: number }>(
+      'payment_method:paypal',
+    );
+
+    if (completedStatusCached && pendingStatusCached && paypalMethodCached) {
+      this.completedPaymentStatusId = completedStatusCached.id;
+      this.pendingPaymentStatusId = pendingStatusCached.id;
+      this.paypalMethodId = paypalMethodCached.id;
+      return;
+    }
     const [completedStatus] = await this.db
       .select()
       .from(schema.paymentStatus)
@@ -76,6 +100,12 @@ export class ReservationsService implements OnModuleInit {
     this.completedPaymentStatusId = completedStatus.id;
     this.pendingPaymentStatusId = pendingStatus.id;
     this.paypalMethodId = paypalMethod.id;
+
+    await this.cacheService.setMany([
+      { key: 'payment_status:completed', value: completedStatus, ttl: 86400 },
+      { key: 'payment_status:pending', value: pendingStatus, ttl: 86400 },
+      { key: 'payment_method:paypal', value: paypalMethod, ttl: 86400 },
+    ]);
   }
 
   private async validateRoomsAndCalculatePrice(
@@ -237,7 +267,7 @@ export class ReservationsService implements OnModuleInit {
         statusId,
         totalPrice,
         paymentStatusId,
-        depositAmount: '0.0',
+        depositAmount: DEFAULT_DEPOSIT_AMOUNT,
         specialRequests,
       })
       .returning();
@@ -459,7 +489,9 @@ export class ReservationsService implements OnModuleInit {
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
-        2,
+        this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CONFIRMED,
+        ),
         this.completedPaymentStatusId,
         totalPriceStr,
         validatedRooms,
@@ -470,7 +502,7 @@ export class ReservationsService implements OnModuleInit {
         tx,
         reservation.id,
         totalPriceStr,
-        2,
+        this.statusLookupService.getInvoiceStatusId(INVOICE_STATUS_NAMES.PAID),
         paymentMethodId,
         this.completedPaymentStatusId,
         transactionId,
@@ -510,7 +542,9 @@ export class ReservationsService implements OnModuleInit {
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
-        1,
+        this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        ),
         this.pendingPaymentStatusId,
         totalPriceStr,
         validatedRooms,
@@ -526,7 +560,9 @@ export class ReservationsService implements OnModuleInit {
         tx,
         reservation.id,
         totalPriceStr,
-        1,
+        this.statusLookupService.getInvoiceStatusId(
+          INVOICE_STATUS_NAMES.PENDING,
+        ),
         this.paypalMethodId,
         this.pendingPaymentStatusId,
         paypalOrder.orderId,
@@ -598,13 +634,19 @@ export class ReservationsService implements OnModuleInit {
 
       await tx
         .update(schema.invoices)
-        .set({ statusId: 2 })
+        .set({
+          statusId: this.statusLookupService.getInvoiceStatusId(
+            INVOICE_STATUS_NAMES.PAID,
+          ),
+        })
         .where(eq(schema.invoices.id, invoice.id));
 
       await tx
         .update(schema.reservations)
         .set({
-          statusId: 2,
+          statusId: this.statusLookupService.getReservationStatusId(
+            RESERVATION_STATUS_NAMES.CONFIRMED,
+          ),
           paymentStatusId: this.completedPaymentStatusId,
         })
         .where(eq(schema.reservations.id, reservation.id));
@@ -627,7 +669,7 @@ export class ReservationsService implements OnModuleInit {
           checkIn: r.checkIn,
           checkOut: r.checkOut,
           guestsCount: r.guestsCount,
-          price: 0,
+          price: parseFloat(reservation.totalPrice) / reservationRooms.length,
         })),
         reservation.specialRequests || undefined,
       );
@@ -636,7 +678,9 @@ export class ReservationsService implements OnModuleInit {
         success: true,
         reservation: {
           ...reservation,
-          statusId: 2,
+          statusId: this.statusLookupService.getReservationStatusId(
+            RESERVATION_STATUS_NAMES.CONFIRMED,
+          ),
           paymentStatusId: this.completedPaymentStatusId,
         },
         message: 'Payment completed successfully',

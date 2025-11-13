@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 import {
   ExceptionFilter,
   Catch,
@@ -19,8 +14,22 @@ interface ErrorResponse {
   method: string;
   message: string | string[];
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   correlationId?: string;
+}
+
+interface DatabaseError {
+  code?: string;
+  constraint?: string;
+  column?: string;
+  severity?: string;
+  routine?: string;
+}
+
+interface ValidationError {
+  name?: string;
+  message?: string;
+  errors?: unknown[];
 }
 
 @Catch()
@@ -55,15 +64,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
 
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        const responseObj = exceptionResponse as any;
+        const responseObj = exceptionResponse as Record<string, unknown>;
         return {
           statusCode: status,
           timestamp,
           path,
           method,
-          message: responseObj.message || exception.message,
-          error: responseObj.error || exception.name,
-          details: responseObj.details,
+          message:
+            (responseObj.message as string | string[]) || exception.message,
+          error: (responseObj.error as string) || exception.name,
+          details: responseObj.details as Record<string, unknown> | undefined,
           correlationId,
         };
       }
@@ -109,14 +119,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private handleDatabaseError(
-    exception: any,
+    exception: DatabaseError,
     timestamp: string,
     path: string,
     method: string,
     correlationId?: string,
   ): ErrorResponse {
     const message = 'Database operation failed';
-    let details: any = {};
+    let details: Record<string, unknown> = {};
 
     if (exception.code) {
       switch (exception.code) {
@@ -192,7 +202,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private handleValidationError(
-    exception: any,
+    exception: ValidationError,
     timestamp: string,
     path: string,
     method: string,
@@ -205,19 +215,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
       method,
       message: exception.message || 'Validation failed',
       error: 'Validation Error',
-      details: exception.errors,
+      details: exception.errors as Record<string, unknown> | undefined,
       correlationId,
     };
   }
 
   private handleUnknownError(
-    exception: any,
+    exception: unknown,
     timestamp: string,
     path: string,
     method: string,
     correlationId?: string,
   ): ErrorResponse {
-    const message = exception?.message || 'An unexpected error occurred';
+    const message =
+      exception instanceof Error
+        ? exception.message
+        : 'An unexpected error occurred';
 
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -230,18 +243,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
   }
 
-  private isDatabaseError(exception: any): boolean {
+  private isDatabaseError(exception: unknown): exception is DatabaseError {
+    const err = exception as DatabaseError;
     return (
-      exception?.code?.startsWith('23') ||
-      exception?.code?.startsWith('42') ||
-      exception?.severity === 'ERROR' ||
-      exception?.routine
+      typeof err === 'object' &&
+      err !== null &&
+      (err.code?.startsWith('23') ||
+        err.code?.startsWith('42') ||
+        err.severity === 'ERROR' ||
+        !!err.routine)
     );
   }
 
-  private isValidationError(exception: any): boolean {
+  private isValidationError(exception: unknown): exception is ValidationError {
+    const err = exception as ValidationError;
     return (
-      exception?.name === 'ValidationError' || Array.isArray(exception?.errors)
+      typeof err === 'object' &&
+      err !== null &&
+      (err.name === 'ValidationError' || Array.isArray(err.errors))
     );
   }
 }

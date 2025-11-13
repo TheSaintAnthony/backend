@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   CallHandler,
   ExecutionContext,
@@ -12,12 +8,11 @@ import {
 } from '@nestjs/common';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { AuthenticatedRequest } from 'src/auth/interfaces';
-import { CorrelationIdService } from './correlation-id.service';
+import { CorrelationIdService } from 'src/services/correlation-id.service';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
-
   private readonly sensitiveFields = [
     'password',
     'access-token',
@@ -27,14 +22,11 @@ export class LoggingInterceptor implements NestInterceptor {
 
   constructor(private readonly correlationIdService: CorrelationIdService) {}
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler<any>,
-  ): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const res = context
-      .switchToHttp()
-      .getResponse<{ setHeader: (key: string, value: string) => void }>();
+    const res = context.switchToHttp().getResponse<{
+      setHeader: (key: string, value: string) => void;
+    }>();
     const { method, url } = req;
 
     const correlationId = this.correlationIdService.extractOrGenerate(
@@ -45,8 +37,8 @@ export class LoggingInterceptor implements NestInterceptor {
 
     return new Observable((subscriber) => {
       this.correlationIdService.run(correlationId, () => {
-        if (req.body) {
-          const maskedBody = { ...req.body };
+        if (req.body && typeof req.body === 'object') {
+          const maskedBody = { ...req.body } as Record<string, unknown>;
           this.sensitiveFields.forEach((field) => {
             if (maskedBody[field]) maskedBody[field] = '*****';
           });
@@ -58,31 +50,40 @@ export class LoggingInterceptor implements NestInterceptor {
         next
           .handle()
           .pipe(
-            tap((response) => {
-              const maskedResponse = { ...response };
-              this.sensitiveFields.forEach((field) => {
-                if (maskedResponse[field]) maskedResponse[field] = '*****';
-              });
-              this.log(`Response: ${JSON.stringify(maskedResponse)}`);
+            tap((response: unknown) => {
+              if (response && typeof response === 'object') {
+                const maskedResponse = { ...response } as Record<
+                  string,
+                  unknown
+                >;
+                this.sensitiveFields.forEach((field) => {
+                  if (maskedResponse[field]) maskedResponse[field] = '*****';
+                });
+                this.log(`Response: ${JSON.stringify(maskedResponse)}`);
+              }
             }),
-            catchError((err) => {
-              let errorResponse: any;
+            catchError((err: unknown) => {
+              let errorResponse: unknown;
 
               if (err instanceof HttpException) {
                 errorResponse = err.getResponse();
                 if (typeof errorResponse === 'object') {
                   errorResponse = this.maskSensitive(errorResponse);
                 }
+              } else if (err instanceof Error) {
+                errorResponse = { message: err.message };
               } else {
-                errorResponse = { message: err.message || err };
+                errorResponse = { message: String(err) };
               }
+
+              const error = err instanceof Error ? err : new Error(String(err));
 
               this.logError(
                 `Error: ${JSON.stringify(errorResponse)}`,
-                err.stack,
+                error.stack,
               );
 
-              return throwError(() => err);
+              return throwError(() => error);
             }),
           )
           .subscribe(subscriber);
@@ -100,11 +101,11 @@ export class LoggingInterceptor implements NestInterceptor {
     this.logger.error(`${message}; correlationId: ${correlationId}`, trace);
   }
 
-  private maskSensitive(obj: any): any {
+  private maskSensitive(obj: unknown): unknown {
     if (Array.isArray(obj)) {
       return obj.map((item) => this.maskSensitive(item));
     } else if (obj && typeof obj === 'object') {
-      const masked = { ...obj };
+      const masked = { ...obj } as Record<string, unknown>;
       this.sensitiveFields.forEach((field) => {
         if (masked[field]) masked[field] = '*****';
       });

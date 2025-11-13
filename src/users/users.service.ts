@@ -157,9 +157,9 @@ export class UsersService {
 
     return await this.db
       .update(schema.users)
-      .set({ 
+      .set({
         passwordHash: newPasswordHash,
-        passwordChangedAt: new Date()
+        passwordChangedAt: new Date(),
       })
       .where(eq(schema.users.id, userId));
   }

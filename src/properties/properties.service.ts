@@ -10,12 +10,14 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
+import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class PropertiesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
+    private cacheService: CacheService,
   ) {}
 
   async createProperty(data: CreatePropertyDto) {
@@ -55,6 +57,10 @@ export class PropertiesService {
   }
 
   async getPropertyById(id: number) {
+    const cacheKey = `property:${id}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
     const [property] = await this.db
       .select()
       .from(schema.properties)
@@ -64,6 +70,7 @@ export class PropertiesService {
       throw new NotFoundException('Property', String(id));
     }
 
+    await this.cacheService.set(cacheKey, property, 3600);
     return property;
   }
 
@@ -91,10 +98,13 @@ export class PropertiesService {
       throw new NotFoundException('Address', String(addressId));
     }
 
-    return await this.db
+    const result = await this.db
       .update(schema.properties)
       .set({ ...propertyData })
       .where(eq(schema.properties.id, id));
+
+    await this.cacheService.del(`property:${id}`);
+    return result;
   }
 
   async deleteProperty(id: number) {
@@ -118,5 +128,7 @@ export class PropertiesService {
         operation: 'delete',
       });
     }
+
+    await this.cacheService.del(`property:${id}`);
   }
 }

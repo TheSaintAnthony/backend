@@ -1,0 +1,52 @@
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { DB_PROVIDER } from 'src/db/drizzle.module';
+import * as schema from 'src/db/schema';
+import { CacheService } from 'src/cache/cache.service';
+
+@Injectable()
+export class StatusLookupService implements OnModuleInit {
+  private reservationStatusCache = new Map<string, number>();
+  private invoiceStatusCache = new Map<string, number>();
+
+  constructor(
+    @Inject(DB_PROVIDER)
+    private db: NodePgDatabase<typeof schema>,
+    private cacheService: CacheService,
+  ) {}
+
+  async onModuleInit() {
+    await this.loadStatuses();
+  }
+
+  private async loadStatuses() {
+    const [reservationStatuses, invoiceStatuses] = await Promise.all([
+      this.db.select().from(schema.reservationStatus),
+      this.db.select().from(schema.invoiceStatus),
+    ]);
+
+    for (const status of reservationStatuses) {
+      this.reservationStatusCache.set(status.name, status.id);
+    }
+
+    for (const status of invoiceStatuses) {
+      this.invoiceStatusCache.set(status.name, status.id);
+    }
+  }
+
+  getReservationStatusId(name: string): number {
+    const id = this.reservationStatusCache.get(name);
+    if (!id) {
+      throw new Error(`Reservation status '${name}' not found`);
+    }
+    return id;
+  }
+
+  getInvoiceStatusId(name: string): number {
+    const id = this.invoiceStatusCache.get(name);
+    if (!id) {
+      throw new Error(`Invoice status '${name}' not found`);
+    }
+    return id;
+  }
+}

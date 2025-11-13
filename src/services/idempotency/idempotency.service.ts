@@ -1,17 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
-import * as schema from '../db/schema';
+import * as schema from 'src/db/schema';
 import { eq, and, gt, lt } from 'drizzle-orm';
-
-export interface IdempotencyRecord {
-  key: string;
-  userId?: number;
-  endpoint: string;
-  requestBody: any;
-  responseBody: any;
-  statusCode: number;
-}
+import { IdempotencyRecord } from './interfaces/idempotency.interfaces';
 
 @Injectable()
 export class IdempotencyService {
@@ -55,9 +47,8 @@ export class IdempotencyService {
 
   async cleanup() {
     const now = new Date();
-    const result = await this.db
+    return await this.db
       .delete(schema.idempotencyKeys)
       .where(lt(schema.idempotencyKeys.expiresAt, now));
-    return result;
   }
 }

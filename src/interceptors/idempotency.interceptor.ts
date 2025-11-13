@@ -9,8 +9,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { IDEMPOTENT_KEY } from '../decorators/idempotent.decorator';
-import { IdempotencyService } from './idempotency.service';
+import { IDEMPOTENT_KEY } from 'src/decorators/idempotent.decorator';
+import { IdempotencyService } from 'src/services/idempotency/idempotency.service';
 import { AuthenticatedRequest } from 'src/auth/interfaces';
 
 @Injectable()

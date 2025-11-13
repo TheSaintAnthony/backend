@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Inject, Injectable } from '@nestjs/common';
 import { ConflictException, NotFoundException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -49,11 +48,12 @@ export class LookupsService {
     return record[0];
   }
 
-  async addValue(table: LookupTable, value: LookupValue) {
+  async addValue(table: LookupTable, value: LookupValue): Promise<unknown> {
     if ('name' in table && value.name) {
       await this.ensureNotExists(table, value.name);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.db.insert(table).values(value as any);
   }
 
@@ -65,7 +65,11 @@ export class LookupsService {
     return this.ensureExistsById(table, id);
   }
 
-  async updateValue(table: LookupTable, id: number, value: UpdateLookupValue) {
+  async updateValue(
+    table: LookupTable,
+    id: number,
+    value: UpdateLookupValue,
+  ): Promise<unknown> {
     await this.ensureExistsById(table, id);
 
     return this.db

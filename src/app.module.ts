@@ -26,9 +26,12 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
-import { CorrelationIdService } from './interceptors/correlation-id.service';
+import { CorrelationIdService } from './services/correlation-id.service';
+import { IdempotencyService } from './services/idempotency/idempotency.service';
+import { IdempotencyCleanupService } from './services/idempotency/idempotency-cleanup.service';
 import { BullModule } from '@nestjs/bullmq';
 import { QueuesModule } from './queues/queues.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -53,6 +56,7 @@ import { QueuesModule } from './queues/queues.module';
     }),
     ScheduleModule.forRoot(),
     DrizzleModule,
+    CacheModule,
     AuthModule,
     UsersModule,
     EmailModule,
@@ -82,6 +86,8 @@ import { QueuesModule } from './queues/queues.module';
       useClass: ThrottlerGuard,
     },
     CorrelationIdService,
+    IdempotencyService,
+    IdempotencyCleanupService,
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,

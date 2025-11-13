@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { Injectable } from '@nestjs/common';
 import {
   BadRequestException,
@@ -49,9 +48,12 @@ export class AuthService {
       throw new UnauthorizedException('User not verified');
     }
 
-    const userRoles: UserRole[] = user.roles.map((role) =>
-      role.name === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER,
-    );
+    const userRoles: UserRole[] = user.roles.map((role) => {
+      const roleName = String(role.name);
+      return roleName === String(UserRole.ADMIN)
+        ? UserRole.ADMIN
+        : UserRole.USER;
+    });
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -151,7 +153,7 @@ export class AuthService {
       }
       throw new BadRequestException('Invalid token payload');
     } catch (error) {
-      if (error?.name === 'TokenExpiredError') {
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
         throw new BadRequestException('Password reset token expired');
       }
       throw new BadRequestException('Invalid or malformed confirmation token');
@@ -172,7 +174,7 @@ export class AuthService {
       }
       throw new BadRequestException('Invalid token payload');
     } catch (error) {
-      if (error?.name === 'TokenExpiredError') {
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
         throw new BadRequestException('User verification token expired');
       }
       throw new BadRequestException('Invalid or malformed confirmation token');

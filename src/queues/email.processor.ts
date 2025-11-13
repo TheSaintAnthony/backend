@@ -35,8 +35,6 @@ export class EmailConsumer extends WorkerHost {
           break;
 
         case 'sendVerifyUserLink':
-          console.log('DATA INSIDE PROCESSOR\n');
-          console.log(jobData);
           await this.emailsService.sendVerifyUserLink(
             jobData as { id: number; email: string },
           );

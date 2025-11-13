@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   HttpException,
   HttpStatus,
@@ -9,8 +8,10 @@ import {
   ForbiddenException as NestForbiddenException,
 } from '@nestjs/common';
 
+type ExceptionDetails = Record<string, unknown>;
+
 export class BadRequestException extends NestBadRequestException {
-  constructor(message: string | string[], details?: any) {
+  constructor(message: string | string[], details?: ExceptionDetails) {
     super(details ? { message, error: 'Bad Request', details } : message);
   }
 }
@@ -26,7 +27,7 @@ export class NotFoundException extends NestNotFoundException {
 }
 
 export class ConflictException extends NestConflictException {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: ExceptionDetails) {
     super(details ? { message, error: 'Conflict', details } : message);
   }
 }
@@ -44,7 +45,7 @@ export class ForbiddenException extends NestForbiddenException {
 }
 
 export class ValidationException extends HttpException {
-  constructor(errors: any) {
+  constructor(errors: ExceptionDetails) {
     super(
       {
         statusCode: HttpStatus.BAD_REQUEST,
@@ -58,7 +59,10 @@ export class ValidationException extends HttpException {
 }
 
 export class DatabaseException extends HttpException {
-  constructor(message: string = 'Database operation failed', details?: any) {
+  constructor(
+    message: string = 'Database operation failed',
+    details?: ExceptionDetails,
+  ) {
     super(
       {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
