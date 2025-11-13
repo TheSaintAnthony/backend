@@ -32,11 +32,13 @@ export class LoggingInterceptor implements NestInterceptor {
     next: CallHandler<any>,
   ): Observable<any> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const res = context.switchToHttp().getResponse();
+    const res = context
+      .switchToHttp()
+      .getResponse<{ setHeader: (key: string, value: string) => void }>();
     const { method, url } = req;
 
     const correlationId = this.correlationIdService.extractOrGenerate(
-      req.headers,
+      req.headers as Record<string, string | string[] | undefined>,
     );
 
     res.setHeader('X-Correlation-Id', correlationId);

@@ -21,6 +21,7 @@ import {
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Rooms')
 @ApiBearerAuth('access-token')
@@ -32,12 +33,13 @@ export class RoomsController {
   @Get()
   async getRooms(
     @Query('propertyId', new ParseIntPipe({ optional: true }))
-    propertyId?: number,
+    propertyId: number | undefined,
+    @Query() pagination: PaginationDto,
   ) {
     if (propertyId !== undefined) {
-      return await this.roomsService.getRoomsByProperty(propertyId);
+      return await this.roomsService.getRoomsByProperty(propertyId, pagination);
     }
-    return await this.roomsService.getRooms();
+    return await this.roomsService.getRooms(pagination);
   }
 
   @Public()
@@ -54,12 +56,8 @@ export class RoomsController {
 
   @Public()
   @Post('quotes')
-  async getPriceQuote(
-    @Body() body: GetPriceQuoteDto,
-    @Request() req?: { user?: { sub: number } },
-  ) {
-    const userId = req?.user?.sub || 0;
-    return await this.roomsService.getPriceQuote(body, userId);
+  async getPriceQuote(@Body() body: GetPriceQuoteDto) {
+    return await this.roomsService.getPriceQuote(body);
   }
 
   @Roles(UserRole.ADMIN)

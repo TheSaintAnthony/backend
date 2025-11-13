@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto, EditInvoiceDto } from './dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Invoices')
 @ApiBearerAuth('access-token')
@@ -21,12 +22,17 @@ export class InvoicesController {
 
   @Get()
   async getInvoices(
-    @Query('reservationId', ParseIntPipe) reservationId?: number,
+    @Query('reservationId', new ParseIntPipe({ optional: true }))
+    reservationId: number | undefined,
+    @Query() pagination: PaginationDto,
   ) {
-    if (reservationId) {
-      return await this.invoicesService.getInvoicesByReservation(reservationId);
+    if (reservationId !== undefined) {
+      return await this.invoicesService.getInvoicesByReservation(
+        reservationId,
+        pagination,
+      );
     }
-    return await this.invoicesService.getInvoices();
+    return await this.invoicesService.getInvoices(pagination);
   }
 
   @Get(':id')

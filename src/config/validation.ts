@@ -17,4 +17,5 @@ export const validationSchema = Joi.object({
   PAYPAL_CLIENT_ID: Joi.string().required(),
   PAYPAL_CLIENT_SECRET: Joi.string().required(),
   PAYPAL_MODE: Joi.string().default('sandbox'),
+  FRONTEND_URL: Joi.string().default('http://localhost:4200'),
 });

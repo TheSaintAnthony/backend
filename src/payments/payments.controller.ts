@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, EditPaymentDto } from './dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Payments')
 @ApiBearerAuth('access-token')
@@ -20,11 +21,18 @@ export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
 
   @Get()
-  async getPayments(@Query('invoiceId', ParseIntPipe) invoiceId?: number) {
-    if (invoiceId) {
-      return await this.paymentsService.getPaymentsByInvoice(invoiceId);
+  async getPayments(
+    @Query('invoiceId', new ParseIntPipe({ optional: true }))
+    invoiceId: number | undefined,
+    @Query() pagination: PaginationDto,
+  ) {
+    if (invoiceId !== undefined) {
+      return await this.paymentsService.getPaymentsByInvoice(
+        invoiceId,
+        pagination,
+      );
     }
-    return await this.paymentsService.getPayments();
+    return await this.paymentsService.getPayments(pagination);
   }
 
   @Get(':id')

@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OccurrencesService } from './occurrences.service';
 import { CreateOccurrenceDto, EditOccurrenceDto } from './dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Occurrences')
 @ApiBearerAuth('access-token')
@@ -21,14 +22,17 @@ export class OccurrencesController {
 
   @Get()
   async getOccurrences(
-    @Query('reservationId', ParseIntPipe) reservationId?: number,
+    @Query('reservationId', new ParseIntPipe({ optional: true }))
+    reservationId: number | undefined,
+    @Query() pagination: PaginationDto,
   ) {
-    if (reservationId) {
+    if (reservationId !== undefined) {
       return await this.occurrencesService.getOccurrencesByReservation(
         reservationId,
+        pagination,
       );
     }
-    return await this.occurrencesService.getOccurrences();
+    return await this.occurrencesService.getOccurrences(pagination);
   }
 
   @Get(':id')

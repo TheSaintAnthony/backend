@@ -27,15 +27,15 @@ export class CorrelationIdService {
     return randomUUID();
   }
 
-  /**
-   * Extract correlation ID from request headers or generate a new one
-   */
-  extractOrGenerate(headers: Record<string, any>): string {
-    return (
-      headers['x-correlation-id'] ||
-      headers['x-request-id'] ||
-      this.generate()
-    );
+  extractOrGenerate(
+    headers: Record<string, string | string[] | undefined>,
+  ): string {
+    const correlationId = headers['x-correlation-id'];
+    const requestId = headers['x-request-id'];
+
+    if (typeof correlationId === 'string') return correlationId;
+    if (typeof requestId === 'string') return requestId;
+
+    return this.generate();
   }
 }
-

@@ -10,7 +10,11 @@ import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetDto, SignInDto, SignUpDto } from './dto/auth.dto';
-import { JwtPayload } from './interfaces';
+import {
+  JwtPayload,
+  PasswordResetTokenPayload,
+  UserVerifyTokenPayload,
+} from './interfaces';
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/constants';
@@ -107,9 +111,10 @@ export class AuthService {
 
   private async decodeResetPasswordTokenToEmail(token: string) {
     try {
-      const payload: { email: string } = await this.jwtService.verify(token, {
-        secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
-      });
+      const payload: PasswordResetTokenPayload =
+        await this.jwtService.verify(token, {
+          secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
+        });
 
       if (typeof payload === 'object' && 'email' in payload) {
         return payload.email;
@@ -125,10 +130,12 @@ export class AuthService {
 
   private async decodeVerifyUserTokenToId(token: string) {
     try {
-      const payload: { subb: number; email: string } =
-        await this.jwtService.verify(token, {
+      const payload: UserVerifyTokenPayload = await this.jwtService.verify(
+        token,
+        {
           secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
-        });
+        },
+      );
 
       if (typeof payload === 'object' && 'subb' in payload) {
         return payload.subb;

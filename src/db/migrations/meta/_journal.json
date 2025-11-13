@@ -85,6 +85,20 @@
       "when": 1762769817453,
       "tag": "0011_refactor-payments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1763024107867,
+      "tag": "0012_add-idempotency-keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1763024643196,
+      "tag": "0013_unique-payment-transaction",
+      "breakpoints": true
     }
   ]
 }

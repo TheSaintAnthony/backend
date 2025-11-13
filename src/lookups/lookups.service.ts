@@ -5,7 +5,12 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { LookupTable } from './interfaces';
+import {
+  LookupTable,
+  LookupValue,
+  UpdateLookupValue,
+  ActivityData,
+} from './interfaces';
 
 @Injectable()
 export class LookupsService {
@@ -44,10 +49,7 @@ export class LookupsService {
     return record[0];
   }
 
-  async addValue(
-    table: LookupTable,
-    value: { name?: string; [key: string]: unknown },
-  ) {
+  async addValue(table: LookupTable, value: LookupValue) {
     if ('name' in table && value.name) {
       await this.ensureNotExists(table, value.name);
     }
@@ -63,11 +65,7 @@ export class LookupsService {
     return this.ensureExistsById(table, id);
   }
 
-  async updateValue(
-    table: LookupTable,
-    id: number,
-    value: { [key: string]: unknown },
-  ) {
+  async updateValue(table: LookupTable, id: number, value: UpdateLookupValue) {
     await this.ensureExistsById(table, id);
 
     return this.db
@@ -261,7 +259,7 @@ export class LookupsService {
     return this.deleteValue(schema.paymentMethods, id);
   }
 
-  addActivity(data: { name: string; description: string }) {
+  addActivity(data: ActivityData) {
     return this.addValue(schema.activities, {
       name: data.name,
       description: data.description,
@@ -276,7 +274,7 @@ export class LookupsService {
     return this.getById(schema.activities, id);
   }
 
-  editActivity(id: number, data: { name: string; description: string }) {
+  editActivity(id: number, data: ActivityData) {
     return this.updateValue(schema.activities, id, {
       name: data.name,
       description: data.description,

@@ -1,24 +1,20 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
-  ParseIntPipe,
-  Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
-import {
-  CreateReservationDto,
-  EditReservationDto,
-  CreateBookingDto,
-} from './dto';
+import { CreateBookingDto } from './dto';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { Idempotent } from 'src/decorators';
 
 @ApiTags('Reservations')
 @ApiBearerAuth('access-token')
@@ -28,58 +24,42 @@ export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
 
   @Get()
-  async getReservations(@Request() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return await this.reservationsService.getReservationsByUser(userId);
+  async getReservations(
+    @Request() req: AuthenticatedRequest,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.reservationsService.getReservationsByUser(
+      req.user.sub,
+      pagination,
+    );
   }
 
   @Get(':id')
-  async getReservationById(@Param('id', ParseIntPipe) id: number) {
-    return await this.reservationsService.getReservationById(id);
-  }
-
-  @Post()
-  async createReservation(
-    @Body() body: CreateReservationDto,
-    @Request() req: AuthenticatedRequest,
-  ) {
-    const userId = req.user.sub;
-    return await this.reservationsService.createReservation(userId, body);
+  async getReservationById(@Param('id') id: string) {
+    return this.reservationsService.getReservationById(Number(id));
   }
 
   @Post('bookings')
+  @Idempotent()
   async createBooking(
     @Body() body: CreateBookingDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const userId = req.user.sub;
-    return await this.reservationsService.createBooking(userId, body);
+    return this.reservationsService.createBooking(req.user.sub, body);
   }
 
   @Post('bookings/paypal')
+  @Idempotent()
   async createPaypalBooking(
     @Body() body: CreateBookingDto,
     @Request() req: AuthenticatedRequest,
   ) {
-    const userId = req.user.sub;
-    return await this.reservationsService.createPaypalBooking(userId, body);
+    return this.reservationsService.createPaypalBooking(req.user.sub, body);
   }
 
   @Post('bookings/paypal/:orderId/complete')
+  @Idempotent()
   async completePaypalBooking(@Param('orderId') orderId: string) {
-    return await this.reservationsService.completePaypalBooking(orderId);
-  }
-
-  @Patch(':id')
-  async editReservation(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: EditReservationDto,
-  ) {
-    return await this.reservationsService.editReservation(id, body);
-  }
-
-  @Delete(':id')
-  async deleteReservation(@Param('id', ParseIntPipe) id: number) {
-    return await this.reservationsService.deleteReservation(id);
+    return this.reservationsService.completePaypalBooking(orderId);
   }
 }

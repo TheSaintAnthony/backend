@@ -7,28 +7,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-
-class AddressDto {
-  @ApiProperty({ description: 'Street address', example: '123 Main St' })
-  @IsString()
-  @IsNotEmpty()
-  street: string;
-
-  @ApiProperty({ description: 'City name', example: 'New York' })
-  @IsString()
-  @IsNotEmpty()
-  city: string;
-
-  @ApiProperty({ description: 'Postal/ZIP code', example: '10001' })
-  @IsString()
-  @IsNotEmpty()
-  zipCode: string;
-
-  @ApiProperty({ description: 'Country name', example: 'USA' })
-  @IsString()
-  @IsNotEmpty()
-  country: string;
-}
+import { CreateAddressDto } from 'src/addresses/dto';
 
 export class SignInDto {
   @ApiProperty({
@@ -81,11 +60,11 @@ export class SignUpDto {
 
   @ApiProperty({
     description: 'User address information',
-    type: AddressDto,
+    type: CreateAddressDto,
   })
   @ValidateNested()
-  @Type(() => AddressDto)
-  address: AddressDto;
+  @Type(() => CreateAddressDto)
+  address: CreateAddressDto;
 }
 
 export class PasswordResetDto {
@@ -106,3 +85,5 @@ export class PasswordResetDto {
   @MinLength(6)
   password: string;
 }
+
+export * from './forgot-password.dto';

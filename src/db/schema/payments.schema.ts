@@ -5,6 +5,7 @@ import {
   varchar,
   timestamp,
   check,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { invoices } from './invoices.schema';
@@ -32,7 +33,10 @@ export const payments = pgTable(
     paidAt: timestamp('paid_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  () => ({
+  (table) => ({
     checkAmount: check('check_payment_amount_positive', sql`amount > 0`),
+    uniqueTransactionIdx: uniqueIndex('unique_transaction_per_method_idx')
+      .on(table.transactionId, table.paymentMethodId)
+      .where(sql`${table.transactionId} IS NOT NULL`),
   }),
 );

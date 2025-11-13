@@ -4,9 +4,13 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreatePaymentDto, EditPaymentDto } from './dto';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, count } from 'drizzle-orm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaymentStatus } from 'src/constants';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -24,8 +28,23 @@ export class PaymentsService {
       .returning();
   }
 
-  async getPayments() {
-    return await this.db.select().from(schema.payments);
+  async getPayments(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.payments);
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.payments)
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async getPaymentById(id: number) {
@@ -41,11 +60,25 @@ export class PaymentsService {
     return payment;
   }
 
-  async getPaymentsByInvoice(invoiceId: number) {
-    return await this.db
-      .select()
+  async getPaymentsByInvoice(invoiceId: number, pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
       .from(schema.payments)
       .where(eq(schema.payments.invoiceId, invoiceId));
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.payments)
+      .where(eq(schema.payments.invoiceId, invoiceId))
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async editPayment(id: number, data: EditPaymentDto) {

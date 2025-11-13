@@ -3,7 +3,11 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateInvoiceDto, EditInvoiceDto } from './dto';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class InvoicesService {
@@ -19,8 +23,23 @@ export class InvoicesService {
       .returning();
   }
 
-  async getInvoices() {
-    return await this.db.select().from(schema.invoices);
+  async getInvoices(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.invoices);
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.invoices)
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async getInvoiceById(id: number) {
@@ -36,11 +55,28 @@ export class InvoicesService {
     return invoice;
   }
 
-  async getInvoicesByReservation(reservationId: number) {
-    return await this.db
-      .select()
+  async getInvoicesByReservation(
+    reservationId: number,
+    pagination?: PaginationDto,
+  ) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
       .from(schema.invoices)
       .where(eq(schema.invoices.reservationId, reservationId));
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.reservationId, reservationId))
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async editInvoice(id: number, data: EditInvoiceDto) {

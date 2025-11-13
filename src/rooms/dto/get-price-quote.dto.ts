@@ -5,11 +5,9 @@ import {
   IsArray,
   ValidateNested,
   ArrayMinSize,
-  IsOptional,
-  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class QuoteRoomDto {
   @ApiProperty({ description: 'Room ID', example: 1 })
@@ -42,12 +40,4 @@ export class GetPriceQuoteDto {
   @ValidateNested({ each: true })
   @Type(() => QuoteRoomDto)
   rooms: QuoteRoomDto[];
-
-  @ApiPropertyOptional({
-    description: 'Whether to create holds for available rooms (default: true)',
-    example: false,
-  })
-  @IsOptional()
-  @IsBoolean()
-  createHolds?: boolean;
 }

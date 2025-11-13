@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PropertiesService } from './properties.service';
@@ -15,6 +16,7 @@ import { EditPropertyDto } from './dto/edit-property.dto';
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @ApiTags('Properties')
 @ApiBearerAuth('access-token')
@@ -24,8 +26,8 @@ export class PropertiesController {
 
   @Public()
   @Get()
-  async getProperties() {
-    return this.propertiesService.getProperties();
+  async getProperties(@Query() pagination: PaginationDto) {
+    return this.propertiesService.getProperties(pagination);
   }
 
   @Public()

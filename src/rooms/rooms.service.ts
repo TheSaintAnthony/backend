@@ -10,9 +10,13 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
-import { eq, and, lte, gte, or } from 'drizzle-orm';
+import { eq, and, lte, gte, or, count, inArray } from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class RoomsService {
@@ -30,7 +34,26 @@ export class RoomsService {
       .returning();
   }
 
-  async getRooms(): Promise<RoomResponse[]> {
+  async getRooms(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.rooms);
+    const total = totalResult.count;
+
+    const roomIds = await this.db
+      .select({ id: schema.rooms.id })
+      .from(schema.rooms)
+      .limit(limit)
+      .offset(offset);
+
+    if (roomIds.length === 0) {
+      return createPaginatedResponse([], total, page, limit);
+    }
+
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -66,6 +89,12 @@ export class RoomsService {
       .leftJoin(
         schema.highlights,
         eq(schema.highlights.id, schema.roomHighlights.highlightId),
+      )
+      .where(
+        inArray(
+          schema.rooms.id,
+          roomIds.map((r) => r.id),
+        ),
       );
 
     const roomsMap = new Map<number, RoomWithDetails>();
@@ -103,11 +132,13 @@ export class RoomsService {
       }
     }
 
-    return Array.from(roomsMap.values()).map((room) => ({
+    const data = Array.from(roomsMap.values()).map((room) => ({
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async getRoomById(id: number): Promise<RoomResponse> {
@@ -189,7 +220,28 @@ export class RoomsService {
     };
   }
 
-  async getRoomsByProperty(propertyId: number): Promise<RoomResponse[]> {
+  async getRoomsByProperty(propertyId: number, pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.rooms)
+      .where(eq(schema.rooms.propertyId, propertyId));
+    const total = totalResult.count;
+
+    const roomIds = await this.db
+      .select({ id: schema.rooms.id })
+      .from(schema.rooms)
+      .where(eq(schema.rooms.propertyId, propertyId))
+      .limit(limit)
+      .offset(offset);
+
+    if (roomIds.length === 0) {
+      return createPaginatedResponse([], total, page, limit);
+    }
+
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -226,7 +278,12 @@ export class RoomsService {
         schema.highlights,
         eq(schema.highlights.id, schema.roomHighlights.highlightId),
       )
-      .where(eq(schema.rooms.propertyId, propertyId));
+      .where(
+        inArray(
+          schema.rooms.id,
+          roomIds.map((r) => r.id),
+        ),
+      );
 
     const roomsMap = new Map<number, RoomWithDetails>();
 
@@ -263,11 +320,13 @@ export class RoomsService {
       }
     }
 
-    return Array.from(roomsMap.values()).map((room) => ({
+    const data = Array.from(roomsMap.values()).map((room) => ({
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async editRoom(id: number, data: EditRoomDto) {
@@ -328,8 +387,8 @@ export class RoomsService {
     };
   }
 
-  async getPriceQuote(data: GetPriceQuoteDto, userId: number) {
-    const { rooms, createHolds = true } = data;
+  async getPriceQuote(data: GetPriceQuoteDto) {
+    const { rooms } = data;
 
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
@@ -351,7 +410,6 @@ export class RoomsService {
         roomId,
         checkIn,
         checkOut,
-        userId,
       );
 
       if (!isAvailable) {
@@ -397,15 +455,6 @@ export class RoomsService {
         roomTotal: roomPrice.toFixed(2),
         available: isAvailable,
       });
-
-      if (isAvailable && createHolds && userId > 0) {
-        await this.roomHoldsService.createHold(
-          userId,
-          roomId,
-          checkIn,
-          checkOut,
-        );
-      }
     }
 
     return {
@@ -413,7 +462,7 @@ export class RoomsService {
       totalPrice: totalPrice.toFixed(2),
       allAvailable,
       message: allAvailable
-        ? 'All rooms are available for the selected dates'
+        ? 'All rooms are available'
         : 'Some rooms are not available',
     };
   }

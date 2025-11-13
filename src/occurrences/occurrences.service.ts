@@ -3,7 +3,11 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateOccurrenceDto, EditOccurrenceDto } from './dto';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class OccurrencesService {
@@ -19,8 +23,23 @@ export class OccurrencesService {
       .returning();
   }
 
-  async getOccurrences() {
-    return await this.db.select().from(schema.occurrences);
+  async getOccurrences(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.occurrences);
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.occurrences)
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async getOccurrenceById(id: number) {
@@ -36,11 +55,28 @@ export class OccurrencesService {
     return occurrence;
   }
 
-  async getOccurrencesByReservation(reservationId: number) {
-    return await this.db
-      .select()
+  async getOccurrencesByReservation(
+    reservationId: number,
+    pagination?: PaginationDto,
+  ) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
       .from(schema.occurrences)
       .where(eq(schema.occurrences.reservationId, reservationId));
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.occurrences)
+      .where(eq(schema.occurrences.reservationId, reservationId))
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async editOccurrence(id: number, data: EditOccurrenceDto) {

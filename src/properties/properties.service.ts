@@ -4,8 +4,12 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreatePropertyDto } from './dto/create-property.dto';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 import { EditPropertyDto } from './dto/edit-property.dto';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class PropertiesService {
@@ -31,8 +35,23 @@ export class PropertiesService {
       .returning();
   }
 
-  async getProperties() {
-    return await this.db.select().from(schema.properties);
+  async getProperties(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.properties);
+    const total = totalResult.count;
+
+    const data = await this.db
+      .select()
+      .from(schema.properties)
+      .limit(limit)
+      .offset(offset);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async getPropertyById(id: number) {
