@@ -24,8 +24,14 @@ export class InvoicesController {
   async getInvoices(
     @Query('reservationId', new ParseIntPipe({ optional: true }))
     reservationId: number | undefined,
-    @Query() pagination: PaginationDto,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
+    const pagination: PaginationDto = {
+      page: page || 1,
+      limit: limit || 10,
+    };
+
     if (reservationId !== undefined) {
       return await this.invoicesService.getInvoicesByReservation(
         reservationId,

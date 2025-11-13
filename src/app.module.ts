@@ -27,6 +27,8 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { CorrelationIdService } from './interceptors/correlation-id.service';
+import { BullModule } from '@nestjs/bullmq';
+import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
@@ -41,6 +43,13 @@ import { CorrelationIdService } from './interceptors/correlation-id.service';
           limit: 15,
         },
       ],
+    }),
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT),
+        password: process.env.REDIS_PASSWORD,
+      },
     }),
     ScheduleModule.forRoot(),
     DrizzleModule,
@@ -64,6 +73,7 @@ import { CorrelationIdService } from './interceptors/correlation-id.service';
     OccurrencesModule,
     PaypalModule,
     HealthModule,
+    QueuesModule,
   ],
   controllers: [],
   providers: [

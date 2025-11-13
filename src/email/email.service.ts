@@ -54,8 +54,10 @@ export class EmailService {
     });
   }
 
-  async sendVerifyUserLink(id: number, email: string) {
-    const payload = { subb: id, email };
+  async sendVerifyUserLink(data: { id: number; email: string }) {
+    console.log('DATA\n');
+    console.log(data);
+    const payload = { subb: data.id, email: data.email };
 
     const token = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
@@ -68,7 +70,7 @@ export class EmailService {
 
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
-      to: email,
+      to: data.email,
       subject: 'Verify account',
       text,
     });

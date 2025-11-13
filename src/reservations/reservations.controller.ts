@@ -26,8 +26,13 @@ export class ReservationsController {
   @Get()
   async getReservations(
     @Request() req: AuthenticatedRequest,
-    @Query() pagination: PaginationDto,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
+    const pagination: PaginationDto = {
+      page: page || 1,
+      limit: limit || 10,
+    };
     return this.reservationsService.getReservationsByUser(
       req.user.sub,
       pagination,

@@ -19,6 +19,8 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
@@ -34,6 +36,7 @@ export class ReservationsService implements OnModuleInit {
     private usersService: UsersService,
     private emailService: EmailService,
     private paypalService: PaypalService,
+    @InjectQueue('email') private readonly emailQueue: Queue,
   ) {}
 
   async onModuleInit() {
@@ -85,7 +88,6 @@ export class ReservationsService implements OnModuleInit {
     }
 
     const roomIds = rooms.map((r) => r.roomId);
-
     const roomRecords = await tx
       .select({
         id: schema.rooms.id,
@@ -96,8 +98,11 @@ export class ReservationsService implements OnModuleInit {
         schema.roomTypes,
         eq(schema.rooms.roomTypeId, schema.roomTypes.id),
       )
-      .where(inArray(schema.rooms.id, roomIds))
-      .for('update');
+      .where(
+        roomIds.length === 1
+          ? eq(schema.rooms.id, roomIds[0])
+          : inArray(schema.rooms.id, roomIds),
+      );
 
     const roomsMap = new Map(roomRecords.map((room) => [room.id, room]));
 
@@ -203,15 +208,17 @@ export class ReservationsService implements OnModuleInit {
     if (!user) {
       throw new NotFoundException('User', String(userId));
     }
-
-    await this.emailService.sendReservationConfirmationEmail({
-      userName: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      totalPrice,
-      depositAmount,
-      rooms: validatedRooms,
-      specialRequests,
-    });
+    const payload = {
+      data: {
+        userName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        totalPrice,
+        depositAmount,
+        rooms: validatedRooms,
+        specialRequests,
+      },
+    };
+    await this.emailQueue.add('sendReservationConfirmationEmail', payload);
   }
 
   private async createReservationWithRooms(

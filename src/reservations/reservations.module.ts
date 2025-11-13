@@ -12,9 +12,17 @@ import {
   IdempotencyInterceptor,
   IdempotencyCleanupService,
 } from 'src/interceptors';
+import { QueuesModule } from 'src/queues/queues.module';
 
 @Module({
-  imports: [RoomsModule, UsersModule, EmailModule, AuthModule, PaymentsModule],
+  imports: [
+    RoomsModule,
+    UsersModule,
+    EmailModule,
+    AuthModule,
+    PaymentsModule,
+    QueuesModule,
+  ],
   providers: [
     ReservationsService,
     IdempotencyService,

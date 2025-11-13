@@ -120,6 +120,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception.code) {
       switch (exception.code) {
+        case '23P01':
+          return {
+            statusCode: HttpStatus.CONFLICT,
+            timestamp,
+            path,
+            method,
+            message:
+              exception.constraint === 'no_overlapping_room_bookings'
+                ? 'One or more selected rooms are no longer available for the chosen dates'
+                : 'The requested operation conflicts with existing data',
+            error: 'Conflict',
+            details: {
+              constraint: exception.constraint,
+            },
+            correlationId,
+          };
         case '23505':
           return {
             statusCode: HttpStatus.CONFLICT,

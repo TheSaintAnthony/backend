@@ -62,6 +62,29 @@ export class UsersService {
     };
   }
 
+  async findByEmailOrNull(email: string) {
+    const [user] = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email));
+
+    if (!user) {
+      return null;
+    }
+
+    const roles = await this.db
+      .select({ name: schema.roles.name })
+      .from(schema.roles)
+      .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
+      .where(eq(schema.userRoles.userId, user.id));
+
+    const { passwordHash: _, ...safeUser } = user;
+    return {
+      ...safeUser,
+      roles,
+    };
+  }
+
   async getUserById(id: number) {
     const [user] = await this.db
       .select({

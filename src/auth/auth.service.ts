@@ -18,6 +18,9 @@ import {
 import { EmailService } from 'src/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/constants';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { EmailJobData } from 'src/queues/interfaces';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +29,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private configService: ConfigService,
+    @InjectQueue('email') private emailsQueue: Queue,
   ) {}
 
   async signIn(data: SignInDto): Promise<{ accessToken: string }> {
@@ -62,7 +66,7 @@ export class AuthService {
   }
 
   async signUp(data: SignUpDto) {
-    const user = await this.usersService.findByEmail(data.email);
+    const user = await this.usersService.findByEmailOrNull(data.email);
 
     if (user) {
       throw new ConflictException('User with this email already exists', {
@@ -75,8 +79,10 @@ export class AuthService {
       ...data,
       password: passwordHash,
     });
-
-    await this.emailService.sendVerifyUserLink(result.id, result.email);
+    const emailJobData: EmailJobData = {
+      data: { id: result.id, email: result.email },
+    };
+    await this.emailsQueue.add('sendVerifyUserLink', emailJobData);
     return result;
   }
 
@@ -92,7 +98,7 @@ export class AuthService {
       throw new NotFoundException('User', email);
     }
 
-    return this.emailService.sendResetPasswordLink(email);
+    await this.emailsQueue.add('sendResetPasswordLink', { data: email });
   }
 
   async resetPassword(data: PasswordResetDto) {
@@ -111,10 +117,12 @@ export class AuthService {
 
   private async decodeResetPasswordTokenToEmail(token: string) {
     try {
-      const payload: PasswordResetTokenPayload =
-        await this.jwtService.verify(token, {
+      const payload: PasswordResetTokenPayload = await this.jwtService.verify(
+        token,
+        {
           secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
-        });
+        },
+      );
 
       if (typeof payload === 'object' && 'email' in payload) {
         return payload.email;
