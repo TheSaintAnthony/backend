@@ -15,6 +15,7 @@ export const users = pgTable('users', {
     .defaultNow()
     .notNull(),
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  passwordChangedAt: timestamp('password_changed_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

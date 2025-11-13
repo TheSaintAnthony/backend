@@ -102,11 +102,26 @@ export class AuthService {
   }
 
   async resetPassword(data: PasswordResetDto) {
-    const email = await this.decodeResetPasswordTokenToEmail(data.token);
+    const { email, tokenIssuedAt } = await this.decodeResetPasswordTokenToEmail(
+      data.token,
+    );
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('User', email);
+    }
+
+    if (user.passwordChangedAt) {
+      const passwordChangedAtTimestamp = new Date(
+        user.passwordChangedAt,
+      ).getTime();
+      const tokenIssuedAtTimestamp = tokenIssuedAt * 1000; // JWT iat is in seconds
+
+      if (tokenIssuedAtTimestamp < passwordChangedAtTimestamp) {
+        throw new UnauthorizedException(
+          'Password was changed after this token was issued. Please request a new password reset.',
+        );
+      }
     }
 
     const passwordHashed = await bcrypt.hash(data.password, 10);
@@ -124,8 +139,15 @@ export class AuthService {
         },
       );
 
-      if (typeof payload === 'object' && 'email' in payload) {
-        return payload.email;
+      if (
+        typeof payload === 'object' &&
+        'email' in payload &&
+        'iat' in payload
+      ) {
+        return {
+          email: payload.email,
+          tokenIssuedAt: payload.iat as number,
+        };
       }
       throw new BadRequestException('Invalid token payload');
     } catch (error) {
