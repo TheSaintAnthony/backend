@@ -32,6 +32,7 @@ import { IdempotencyCleanupService } from './services/idempotency/idempotency-cl
 import { BullModule } from '@nestjs/bullmq';
 import { QueuesModule } from './queues/queues.module';
 import { CacheModule } from './cache/cache.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { CacheModule } from './cache/cache.module';
     PaypalModule,
     HealthModule,
     QueuesModule,
+    ReportsModule,
   ],
   controllers: [],
   providers: [
