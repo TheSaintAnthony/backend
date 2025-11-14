@@ -9,7 +9,7 @@ import {
   RoomBookingInput,
   ReservationWithRooms,
 } from './interfaces';
-import { eq, inArray, count, and, or, ne, gt, sql } from 'drizzle-orm';
+import { eq, inArray, count, and, ne, gt, sql } from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
 import {

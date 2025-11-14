@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { DateRangeDto } from './dto';
+import { DateRangeDto, GroupByPeriod } from './dto';
 import { sql, and, gte, lte, eq, count, sum, desc } from 'drizzle-orm';
 
 @Injectable()
@@ -27,7 +27,9 @@ export class ReportsService {
       );
     }
     if (endDate) {
-      dateConditions.push(lte(schema.reservations.createdAt, new Date(endDate)));
+      dateConditions.push(
+        lte(schema.reservations.createdAt, new Date(endDate)),
+      );
     }
 
     // Get confirmed reservation status (paid bookings)
@@ -49,7 +51,10 @@ export class ReportsService {
     const revenueConditions = [
       ...dateConditions,
       validStatusIds.length > 0
-        ? sql`${schema.reservations.statusId} IN (${sql.join(validStatusIds.map((id) => sql`${id}`), sql`, `)})`
+        ? sql`${schema.reservations.statusId} IN (${sql.join(
+            validStatusIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`
         : undefined,
     ].filter(Boolean);
 
@@ -60,7 +65,9 @@ export class ReportsService {
         averageBookingValue: sql<number>`AVG(${schema.reservations.totalPrice})`,
       })
       .from(schema.reservations)
-      .where(revenueConditions.length > 0 ? and(...revenueConditions) : undefined);
+      .where(
+        revenueConditions.length > 0 ? and(...revenueConditions) : undefined,
+      );
 
     const totalRevenue = totalRevenueResult[0];
 
@@ -187,7 +194,9 @@ export class ReportsService {
       );
     }
     if (endDate) {
-      dateConditions.push(lte(schema.reservations.createdAt, new Date(endDate)));
+      dateConditions.push(
+        lte(schema.reservations.createdAt, new Date(endDate)),
+      );
     }
 
     // Total bookings by status
@@ -209,16 +218,16 @@ export class ReportsService {
     // Bookings over time (grouped by period)
     let dateGroupExpression;
     switch (groupBy) {
-      case 'day':
+      case GroupByPeriod.DAY:
         dateGroupExpression = sql<string>`DATE(${schema.reservations.createdAt})`;
         break;
-      case 'week':
+      case GroupByPeriod.WEEK:
         dateGroupExpression = sql<string>`DATE_TRUNC('week', ${schema.reservations.createdAt})`;
         break;
-      case 'month':
+      case GroupByPeriod.MONTH:
         dateGroupExpression = sql<string>`DATE_TRUNC('month', ${schema.reservations.createdAt})`;
         break;
-      case 'year':
+      case GroupByPeriod.YEAR:
         dateGroupExpression = sql<string>`DATE_TRUNC('year', ${schema.reservations.createdAt})`;
         break;
       default:
@@ -388,17 +397,27 @@ export class ReportsService {
 
         return acc;
       },
-      {} as Record<number, any>,
+      {} as Record<
+        number,
+        {
+          propertyId: number;
+          propertyName: string | null;
+          totalBookedNights: number;
+          totalAvailableNights: number;
+          roomCount: number;
+        }
+      >,
     );
 
     const propertyOccupancyArray = Object.values(propertyOccupancy).map(
-      (prop: any) => ({
+      (prop) => ({
         ...prop,
         occupancyRate:
           prop.totalAvailableNights > 0
-            ? ((prop.totalBookedNights / prop.totalAvailableNights) * 100).toFixed(
-                2,
-              )
+            ? (
+                (prop.totalBookedNights / prop.totalAvailableNights) *
+                100
+              ).toFixed(2)
             : '0.00',
       }),
     );
@@ -427,17 +446,27 @@ export class ReportsService {
 
         return acc;
       },
-      {} as Record<number, any>,
+      {} as Record<
+        number,
+        {
+          roomTypeId: number;
+          roomTypeName: string | null;
+          totalBookedNights: number;
+          totalAvailableNights: number;
+          roomCount: number;
+        }
+      >,
     );
 
     const roomTypeOccupancyArray = Object.values(roomTypeOccupancy).map(
-      (type: any) => ({
+      (type) => ({
         ...type,
         occupancyRate:
           type.totalAvailableNights > 0
-            ? ((type.totalBookedNights / type.totalAvailableNights) * 100).toFixed(
-                2,
-              )
+            ? (
+                (type.totalBookedNights / type.totalAvailableNights) *
+                100
+              ).toFixed(2)
             : '0.00',
       }),
     );
@@ -521,7 +550,10 @@ export class ReportsService {
         averageBookingValue: sql<number>`AVG(${schema.reservations.totalPrice})`,
       })
       .from(schema.users)
-      .leftJoin(schema.reservations, eq(schema.users.id, schema.reservations.userId))
+      .leftJoin(
+        schema.reservations,
+        eq(schema.users.id, schema.reservations.userId),
+      )
       .groupBy(
         schema.users.id,
         schema.users.firstName,
@@ -577,7 +609,10 @@ export class ReportsService {
         customerCount: count(sql`DISTINCT ${schema.users.id}`),
       })
       .from(schema.users)
-      .leftJoin(schema.addresses, eq(schema.users.addressId, schema.addresses.id))
+      .leftJoin(
+        schema.addresses,
+        eq(schema.users.addressId, schema.addresses.id),
+      )
       .where(sql`${schema.addresses.country} IS NOT NULL`)
       .groupBy(schema.addresses.country)
       .orderBy(desc(count(sql`DISTINCT ${schema.users.id}`)))

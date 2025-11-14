@@ -8,4 +8,3 @@ export interface InvoiceCancelResult {
   errorMessage?: string;
   errorCode?: string;
 }
-

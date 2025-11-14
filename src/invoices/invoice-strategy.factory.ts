@@ -68,4 +68,3 @@ export class InvoiceStrategyFactory {
     return this.getStrategy(provider.id);
   }
 }
-

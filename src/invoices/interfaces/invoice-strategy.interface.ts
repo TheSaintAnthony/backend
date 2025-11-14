@@ -16,4 +16,3 @@ export interface IInvoiceStrategy {
     externalInvoiceIds: string[],
   ): Promise<InvoiceStatusResult[]>;
 }
-

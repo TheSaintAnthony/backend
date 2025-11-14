@@ -21,11 +21,12 @@ export class StatusLookupService implements OnModuleInit {
   }
 
   private async loadStatuses() {
-    const [reservationStatuses, invoiceStatuses, invoiceTypes] = await Promise.all([
-      this.db.select().from(schema.reservationStatus),
-      this.db.select().from(schema.invoiceStatus),
-      this.db.select().from(schema.invoiceTypes),
-    ]);
+    const [reservationStatuses, invoiceStatuses, invoiceTypes] =
+      await Promise.all([
+        this.db.select().from(schema.reservationStatus),
+        this.db.select().from(schema.invoiceStatus),
+        this.db.select().from(schema.invoiceTypes),
+      ]);
 
     for (const status of reservationStatuses) {
       this.reservationStatusCache.set(status.name, status.id);

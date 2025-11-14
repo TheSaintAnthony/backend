@@ -12,4 +12,3 @@ export interface InvoiceStatusResult {
   pdfUrl?: string;
   metadata?: Record<string, unknown>;
 }
-

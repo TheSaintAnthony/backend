@@ -56,4 +56,3 @@ export class NestedInvoiceLineItemDto {
   @IsDateString()
   endDate?: string;
 }
-

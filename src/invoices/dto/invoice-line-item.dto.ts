@@ -114,4 +114,3 @@ export class EditInvoiceLineItemDto {
   @IsDateString()
   endDate?: string;
 }
-

@@ -11,4 +11,3 @@ export interface InvoiceCreationResult {
   errorCode?: string;
   metadata?: Record<string, unknown>;
 }
-

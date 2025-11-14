@@ -6,7 +6,6 @@ import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
 import { EmailConfirmation } from 'src/reservations/interfaces';
 import ical from 'ical-generator';
-import { createPublicKey } from 'node:crypto';
 
 @Injectable()
 export class EmailService {
@@ -172,7 +171,12 @@ St. Anthony Team`;
   }
 
   async sendReservationConfirmationEmail(emailPayload: EmailConfirmation) {
-    const calendarEvents: any = [];
+    const calendarEvents: Array<{
+      filename: string;
+      content: string;
+      contentType: string;
+      method: string;
+    }> = [];
     const roomDetails = emailPayload.rooms
       .map((room, index) => {
         const icsContent = this.createCalendarEvent(

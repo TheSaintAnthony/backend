@@ -72,10 +72,13 @@ export class LookupsService {
   ): Promise<unknown> {
     await this.ensureExistsById(table, id);
 
-    return this.db
-      .update(table)
-      .set(value as any)
-      .where(eq(table.id, id));
+    return (
+      this.db
+        .update(table)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        .set(value as any)
+        .where(eq(table.id, id))
+    );
   }
 
   async deleteValue(table: LookupTable, id: number) {

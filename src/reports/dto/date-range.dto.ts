@@ -1,10 +1,4 @@
-import {
-  IsOptional,
-  IsDateString,
-  IsEnum,
-  IsInt,
-  Min,
-} from 'class-validator';
+import { IsOptional, IsDateString, IsEnum, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum GroupByPeriod {
@@ -45,4 +39,3 @@ export class DateRangeDto {
   @Min(1)
   roomTypeId?: number;
 }
-

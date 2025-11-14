@@ -11,7 +11,10 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EditInvoiceDto {
-  @ApiPropertyOptional({ description: 'Total invoice amount', example: '1500.00' })
+  @ApiPropertyOptional({
+    description: 'Total invoice amount',
+    example: '1500.00',
+  })
   @IsOptional()
   @IsNumberString()
   totalAmount?: string;
@@ -37,7 +40,8 @@ export class EditInvoiceDto {
   customerCompanyName?: string;
 
   @ApiPropertyOptional({
-    description: 'Customer Tax ID (NIF for PT, VAT for EU, etc.) - Optional for individual consumers',
+    description:
+      'Customer Tax ID (NIF for PT, VAT for EU, etc.) - Optional for individual consumers',
     example: '123456789',
   })
   @IsOptional()

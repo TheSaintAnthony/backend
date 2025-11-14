@@ -4,7 +4,6 @@ import {
   PaymentCaptureResult,
   PaymentCreationResult,
   PaymentStatusResult,
-  RefundResult,
 } from '../interfaces';
 import { PaypalService } from './paypal.service';
 

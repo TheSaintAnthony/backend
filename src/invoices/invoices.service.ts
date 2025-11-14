@@ -287,25 +287,40 @@ export class InvoicesService {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
+    if (data.totalAmount !== undefined)
+      updateData.totalAmount = data.totalAmount;
     if (data.currency !== undefined) updateData.currency = data.currency;
-    if (data.customerName !== undefined) updateData.customerName = data.customerName;
-    if (data.customerCompanyName !== undefined) updateData.customerCompanyName = data.customerCompanyName;
-    if (data.customerTaxId !== undefined) updateData.customerTaxId = data.customerTaxId;
-    if (data.customerEmail !== undefined) updateData.customerEmail = data.customerEmail;
-    if (data.customerPhone !== undefined) updateData.customerPhone = data.customerPhone;
-    if (data.customerAddress !== undefined) updateData.customerAddress = data.customerAddress;
-    if (data.customerCountry !== undefined) updateData.customerCountry = data.customerCountry;
-    if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
-    if (data.invoiceTypeId !== undefined) updateData.invoiceTypeId = data.invoiceTypeId;
+    if (data.customerName !== undefined)
+      updateData.customerName = data.customerName;
+    if (data.customerCompanyName !== undefined)
+      updateData.customerCompanyName = data.customerCompanyName;
+    if (data.customerTaxId !== undefined)
+      updateData.customerTaxId = data.customerTaxId;
+    if (data.customerEmail !== undefined)
+      updateData.customerEmail = data.customerEmail;
+    if (data.customerPhone !== undefined)
+      updateData.customerPhone = data.customerPhone;
+    if (data.customerAddress !== undefined)
+      updateData.customerAddress = data.customerAddress;
+    if (data.customerCountry !== undefined)
+      updateData.customerCountry = data.customerCountry;
+    if (data.invoiceNumber !== undefined)
+      updateData.invoiceNumber = data.invoiceNumber;
+    if (data.invoiceTypeId !== undefined)
+      updateData.invoiceTypeId = data.invoiceTypeId;
     if (data.dueDate !== undefined) updateData.dueDate = new Date(data.dueDate);
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.providerId !== undefined) updateData.providerId = data.providerId;
-    if (data.externalInvoiceId !== undefined) updateData.externalInvoiceId = data.externalInvoiceId;
-    if (data.externalInvoiceNumber !== undefined) updateData.externalInvoiceNumber = data.externalInvoiceNumber;
-    if (data.externalInvoiceUrl !== undefined) updateData.externalInvoiceUrl = data.externalInvoiceUrl;
-    if (data.externalInvoicePdfPath !== undefined) updateData.externalInvoicePdfPath = data.externalInvoicePdfPath;
-    if (data.syncedAt !== undefined) updateData.syncedAt = new Date(data.syncedAt);
+    if (data.externalInvoiceId !== undefined)
+      updateData.externalInvoiceId = data.externalInvoiceId;
+    if (data.externalInvoiceNumber !== undefined)
+      updateData.externalInvoiceNumber = data.externalInvoiceNumber;
+    if (data.externalInvoiceUrl !== undefined)
+      updateData.externalInvoiceUrl = data.externalInvoiceUrl;
+    if (data.externalInvoicePdfPath !== undefined)
+      updateData.externalInvoicePdfPath = data.externalInvoicePdfPath;
+    if (data.syncedAt !== undefined)
+      updateData.syncedAt = new Date(data.syncedAt);
     if (data.syncError !== undefined) updateData.syncError = data.syncError;
     if (data.statusId !== undefined) updateData.statusId = data.statusId;
 
@@ -374,14 +389,18 @@ export class InvoicesService {
 
     if (data.description !== undefined)
       updateData.description = data.description;
-    if (data.productCode !== undefined) updateData.productCode = data.productCode;
+    if (data.productCode !== undefined)
+      updateData.productCode = data.productCode;
     if (data.itemType !== undefined) updateData.itemType = data.itemType;
-    if (data.itemReferenceId !== undefined) updateData.itemReferenceId = data.itemReferenceId;
+    if (data.itemReferenceId !== undefined)
+      updateData.itemReferenceId = data.itemReferenceId;
     if (data.quantity !== undefined) updateData.quantity = data.quantity;
     if (data.unitPrice !== undefined) updateData.unitPrice = data.unitPrice;
     if (data.discount !== undefined) updateData.discount = data.discount;
-    if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
-    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
+    if (data.totalAmount !== undefined)
+      updateData.totalAmount = data.totalAmount;
+    if (data.startDate !== undefined)
+      updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
 
     return await this.db

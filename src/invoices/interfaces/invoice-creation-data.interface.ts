@@ -24,4 +24,3 @@ export interface InvoiceLineItemData {
   startDate?: Date;
   endDate?: Date;
 }
-

@@ -25,4 +25,3 @@ export enum ProductCode {
   CLEANING_FEE = 'CLEANING_FEE',
   TOURIST_TAX = 'TOURIST_TAX',
 }
-

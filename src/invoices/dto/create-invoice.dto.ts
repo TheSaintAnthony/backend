@@ -49,7 +49,8 @@ export class CreateInvoiceDto {
   customerCompanyName?: string;
 
   @ApiPropertyOptional({
-    description: 'Customer Tax ID (NIF for PT, VAT for EU, etc.) - Optional for individual consumers',
+    description:
+      'Customer Tax ID (NIF for PT, VAT for EU, etc.) - Optional for individual consumers',
     example: '123456789',
   })
   @IsOptional()
