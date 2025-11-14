@@ -14,13 +14,12 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
 import {
   PaymentStatus,
-  PaymentMethod,
   RESERVATION_STATUS_NAMES,
   INVOICE_STATUS_NAMES,
   DEFAULT_DEPOSIT_AMOUNT,
 } from 'src/constants';
 import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
-import { PaypalService } from 'src/payments/paypal/paypal.service';
+import { PaymentStrategyFactory } from 'src/payments/payment-strategy.factory';
 import {
   PaginationDto,
   createPaginatedResponse,
@@ -33,7 +32,6 @@ import { CacheService } from 'src/cache/cache.service';
 export class ReservationsService implements OnModuleInit {
   private completedPaymentStatusId: number;
   private pendingPaymentStatusId: number;
-  private paypalMethodId: number;
   private readonly HOLD_DURATION_MINUTES = 10;
 
   constructor(
@@ -41,7 +39,7 @@ export class ReservationsService implements OnModuleInit {
     private db: NodePgDatabase<typeof schema>,
     private roomsService: RoomsService,
     private usersService: UsersService,
-    private paypalService: PaypalService,
+    private paymentStrategyFactory: PaymentStrategyFactory,
     @InjectQueue('email') private readonly emailQueue: Queue,
     private cacheService: CacheService,
     private statusLookupService: StatusLookupService,
@@ -54,14 +52,10 @@ export class ReservationsService implements OnModuleInit {
     const pendingStatusCached = await this.cacheService.get<{ id: number }>(
       'payment_status:pending',
     );
-    const paypalMethodCached = await this.cacheService.get<{ id: number }>(
-      'payment_method:paypal',
-    );
 
-    if (completedStatusCached && pendingStatusCached && paypalMethodCached) {
+    if (completedStatusCached && pendingStatusCached) {
       this.completedPaymentStatusId = completedStatusCached.id;
       this.pendingPaymentStatusId = pendingStatusCached.id;
-      this.paypalMethodId = paypalMethodCached.id;
       return;
     }
     const [completedStatus] = await this.db
@@ -73,11 +67,6 @@ export class ReservationsService implements OnModuleInit {
       .select()
       .from(schema.paymentStatus)
       .where(eq(schema.paymentStatus.name, PaymentStatus.PENDING));
-
-    const [paypalMethod] = await this.db
-      .select()
-      .from(schema.paymentMethods)
-      .where(eq(schema.paymentMethods.name, PaymentMethod.PAYPAL));
 
     if (!completedStatus) {
       throw new Error(
@@ -91,20 +80,12 @@ export class ReservationsService implements OnModuleInit {
       );
     }
 
-    if (!paypalMethod) {
-      throw new Error(
-        `Payment method '${PaymentMethod.PAYPAL}' not found in payment_methods table`,
-      );
-    }
-
     this.completedPaymentStatusId = completedStatus.id;
     this.pendingPaymentStatusId = pendingStatus.id;
-    this.paypalMethodId = paypalMethod.id;
 
     await this.cacheService.setMany([
       { key: 'payment_status:completed', value: completedStatus, ttl: 86400 },
       { key: 'payment_status:pending', value: pendingStatus, ttl: 86400 },
-      { key: 'payment_method:paypal', value: paypalMethod, ttl: 86400 },
     ]);
   }
 
@@ -314,42 +295,6 @@ export class ReservationsService implements OnModuleInit {
     return invoice;
   }
 
-  private async fetchReservationData(
-    tx: NodePgDatabase<typeof schema>,
-    orderId: string,
-  ) {
-    const [existingPayment] = await tx
-      .select()
-      .from(schema.payments)
-      .where(eq(schema.payments.transactionId, orderId))
-      .limit(1);
-
-    if (
-      existingPayment &&
-      existingPayment.paymentStatusId === this.completedPaymentStatusId
-    ) {
-      const [invoice] = await tx
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, existingPayment.invoiceId))
-        .limit(1);
-
-      if (invoice) {
-        const [reservation] = await tx
-          .select()
-          .from(schema.reservations)
-          .where(eq(schema.reservations.id, invoice.reservationId))
-          .limit(1);
-
-        if (reservation) {
-          return { alreadyCompleted: true, reservation };
-        }
-      }
-    }
-
-    return { alreadyCompleted: false };
-  }
-
   async getReservationById(id: number) {
     const [reservation] = await this.db
       .select()
@@ -478,7 +423,7 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async createBooking(userId: number, data: CreateBookingDto) {
-    const { rooms, specialRequests, paymentMethodId, transactionId } = data;
+    const { rooms, specialRequests, paymentMethodId, metadata } = data;
 
     return this.db.transaction(async (tx) => {
       const { totalPrice, validatedRooms } =
@@ -486,59 +431,11 @@ export class ReservationsService implements OnModuleInit {
 
       const totalPriceStr = totalPrice.toString();
 
-      const reservation = await this.createReservationWithRooms(
-        tx,
-        userId,
-        this.statusLookupService.getReservationStatusId(
-          RESERVATION_STATUS_NAMES.CONFIRMED,
-        ),
-        this.completedPaymentStatusId,
-        totalPriceStr,
-        validatedRooms,
-        specialRequests,
-      );
+      // Get the appropriate payment strategy based on payment method
+      const paymentStrategy =
+        await this.paymentStrategyFactory.getStrategy(paymentMethodId);
 
-      const invoice = await this.createInvoiceAndPayment(
-        tx,
-        reservation.id,
-        totalPriceStr,
-        this.statusLookupService.getInvoiceStatusId(INVOICE_STATUS_NAMES.PAID),
-        paymentMethodId,
-        this.completedPaymentStatusId,
-        transactionId,
-      );
-
-      await tx
-        .delete(schema.roomHolds)
-        .where(eq(schema.roomHolds.userId, userId));
-
-      await this.sendConfirmationEmail(
-        userId,
-        reservation.totalPrice,
-        reservation.depositAmount,
-        validatedRooms,
-        reservation.specialRequests || undefined,
-      );
-
-      return {
-        success: true,
-        reservation,
-        invoice,
-        totalPrice: totalPriceStr,
-        message: 'Booking completed successfully',
-      };
-    });
-  }
-
-  async createPaypalBooking(userId: number, data: CreateBookingDto) {
-    const { rooms, specialRequests } = data;
-
-    return this.db.transaction(async (tx) => {
-      const { totalPrice, validatedRooms } =
-        await this.validateRoomsAndCalculatePrice(tx, userId, rooms);
-
-      const totalPriceStr = totalPrice.toString();
-
+      // Create reservation as PENDING initially
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
@@ -551,11 +448,15 @@ export class ReservationsService implements OnModuleInit {
         specialRequests,
       );
 
-      const paypalOrder = await this.paypalService.createOrder({
-        invoiceId: reservation.id,
+      // Create payment using the strategy (works for ANY payment method!)
+      const paymentResult = await paymentStrategy.createPayment({
         amount: totalPriceStr,
+        currency: 'EUR',
+        orderId: reservation.id.toString(),
+        metadata,
       });
 
+      // Create invoice and payment record
       const invoice = await this.createInvoiceAndPayment(
         tx,
         reservation.id,
@@ -563,62 +464,117 @@ export class ReservationsService implements OnModuleInit {
         this.statusLookupService.getInvoiceStatusId(
           INVOICE_STATUS_NAMES.PENDING,
         ),
-        this.paypalMethodId,
+        paymentMethodId,
         this.pendingPaymentStatusId,
-        paypalOrder.orderId,
+        paymentResult.transactionId,
       );
 
-      const approveLink = paypalOrder.links?.find(
-        (link) => link.rel === 'approve',
-      );
-
+      // Return appropriate response based on payment type
       return {
         success: true,
         reservation,
         invoice,
-        paypalOrder: {
-          orderId: paypalOrder.orderId,
-          approveUrl: approveLink?.href,
+        payment: {
+          transactionId: paymentResult.transactionId,
+          requiresUserAction: paymentResult.requiresUserAction,
+          actionUrl: paymentResult.actionUrl,
+          referenceCode: paymentResult.referenceCode,
+          entityCode: paymentResult.entityCode,
+          expiresAt: paymentResult.expiresAt,
+          metadata: paymentResult.metadata,
         },
         totalPrice: totalPriceStr,
-        message: 'Complete payment to confirm booking',
+        message: paymentResult.requiresUserAction
+          ? 'Complete payment to confirm booking'
+          : 'Booking completed successfully',
       };
     });
   }
 
-  async completePaypalBooking(orderId: string) {
+  async completeBooking(transactionId: string, paymentMethodId: number) {
     return this.db.transaction(async (tx) => {
-      const existingData = await this.fetchReservationData(tx, orderId);
-      if (existingData.alreadyCompleted && existingData.reservation) {
-        return {
-          success: true,
-          reservation: existingData.reservation,
-          message: 'Payment already completed',
-        };
-      }
-
-      const captureResult = await this.paypalService.captureOrder(orderId);
-
-      const [payment] = await tx
+      // Check if payment already completed (idempotency)
+      const [existingPayment] = await tx
         .select()
         .from(schema.payments)
-        .where(eq(schema.payments.id, captureResult.paymentId))
+        .where(eq(schema.payments.transactionId, transactionId))
         .limit(1);
 
-      if (!payment) {
-        throw new NotFoundException('Payment', String(captureResult.paymentId));
+      if (!existingPayment) {
+        throw new NotFoundException('Payment', transactionId);
       }
 
+      if (existingPayment.paymentStatusId === this.completedPaymentStatusId) {
+        const [invoice] = await tx
+          .select()
+          .from(schema.invoices)
+          .where(eq(schema.invoices.id, existingPayment.invoiceId))
+          .limit(1);
+
+        if (invoice) {
+          const [reservation] = await tx
+            .select()
+            .from(schema.reservations)
+            .where(eq(schema.reservations.id, invoice.reservationId))
+            .limit(1);
+
+          if (reservation) {
+            return {
+              success: true,
+              reservation,
+              message: 'Payment already completed',
+            };
+          }
+        }
+      }
+
+      // Get payment strategy
+      const paymentStrategy =
+        await this.paymentStrategyFactory.getStrategy(paymentMethodId);
+
+      // Capture payment (works for all methods!)
+      const captureResult = await paymentStrategy.capturePayment(transactionId);
+
+      if (!captureResult.success) {
+        throw new BadRequestException(
+          captureResult.errorMessage || 'Payment capture failed',
+        );
+      }
+
+      // Update payment status
+      await tx
+        .update(schema.payments)
+        .set({
+          paymentStatusId: this.completedPaymentStatusId,
+          paidAt: new Date(),
+        })
+        .where(eq(schema.payments.id, existingPayment.id));
+
+      // Get invoice
       const [invoice] = await tx
         .select()
         .from(schema.invoices)
-        .where(eq(schema.invoices.id, payment.invoiceId))
+        .where(eq(schema.invoices.id, existingPayment.invoiceId))
         .limit(1);
 
       if (!invoice) {
-        throw new NotFoundException('Invoice', String(payment.invoiceId));
+        throw new NotFoundException(
+          'Invoice',
+          String(existingPayment.invoiceId),
+        );
       }
 
+      // Update invoice status
+      await tx
+        .update(schema.invoices)
+        .set({
+          statusId: this.statusLookupService.getInvoiceStatusId(
+            INVOICE_STATUS_NAMES.PAID,
+          ),
+        })
+        .where(eq(schema.invoices.id, invoice.id));
+
+      // Get reservation
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -632,15 +588,7 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      await tx
-        .update(schema.invoices)
-        .set({
-          statusId: this.statusLookupService.getInvoiceStatusId(
-            INVOICE_STATUS_NAMES.PAID,
-          ),
-        })
-        .where(eq(schema.invoices.id, invoice.id));
-
+      // Update reservation status
       await tx
         .update(schema.reservations)
         .set({
@@ -651,15 +599,18 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.reservations.id, reservation.id));
 
+      // Clear room holds
       await tx
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, reservation.userId));
 
+      // Get reservation rooms for email
       const reservationRooms = await tx
         .select()
         .from(schema.reservationRooms)
         .where(eq(schema.reservationRooms.reservationId, reservation.id));
 
+      // Send confirmation email
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
@@ -687,4 +638,157 @@ export class ReservationsService implements OnModuleInit {
       };
     });
   }
+
+  async cancelReservation(reservationId: number, userId: number) {
+    return this.db.transaction(async (tx) => {
+      // Get reservation
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(
+          and(
+            eq(schema.reservations.id, reservationId),
+            eq(schema.reservations.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!reservation) {
+        throw new NotFoundException('Reservation', String(reservationId));
+      }
+
+      // Only allow canceling PENDING reservations
+      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.PENDING,
+      );
+
+      if (reservation.statusId !== pendingStatusId) {
+        throw new BadRequestException(
+          'Only pending reservations can be canceled',
+        );
+      }
+
+      // Get cancelled status ID
+      const cancelledStatusId = this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.CANCELLED,
+      );
+
+      // Update reservation status
+      await tx
+        .update(schema.reservations)
+        .set({
+          statusId: cancelledStatusId,
+        })
+        .where(eq(schema.reservations.id, reservationId));
+
+      // Clear room holds
+      await tx
+        .delete(schema.roomHolds)
+        .where(eq(schema.roomHolds.userId, userId));
+
+      return {
+        success: true,
+        message: 'Reservation canceled successfully',
+      };
+    });
+  }
+
+  async retryPayment(reservationId: number, userId: number, paymentMethodId: number) {
+    return this.db.transaction(async (tx) => {
+      // Get reservation with rooms
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(
+          and(
+            eq(schema.reservations.id, reservationId),
+            eq(schema.reservations.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!reservation) {
+        throw new NotFoundException('Reservation', String(reservationId));
+      }
+
+      // Only allow retry for PENDING reservations
+      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.PENDING,
+      );
+
+      if (reservation.statusId !== pendingStatusId) {
+        throw new BadRequestException(
+          'Only pending reservations can retry payment',
+        );
+      }
+
+      // Get payment strategy
+      const paymentStrategy =
+        await this.paymentStrategyFactory.getStrategy(paymentMethodId);
+
+      // Create new payment
+      const paymentResult = await paymentStrategy.createPayment({
+        amount: reservation.totalPrice,
+        currency: 'EUR',
+        orderId: reservation.id.toString(),
+      });
+
+      // Update payment record with new transaction ID
+      const [payment] = await tx
+        .select()
+        .from(schema.payments)
+        .innerJoin(
+          schema.invoices,
+          eq(schema.payments.invoiceId, schema.invoices.id),
+        )
+        .where(eq(schema.invoices.reservationId, reservation.id))
+        .limit(1);
+
+      if (payment) {
+        await tx
+          .update(schema.payments)
+          .set({
+            transactionId: paymentResult.transactionId,
+            paymentMethodId: paymentMethodId,
+          })
+          .where(eq(schema.payments.id, payment.payments.id));
+      }
+
+      return {
+        success: true,
+        reservation,
+        payment: {
+          transactionId: paymentResult.transactionId,
+          requiresUserAction: paymentResult.requiresUserAction,
+          actionUrl: paymentResult.actionUrl,
+          referenceCode: paymentResult.referenceCode,
+          entityCode: paymentResult.entityCode,
+          expiresAt: paymentResult.expiresAt,
+          metadata: paymentResult.metadata,
+        },
+        message: 'Ready to retry payment',
+      };
+    });
+  }
+
+  async getPendingReservations(userId: number) {
+    const pendingStatusId = this.statusLookupService.getReservationStatusId(
+      RESERVATION_STATUS_NAMES.PENDING,
+    );
+
+    const reservations = await this.db
+      .select()
+      .from(schema.reservations)
+      .where(
+        and(
+          eq(schema.reservations.userId, userId),
+          eq(schema.reservations.statusId, pendingStatusId),
+        ),
+      )
+      .orderBy(schema.reservations.createdAt);
+
+    return reservations;
+  }
+
+  
 }

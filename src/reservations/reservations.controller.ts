@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -53,18 +54,41 @@ export class ReservationsController {
     return this.reservationsService.createBooking(req.user.sub, body);
   }
 
-  @Post('bookings/paypal')
+  @Post('bookings/complete')
   @Idempotent()
-  async createPaypalBooking(
-    @Body() body: CreateBookingDto,
-    @Request() req: AuthenticatedRequest,
+  async completeBooking(
+    @Body() body: { transactionId: string; paymentMethodId: number },
   ) {
-    return this.reservationsService.createPaypalBooking(req.user.sub, body);
+    return this.reservationsService.completeBooking(
+      body.transactionId,
+      body.paymentMethodId,
+    );
   }
 
-  @Post('bookings/paypal/:orderId/complete')
+  @Get('pending')
+  async getPendingReservations(@Request() req: AuthenticatedRequest) {
+    return this.reservationsService.getPendingReservations(req.user.sub);
+  }
+
+  @Delete(':id/cancel')
+  async cancelReservation(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.reservationsService.cancelReservation(Number(id), req.user.sub);
+  }
+
+  @Post(':id/retry-payment')
   @Idempotent()
-  async completePaypalBooking(@Param('orderId') orderId: string) {
-    return this.reservationsService.completePaypalBooking(orderId);
+  async retryPayment(
+    @Param('id') id: string,
+    @Body() body: { paymentMethodId: number },
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.reservationsService.retryPayment(
+      Number(id),
+      req.user.sub,
+      body.paymentMethodId,
+    );
   }
 }

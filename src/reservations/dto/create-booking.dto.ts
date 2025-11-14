@@ -9,6 +9,7 @@ import {
   Min,
   ArrayMinSize,
   IsNotEmpty,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -75,4 +76,12 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   transactionId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Payment-specific metadata (e.g., phoneNumber for MB Way)',
+    example: { phoneNumber: '+351912345678' },
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, string>;
 }
