@@ -1,0 +1,2 @@
+ALTER TABLE "reservation_rooms" ADD COLUMN "access_code" integer NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "unique_access_code_within_date" ON "reservation_rooms" USING btree ("access_code","check_in","check_out");

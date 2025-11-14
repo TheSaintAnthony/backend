@@ -3,7 +3,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateReservationRoomDto, EditReservationRoomDto } from './dto';
-import { eq } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 
 @Injectable()
 export class ReservationRoomsService {
@@ -12,10 +12,45 @@ export class ReservationRoomsService {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
+  private generateAccessCode(): number {
+    return Math.floor(100000 + Math.random() * 900000);
+  }
+
+  private async generateUniqueAccessCode(
+    checkIn: string,
+    checkOut: string,
+  ): Promise<number> {
+    let code = this.generateAccessCode();
+    let exists = true;
+    while (exists) {
+      const [result] = await this.db
+        .select({ count: count() })
+        .from(schema.reservationRooms)
+        .where(
+          and(
+            eq(schema.reservationRooms.accessCode, code),
+            eq(schema.reservationRooms.checkIn, checkIn),
+            eq(schema.reservationRooms.checkOut, checkOut),
+          ),
+        );
+      exists = result.count > 0;
+      if (exists) {
+        code = this.generateAccessCode();
+      }
+    }
+
+    return code;
+  }
+
   async createReservationRoom(data: CreateReservationRoomDto) {
+    const accessCode = await this.generateUniqueAccessCode(
+      data.checkIn,
+      data.checkOut,
+    );
+
     return await this.db
       .insert(schema.reservationRooms)
-      .values({ ...data })
+      .values({ ...data, accessCode })
       .returning();
   }
 

@@ -242,17 +242,53 @@ export class ReservationsService implements OnModuleInit {
       })
       .returning();
 
-    await tx.insert(schema.reservationRooms).values(
-      validatedRooms.map((room) => ({
+    const roomsWithAccessCodes = await Promise.all(
+      validatedRooms.map(async (room) => ({
         reservationId: reservation.id,
         roomId: room.roomId,
         checkIn: room.checkIn,
         checkOut: room.checkOut,
         guestsCount: room.guestsCount,
+        accessCode: await this.generateUniqueAccessCode(
+          room.checkIn,
+          room.checkOut,
+        ),
       })),
     );
 
+    await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
+
     return reservation;
+  }
+
+  private generateAccessCode(): number {
+    return Math.floor(100000 + Math.random() * 900000);
+  }
+
+  private async generateUniqueAccessCode(
+    checkIn: string,
+    checkOut: string,
+  ): Promise<number> {
+    let code = this.generateAccessCode();
+    let exists = true;
+    while (exists) {
+      const [result] = await this.db
+        .select({ count: count() })
+        .from(schema.reservationRooms)
+        .where(
+          and(
+            eq(schema.reservationRooms.accessCode, code),
+            eq(schema.reservationRooms.checkIn, checkIn),
+            eq(schema.reservationRooms.checkOut, checkOut),
+          ),
+        );
+      exists = result.count > 0;
+      if (exists) {
+        code = this.generateAccessCode();
+      }
+    }
+
+    return code;
   }
 
   private async createInvoiceAndPayment(
@@ -278,8 +314,7 @@ export class ReservationsService implements OnModuleInit {
       ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
       : undefined;
 
-    const invoiceTypeId =
-      this.statusLookupService.getInvoiceTypeId('invoice');
+    const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('invoice');
 
     const lineItems = await Promise.all(
       validatedRooms.map(async (roomValidation) => {
@@ -771,7 +806,11 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  async retryPayment(reservationId: number, userId: number, paymentMethodId: number) {
+  async retryPayment(
+    reservationId: number,
+    userId: number,
+    paymentMethodId: number,
+  ) {
     return this.db.transaction(async (tx) => {
       // Get reservation with rooms
       const [reservation] = await tx
@@ -877,6 +916,4 @@ export class ReservationsService implements OnModuleInit {
 
     return reservations;
   }
-
-  
 }

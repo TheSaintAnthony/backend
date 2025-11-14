@@ -23,6 +23,7 @@ export const reservationRooms = pgTable(
     checkIn: date('check_in').notNull(),
     checkOut: date('check_out').notNull(),
     guestsCount: integer('guests_count').notNull().default(1),
+    accessCode: integer('access_code').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -34,6 +35,9 @@ export const reservationRooms = pgTable(
       table.roomId,
       table.reservationId,
     ),
+    uniqueAccessCodeWithinDates: uniqueIndex(
+      'unique_access_code_within_date',
+    ).on(table.accessCode, table.checkIn, table.checkOut),
     checkDates: check('check_reservation_dates', sql`check_out > check_in`),
     checkGuestsCount: check('check_guests_count', sql`guests_count > 0`),
   }),

@@ -5,6 +5,8 @@ import * as Mail from 'nodemailer/lib/mailer';
 import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
 import { EmailConfirmation } from 'src/reservations/interfaces';
+import ical from 'ical-generator';
+import { createPublicKey } from 'node:crypto';
 
 @Injectable()
 export class EmailService {
@@ -80,20 +82,20 @@ St. Anthony Team`;
               <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Reset Your Password</h1>
             </td>
           </tr>
-          
+
           <!-- Body -->
           <tr>
             <td style="padding: 40px 30px;">
               <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">Hi,</p>
-              
+
               <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                 You recently requested to reset your password for your <strong>St. Anthony</strong> account.
               </p>
-              
+
               <p style="margin: 0 0 30px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                 Click the button below to reset your password:
               </p>
-              
+
               <!-- Button -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
@@ -102,25 +104,25 @@ St. Anthony Team`;
                   </td>
                 </tr>
               </table>
-              
+
               <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 <strong>This link will expire in ${expirationTime}.</strong>
               </p>
-              
+
               <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 If the button doesn't work, copy and paste this link into your browser:
               </p>
-              
+
               <p style="margin: 0 0 30px 0; padding: 12px; background-color: #f5f5f5; border-radius: 6px; word-break: break-all;">
                 <a href="${url}" style="color: #667eea; text-decoration: none; font-size: 13px;">${url}</a>
               </p>
-              
+
               <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 If you didn't request a password reset, you can safely ignore this email.
               </p>
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
             <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
@@ -170,8 +172,21 @@ St. Anthony Team`;
   }
 
   async sendReservationConfirmationEmail(emailPayload: EmailConfirmation) {
+    const calendarEvents: any = [];
     const roomDetails = emailPayload.rooms
       .map((room, index) => {
+        const icsContent = this.createCalendarEvent(
+          room.checkIn,
+          room.checkOut,
+          emailPayload.userName,
+          emailPayload.email,
+        );
+        calendarEvents.push({
+          filename: `booking-room-${index + 1}.ics`,
+          content: icsContent,
+          contentType: 'text/calendar; charset=utf-8',
+          method: 'PUBLISH',
+        });
         return `\n\tRoom ${index + 1}:
       \t\tRoom ID: ${room.roomId}
       \t\tCheck-in: ${room.checkIn}
@@ -211,6 +226,27 @@ The St. Anthony Hotel Team`;
       to: emailPayload.email,
       subject: 'Booking confirmation',
       text,
+      attachments: calendarEvents,
     });
+  }
+
+  private createCalendarEvent(
+    checkIn: string,
+    checkOut: string,
+    userName: string,
+    userEmail: string,
+  ) {
+    const calendar = ical({ name: 'St. Anthony Hotel' });
+    calendar.createEvent({
+      start: checkIn,
+      end: checkOut,
+      summary: 'Booking',
+      location: 'Hotel Address',
+      url: 'http://brandit.pt/',
+      organizer: { name: 'St. Anthony Hotel', email: 'bookings@stanthony.com' },
+      attendees: [{ name: userName, email: userEmail }],
+    });
+
+    return calendar.toString();
   }
 }
