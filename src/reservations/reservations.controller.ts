@@ -40,6 +40,11 @@ export class ReservationsController {
     );
   }
 
+  @Get('pending')
+  async getPendingReservations(@Request() req: AuthenticatedRequest) {
+    return this.reservationsService.getPendingReservations(req.user.sub);
+  }
+
   @Get(':id')
   async getReservationById(@Param('id') id: string) {
     return this.reservationsService.getReservationById(Number(id));
@@ -63,11 +68,6 @@ export class ReservationsController {
       body.transactionId,
       body.paymentMethodId,
     );
-  }
-
-  @Get('pending')
-  async getPendingReservations(@Request() req: AuthenticatedRequest) {
-    return this.reservationsService.getPendingReservations(req.user.sub);
   }
 
   @Delete(':id/cancel')

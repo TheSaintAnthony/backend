@@ -11,6 +11,8 @@ export const users = pgTable('users', {
   addressId: integer('address_id').references(() => addresses.id, {
     onDelete: 'cascade',
   }),
+  nif: varchar('nif', { length: 20 }),
+  companyName: varchar('company_name', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

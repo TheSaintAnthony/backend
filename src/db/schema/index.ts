@@ -11,6 +11,7 @@ export * from './room-holds.schema';
 export * from './reservations.schema';
 export * from './reservation-rooms.schema';
 export * from './invoices.schema';
+export * from './invoice-sequences.schema';
 export * from './payments.schema';
 export * from './occurrences.schema';
 export * from './activities.schema';

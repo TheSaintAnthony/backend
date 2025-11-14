@@ -11,15 +11,17 @@ import {
   highlights,
   reservationStatus,
   invoiceStatus,
+  invoiceTypes,
   occurrenceStatus,
   paymentStatus,
   paymentMethods,
+  invoiceProviders,
 } from './lookup-tables.schema';
 import { roomAmenities } from './room-amenities.schema';
 import { roomHighlights } from './room-highlights.schema';
 import { roomPrices } from './room-prices.schema';
 import { reservations } from './reservations.schema';
-import { invoices } from './invoices.schema';
+import { invoices, invoiceLineItems } from './invoices.schema';
 import { payments } from './payments.schema';
 import { occurrences } from './occurrences.schema';
 import { reservationRooms } from './reservation-rooms.schema';
@@ -117,12 +119,35 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     fields: [invoices.reservationId],
     references: [reservations.id],
   }),
+  user: one(users, {
+    fields: [invoices.userId],
+    references: [users.id],
+  }),
   status: one(invoiceStatus, {
     fields: [invoices.statusId],
     references: [invoiceStatus.id],
   }),
+  invoiceType: one(invoiceTypes, {
+    fields: [invoices.invoiceTypeId],
+    references: [invoiceTypes.id],
+  }),
+  provider: one(invoiceProviders, {
+    fields: [invoices.providerId],
+    references: [invoiceProviders.id],
+  }),
   payments: many(payments),
+  lineItems: many(invoiceLineItems),
 }));
+
+export const invoiceLineItemsRelations = relations(
+  invoiceLineItems,
+  ({ one }) => ({
+    invoice: one(invoices, {
+      fields: [invoiceLineItems.invoiceId],
+      references: [invoices.id],
+    }),
+  }),
+);
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
   invoice: one(invoices, {

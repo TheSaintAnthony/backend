@@ -27,6 +27,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { CacheService } from 'src/cache/cache.service';
+import { InvoicesService } from 'src/invoices/invoices.service';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
@@ -43,6 +44,7 @@ export class ReservationsService implements OnModuleInit {
     @InjectQueue('email') private readonly emailQueue: Queue,
     private cacheService: CacheService,
     private statusLookupService: StatusLookupService,
+    private invoicesService: InvoicesService,
   ) {}
 
   async onModuleInit() {
@@ -142,17 +144,7 @@ export class ReservationsService implements OnModuleInit {
         .where(
           and(
             eq(schema.reservationRooms.roomId, roomId),
-            or(
-              and(
-                eq(schema.reservationRooms.checkIn, checkIn),
-                eq(schema.reservationRooms.checkOut, checkOut),
-              ),
-              and(
-                eq(schema.reservationRooms.checkIn, checkIn),
-                eq(schema.reservationRooms.checkOut, checkOut),
-              ),
-              sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
-            ),
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
           ),
         );
 
@@ -216,9 +208,6 @@ export class ReservationsService implements OnModuleInit {
     specialRequests?: string,
   ) {
     const user = await this.usersService.getUserById(userId);
-    if (!user) {
-      throw new NotFoundException('User', String(userId));
-    }
     const payload = {
       data: {
         userName: `${user.firstName} ${user.lastName}`,
@@ -269,20 +258,87 @@ export class ReservationsService implements OnModuleInit {
   private async createInvoiceAndPayment(
     tx: NodePgDatabase<typeof schema>,
     reservationId: number,
+    userId: number,
     amount: string,
     invoiceStatusId: number,
     paymentMethodId: number,
     paymentStatusId: number,
-    transactionId?: string,
+    transactionId: string | undefined,
+    validatedRooms: RoomValidation[],
   ) {
+    const user = await this.usersService.getUserById(userId);
+    const [address] = user.addressId
+      ? await tx
+          .select()
+          .from(schema.addresses)
+          .where(eq(schema.addresses.id, user.addressId))
+      : [null];
+
+    const customerAddress = address
+      ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
+      : undefined;
+
+    const invoiceTypeId =
+      this.statusLookupService.getInvoiceTypeId('invoice');
+
+    const lineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = this.calculateNights(checkIn, checkOut);
+        const totalAmount = roomValidation.price.toFixed(2);
+
+        return {
+          description: `${room.name} - ${nights} night(s)`,
+          productCode: `ROOM_${room.id}`,
+          quantity: nights.toString(),
+          unitPrice: (roomValidation.price / nights).toFixed(2),
+          totalAmount: totalAmount,
+          itemType: 'accommodation',
+          startDate: checkIn.toISOString(),
+          endDate: checkOut.toISOString(),
+        };
+      }),
+    );
+
+    const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
+
     const [invoice] = await tx
       .insert(schema.invoices)
       .values({
         reservationId,
-        amount,
+        userId,
+        totalAmount: amount,
+        currency: 'EUR',
+        customerName: `${user.firstName} ${user.lastName}`,
+        customerCompanyName: user.companyName,
+        customerTaxId: user.nif,
+        customerEmail: user.email,
+        customerPhone: user.phone,
+        customerAddress,
+        customerCountry: address?.country.substring(0, 2).toUpperCase(),
+        invoiceNumber,
+        invoiceTypeId,
         statusId: invoiceStatusId,
       })
       .returning();
+
+    if (lineItems.length > 0) {
+      await tx.insert(schema.invoiceLineItems).values(
+        lineItems.map((item) => ({
+          invoiceId: invoice.id,
+          description: item.description,
+          productCode: item.productCode,
+          itemType: item.itemType,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalAmount: item.totalAmount,
+          startDate: item.startDate ? new Date(item.startDate) : undefined,
+          endDate: item.endDate ? new Date(item.endDate) : undefined,
+        })),
+      );
+    }
 
     await tx.insert(schema.payments).values({
       invoiceId: invoice.id,
@@ -293,6 +349,11 @@ export class ReservationsService implements OnModuleInit {
     });
 
     return invoice;
+  }
+
+  private calculateNights(checkIn: Date, checkOut: Date): number {
+    const diffTime = checkOut.getTime() - checkIn.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
   async getReservationById(id: number) {
@@ -460,6 +521,7 @@ export class ReservationsService implements OnModuleInit {
       const invoice = await this.createInvoiceAndPayment(
         tx,
         reservation.id,
+        userId,
         totalPriceStr,
         this.statusLookupService.getInvoiceStatusId(
           INVOICE_STATUS_NAMES.PENDING,
@@ -467,6 +529,7 @@ export class ReservationsService implements OnModuleInit {
         paymentMethodId,
         this.pendingPaymentStatusId,
         paymentResult.transactionId,
+        validatedRooms,
       );
 
       // Return appropriate response based on payment type
@@ -641,7 +704,6 @@ export class ReservationsService implements OnModuleInit {
 
   async cancelReservation(reservationId: number, userId: number) {
     return this.db.transaction(async (tx) => {
-      // Get reservation
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -657,7 +719,6 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      // Only allow canceling PENDING reservations
       const pendingStatusId = this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.PENDING,
       );
@@ -668,12 +729,10 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Get cancelled status ID
       const cancelledStatusId = this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.CANCELLED,
       );
 
-      // Update reservation status
       await tx
         .update(schema.reservations)
         .set({
@@ -681,7 +740,26 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.reservations.id, reservationId));
 
-      // Clear room holds
+      const [invoice] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.reservationId, reservationId))
+        .limit(1);
+
+      if (invoice) {
+        const cancelledInvoiceStatusId =
+          this.statusLookupService.getInvoiceStatusId(
+            INVOICE_STATUS_NAMES.CANCELLED,
+          );
+
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: cancelledInvoiceStatusId,
+          })
+          .where(eq(schema.invoices.id, invoice.id));
+      }
+
       await tx
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, userId));
@@ -750,8 +828,18 @@ export class ReservationsService implements OnModuleInit {
           .set({
             transactionId: paymentResult.transactionId,
             paymentMethodId: paymentMethodId,
+            paymentStatusId: this.pendingPaymentStatusId,
           })
           .where(eq(schema.payments.id, payment.payments.id));
+
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: this.statusLookupService.getInvoiceStatusId(
+              INVOICE_STATUS_NAMES.PENDING,
+            ),
+          })
+          .where(eq(schema.invoices.id, payment.invoices.id));
       }
 
       return {

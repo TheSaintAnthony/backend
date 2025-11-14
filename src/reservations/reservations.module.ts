@@ -11,6 +11,7 @@ import { IdempotencyInterceptor } from 'src/interceptors';
 import { IdempotencyService, IdempotencyCleanupService } from 'src/services';
 import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
 import { QueuesModule } from 'src/queues/queues.module';
+import { InvoicesModule } from 'src/invoices/invoices.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { QueuesModule } from 'src/queues/queues.module';
     AuthModule,
     PaymentsModule,
     QueuesModule,
+    InvoicesModule,
   ],
   providers: [
     ReservationsService,
