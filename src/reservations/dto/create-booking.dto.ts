@@ -10,15 +10,15 @@ import {
   ArrayMinSize,
   IsNotEmpty,
   IsObject,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class BookingRoomDto {
-  @ApiProperty({ description: 'Room ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  roomId: number;
+  @ApiProperty({ description: 'Room ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  roomId: string;
 
   @ApiProperty({
     description: 'Check-in date (ISO 8601)',
@@ -42,7 +42,7 @@ export class BookingRoomDto {
   @IsNotEmpty()
   @IsInt()
   @Min(1)
-  guestsCount: number;
+  guestsCount: string;
 }
 
 export class CreateBookingDto {
@@ -64,10 +64,9 @@ export class CreateBookingDto {
   @IsString()
   specialRequests?: string;
 
-  @ApiProperty({ description: 'Payment method ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  paymentMethodId: number;
+  @ApiProperty({ description: 'Payment method ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  paymentMethodId: string;
 
   @ApiPropertyOptional({
     description: 'Payment transaction ID',

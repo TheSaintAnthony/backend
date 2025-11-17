@@ -32,20 +32,20 @@ export class LookupsController {
 
   @Public()
   @Get('amenities/:id')
-  getAmenityById(@Param('id', ParseIntPipe) id: number) {
+  getAmenityById(@Param('id') id: string) {
     return this.lookupsService.getAmenityById(id);
   }
 
   @Patch('amenities/:id')
   editAmenity(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editAmenity(id, dto.name);
   }
 
   @Delete('amenities/:id')
-  deleteAmenity(@Param('id', ParseIntPipe) id: number) {
+  deleteAmenity(@Param('id') id: string) {
     return this.lookupsService.deleteAmenity(id);
   }
 
@@ -62,20 +62,20 @@ export class LookupsController {
 
   @Public()
   @Get('room/types/:id')
-  getRoomTypeById(@Param('id', ParseIntPipe) id: number) {
+  getRoomTypeById(@Param('id') id: string) {
     return this.lookupsService.getRoomTypeById(id);
   }
 
   @Patch('room/types/:id')
   editRoomType(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateRoomTypeDto,
   ) {
     return this.lookupsService.editRoomType(id, dto.name, dto.maxCapacity);
   }
 
   @Delete('room/types/:id')
-  deleteRoomType(@Param('id', ParseIntPipe) id: number) {
+  deleteRoomType(@Param('id') id: string) {
     return this.lookupsService.deleteRoomType(id);
   }
 
@@ -92,20 +92,20 @@ export class LookupsController {
 
   @Public()
   @Get('highlights/:id')
-  getHighlightById(@Param('id', ParseIntPipe) id: number) {
+  getHighlightById(@Param('id') id: string) {
     return this.lookupsService.getHighlightById(id);
   }
 
   @Patch('highlights/:id')
   editHighlight(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editHighlight(id, dto.name);
   }
 
   @Delete('highlights/:id')
-  deleteHighlight(@Param('id', ParseIntPipe) id: number) {
+  deleteHighlight(@Param('id') id: string) {
     return this.lookupsService.deleteHighlight(id);
   }
 
@@ -122,20 +122,20 @@ export class LookupsController {
 
   @Public()
   @Get('reservation/status/:id')
-  getReservationStatusById(@Param('id', ParseIntPipe) id: number) {
+  getReservationStatusById(@Param('id') id: string) {
     return this.lookupsService.getReservationStatusById(id);
   }
 
   @Patch('reservation/status/:id')
   editReservationStatus(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editReservationStatus(id, dto.name);
   }
 
   @Delete('reservation/status/:id')
-  deleteReservationStatus(@Param('id', ParseIntPipe) id: number) {
+  deleteReservationStatus(@Param('id') id: string) {
     return this.lookupsService.deleteReservationStatus(id);
   }
 
@@ -152,20 +152,20 @@ export class LookupsController {
 
   @Public()
   @Get('invoice/status/:id')
-  getInvoiceStatusById(@Param('id', ParseIntPipe) id: number) {
+  getInvoiceStatusById(@Param('id') id: string) {
     return this.lookupsService.getInvoiceStatusById(id);
   }
 
   @Patch('invoice/status/:id')
   editInvoiceStatus(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editInvoiceStatus(id, dto.name);
   }
 
   @Delete('invoice/status/:id')
-  deleteInvoiceStatus(@Param('id', ParseIntPipe) id: number) {
+  deleteInvoiceStatus(@Param('id') id: string) {
     return this.lookupsService.deleteInvoiceStatus(id);
   }
 
@@ -182,20 +182,20 @@ export class LookupsController {
 
   @Public()
   @Get('occurrence/status/:id')
-  getOccurrenceStatusById(@Param('id', ParseIntPipe) id: number) {
+  getOccurrenceStatusById(@Param('id') id: string) {
     return this.lookupsService.getOccurrenceStatusById(id);
   }
 
   @Patch('occurrence/status/:id')
   editOccurrenceStatus(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editOccurrenceStatus(id, dto.name);
   }
 
   @Delete('occurrence/status/:id')
-  deleteOccurrenceStatus(@Param('id', ParseIntPipe) id: number) {
+  deleteOccurrenceStatus(@Param('id') id: string) {
     return this.lookupsService.deleteOccurrenceStatus(id);
   }
 
@@ -210,20 +210,20 @@ export class LookupsController {
   }
 
   @Get('roles/:id')
-  getRoleById(@Param('id', ParseIntPipe) id: number) {
+  getRoleById(@Param('id') id: string) {
     return this.lookupsService.getRoleById(id);
   }
 
   @Patch('roles/:id')
   editRole(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editRole(id, dto.name);
   }
 
   @Delete('roles/:id')
-  deleteRole(@Param('id', ParseIntPipe) id: number) {
+  deleteRole(@Param('id') id: string) {
     return this.lookupsService.deleteRole(id);
   }
 
@@ -240,20 +240,20 @@ export class LookupsController {
 
   @Public()
   @Get('payment/status/:id')
-  getPaymentStatusById(@Param('id', ParseIntPipe) id: number) {
+  getPaymentStatusById(@Param('id') id: string) {
     return this.lookupsService.getPaymentStatusById(id);
   }
 
   @Patch('payment/status/:id')
   editPaymentStatus(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editPaymentStatus(id, dto.name);
   }
 
   @Delete('payment/status/:id')
-  deletePaymentStatus(@Param('id', ParseIntPipe) id: number) {
+  deletePaymentStatus(@Param('id') id: string) {
     return this.lookupsService.deletePaymentStatus(id);
   }
 
@@ -270,20 +270,20 @@ export class LookupsController {
 
   @Public()
   @Get('payment/methods/:id')
-  getPaymentMethodById(@Param('id', ParseIntPipe) id: number) {
+  getPaymentMethodById(@Param('id') id: string) {
     return this.lookupsService.getPaymentMethodById(id);
   }
 
   @Patch('payment/methods/:id')
   editPaymentMethod(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateLookupDto,
   ) {
     return this.lookupsService.editPaymentMethod(id, dto.name);
   }
 
   @Delete('payment/methods/:id')
-  deletePaymentMethod(@Param('id', ParseIntPipe) id: number) {
+  deletePaymentMethod(@Param('id') id: string) {
     return this.lookupsService.deletePaymentMethod(id);
   }
 
@@ -300,20 +300,20 @@ export class LookupsController {
 
   @Public()
   @Get('activities/:id')
-  getActivityById(@Param('id', ParseIntPipe) id: number) {
+  getActivityById(@Param('id') id: string) {
     return this.lookupsService.getActivityById(id);
   }
 
   @Patch('activities/:id')
   editActivity(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: CreateActivityDto,
   ) {
     return this.lookupsService.editActivity(id, dto);
   }
 
   @Delete('activities/:id')
-  deleteActivity(@Param('id', ParseIntPipe) id: number) {
+  deleteActivity(@Param('id') id: string) {
     return this.lookupsService.deleteActivity(id);
   }
 }

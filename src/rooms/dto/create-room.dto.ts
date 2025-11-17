@@ -6,26 +6,25 @@ import {
   IsOptional,
   IsBoolean,
   Min,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRoomDto {
   @ApiProperty({
     description: 'ID of the property this room belongs to',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsInt()
-  @IsPositive()
-  propertyId: number;
+  @IsUUID()
+  propertyId: string;
 
   @ApiPropertyOptional({
     description: 'Room type ID (e.g., Single, Double, Suite)',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  roomTypeId?: number;
+  @IsUUID()
+  roomTypeId?: string;
 
   @ApiProperty({
     description: 'Room name',

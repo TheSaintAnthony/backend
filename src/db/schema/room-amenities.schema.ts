@@ -1,15 +1,15 @@
-import { pgTable, integer, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { rooms } from './rooms.schema';
 import { amenities } from './lookup-tables.schema';
 
 export const roomAmenities = pgTable(
   'room_amenities',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    roomId: integer('room_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id, { onDelete: 'cascade' }),
-    amenityId: integer('amenity_id')
+    amenityId: uuid('amenity_id')
       .notNull()
       .references(() => amenities.id, { onDelete: 'cascade' }),
   },

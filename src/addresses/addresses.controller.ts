@@ -24,7 +24,7 @@ export class AddressesController {
   }
 
   @Get(':id')
-  async getAddressesById(@Param('id', ParseIntPipe) id: number) {
+  async getAddressesById(@Param('id') id: string) {
     return await this.addressesService.getAddressById(id);
   }
 
@@ -35,14 +35,14 @@ export class AddressesController {
 
   @Patch(':id')
   async editAddress(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditAddressDto,
   ) {
     return await this.addressesService.editAddress(id, body);
   }
 
   @Delete(':id')
-  async deleteAddress(@Param('id', ParseIntPipe) id: number) {
+  async deleteAddress(@Param('id') id: string) {
     return await this.addressesService.deleteAddress(id);
   }
 }

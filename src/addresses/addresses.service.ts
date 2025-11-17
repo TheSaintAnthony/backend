@@ -24,27 +24,27 @@ export class AddressesService {
     return await this.db.select().from(schema.addresses);
   }
 
-  async getAddressById(id: number) {
+  async getAddressById(id: string) {
     const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address', String(id));
+      throw new NotFoundException('Address', id);
     }
 
     return address;
   }
 
-  async editAddress(id: number, data: EditAddressDto) {
+  async editAddress(id: string, data: EditAddressDto) {
     const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address', String(id));
+      throw new NotFoundException('Address', id);
     }
 
     return this.db
@@ -55,14 +55,14 @@ export class AddressesService {
       .where(eq(schema.addresses.id, id));
   }
 
-  async deleteAddress(id: number) {
+  async deleteAddress(id: string) {
     const [address] = await this.db
       .select()
       .from(schema.addresses)
       .where(eq(schema.addresses.id, id));
 
     if (!address) {
-      throw new NotFoundException('Address', String(id));
+      throw new NotFoundException('Address', id);
     }
 
     return await this.db

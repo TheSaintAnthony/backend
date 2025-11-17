@@ -36,7 +36,7 @@ export class LookupsService {
     }
   }
 
-  private async ensureExistsById(table: LookupTable, id: number) {
+  private async ensureExistsById(table: LookupTable, id: string) {
     const record = await this.db
       .select()
       .from(table)
@@ -61,13 +61,13 @@ export class LookupsService {
     return this.db.select().from(table);
   }
 
-  async getById(table: LookupTable, id: number) {
+  async getById(table: LookupTable, id: string) {
     return this.ensureExistsById(table, id);
   }
 
   async updateValue(
     table: LookupTable,
-    id: number,
+    id: string,
     value: UpdateLookupValue,
   ): Promise<unknown> {
     await this.ensureExistsById(table, id);
@@ -81,7 +81,7 @@ export class LookupsService {
     );
   }
 
-  async deleteValue(table: LookupTable, id: number) {
+  async deleteValue(table: LookupTable, id: string) {
     await this.ensureExistsById(table, id);
     return this.db.delete(table).where(eq(table.id, id));
   }
@@ -94,15 +94,15 @@ export class LookupsService {
     return this.getAll(schema.amenities);
   }
 
-  getAmenityById(id: number) {
+  getAmenityById(id: string) {
     return this.getById(schema.amenities, id);
   }
 
-  editAmenity(id: number, value: string) {
+  editAmenity(id: string, value: string) {
     return this.updateValue(schema.amenities, id, { name: value });
   }
 
-  deleteAmenity(id: number) {
+  deleteAmenity(id: string) {
     return this.deleteValue(schema.amenities, id);
   }
 
@@ -114,15 +114,15 @@ export class LookupsService {
     return this.getAll(schema.roomTypes);
   }
 
-  getRoomTypeById(id: number) {
+  getRoomTypeById(id: string) {
     return this.getById(schema.roomTypes, id);
   }
 
-  editRoomType(id: number, name: string, maxCapacity: number) {
+  editRoomType(id: string, name: string, maxCapacity: number) {
     return this.updateValue(schema.roomTypes, id, { name, maxCapacity });
   }
 
-  deleteRoomType(id: number) {
+  deleteRoomType(id: string) {
     return this.deleteValue(schema.roomTypes, id);
   }
 
@@ -134,15 +134,15 @@ export class LookupsService {
     return this.getAll(schema.highlights);
   }
 
-  getHighlightById(id: number) {
+  getHighlightById(id: string) {
     return this.getById(schema.highlights, id);
   }
 
-  editHighlight(id: number, value: string) {
+  editHighlight(id: string, value: string) {
     return this.updateValue(schema.highlights, id, { name: value });
   }
 
-  deleteHighlight(id: number) {
+  deleteHighlight(id: string) {
     return this.deleteValue(schema.highlights, id);
   }
 
@@ -154,15 +154,15 @@ export class LookupsService {
     return this.getAll(schema.reservationStatus);
   }
 
-  getReservationStatusById(id: number) {
+  getReservationStatusById(id: string) {
     return this.getById(schema.reservationStatus, id);
   }
 
-  editReservationStatus(id: number, value: string) {
+  editReservationStatus(id: string, value: string) {
     return this.updateValue(schema.reservationStatus, id, { name: value });
   }
 
-  deleteReservationStatus(id: number) {
+  deleteReservationStatus(id: string) {
     return this.deleteValue(schema.reservationStatus, id);
   }
 
@@ -174,15 +174,15 @@ export class LookupsService {
     return this.getAll(schema.invoiceStatus);
   }
 
-  getInvoiceStatusById(id: number) {
+  getInvoiceStatusById(id: string) {
     return this.getById(schema.invoiceStatus, id);
   }
 
-  editInvoiceStatus(id: number, value: string) {
+  editInvoiceStatus(id: string, value: string) {
     return this.updateValue(schema.invoiceStatus, id, { name: value });
   }
 
-  deleteInvoiceStatus(id: number) {
+  deleteInvoiceStatus(id: string) {
     return this.deleteValue(schema.invoiceStatus, id);
   }
 
@@ -194,15 +194,15 @@ export class LookupsService {
     return this.getAll(schema.occurrenceStatus);
   }
 
-  getOccurrenceStatusById(id: number) {
+  getOccurrenceStatusById(id: string) {
     return this.getById(schema.occurrenceStatus, id);
   }
 
-  editOccurrenceStatus(id: number, value: string) {
+  editOccurrenceStatus(id: string, value: string) {
     return this.updateValue(schema.occurrenceStatus, id, { name: value });
   }
 
-  deleteOccurrenceStatus(id: number) {
+  deleteOccurrenceStatus(id: string) {
     return this.deleteValue(schema.occurrenceStatus, id);
   }
 
@@ -214,15 +214,15 @@ export class LookupsService {
     return this.getAll(schema.roles);
   }
 
-  getRoleById(id: number) {
+  getRoleById(id: string) {
     return this.getById(schema.roles, id);
   }
 
-  editRole(id: number, value: string) {
+  editRole(id: string, value: string) {
     return this.updateValue(schema.roles, id, { name: value });
   }
 
-  deleteRole(id: number) {
+  deleteRole(id: string) {
     return this.deleteValue(schema.roles, id);
   }
 
@@ -234,15 +234,15 @@ export class LookupsService {
     return this.getAll(schema.paymentStatus);
   }
 
-  getPaymentStatusById(id: number) {
+  getPaymentStatusById(id: string) {
     return this.getById(schema.paymentStatus, id);
   }
 
-  editPaymentStatus(id: number, value: string) {
+  editPaymentStatus(id: string, value: string) {
     return this.updateValue(schema.paymentStatus, id, { name: value });
   }
 
-  deletePaymentStatus(id: number) {
+  deletePaymentStatus(id: string) {
     return this.deleteValue(schema.paymentStatus, id);
   }
 
@@ -254,15 +254,15 @@ export class LookupsService {
     return this.getAll(schema.paymentMethods);
   }
 
-  getPaymentMethodById(id: number) {
+  getPaymentMethodById(id: string) {
     return this.getById(schema.paymentMethods, id);
   }
 
-  editPaymentMethod(id: number, value: string) {
+  editPaymentMethod(id: string, value: string) {
     return this.updateValue(schema.paymentMethods, id, { name: value });
   }
 
-  deletePaymentMethod(id: number) {
+  deletePaymentMethod(id: string) {
     return this.deleteValue(schema.paymentMethods, id);
   }
 
@@ -277,18 +277,18 @@ export class LookupsService {
     return this.getAll(schema.activities);
   }
 
-  getActivityById(id: number) {
+  getActivityById(id: string) {
     return this.getById(schema.activities, id);
   }
 
-  editActivity(id: number, data: ActivityData) {
+  editActivity(id: string, data: ActivityData) {
     return this.updateValue(schema.activities, id, {
       name: data.name,
       description: data.description,
     });
   }
 
-  deleteActivity(id: number) {
+  deleteActivity(id: string) {
     return this.deleteValue(schema.activities, id);
   }
 }

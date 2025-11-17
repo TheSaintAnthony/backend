@@ -1,7 +1,7 @@
 export interface ReservationRoom {
-  id: number;
-  reservationId: number | null;
-  roomId: number | null;
+  id: string;
+  reservationId: string | null;
+  roomId: string | null;
   checkIn: string | null;
   checkOut: string | null;
   guestsCount: number | null;
@@ -10,12 +10,12 @@ export interface ReservationRoom {
 }
 
 export interface ReservationWithRooms {
-  id: number | null;
-  userId: number | null;
-  statusId: number | null;
+  id: string | null;
+  userId: string | null;
+  statusId: string | null;
   statusName: string | null;
   totalPrice: string;
-  paymentStatusId: number | null;
+  paymentStatusId: string | null;
   paymentStatusName: string | null;
   depositAmount: string;
   specialRequests: string | null;

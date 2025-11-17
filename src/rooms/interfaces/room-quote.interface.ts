@@ -1,8 +1,8 @@
 export interface RoomQuote {
-  roomId: number;
+  roomId: string;
   checkIn: string;
   checkOut: string;
-  nights: number;
+  nights: string;
   avgPricePerNight?: string;
   roomTotal?: string;
   available: boolean;

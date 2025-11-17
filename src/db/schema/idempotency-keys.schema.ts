@@ -1,5 +1,6 @@
 import {
   pgTable,
+  uuid,
   integer,
   varchar,
   jsonb,
@@ -11,9 +12,9 @@ import { users } from './users.schema';
 export const idempotencyKeys = pgTable(
   'idempotency_keys',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    id: uuid('id').primaryKey().defaultRandom(),
     key: varchar('key', { length: 255 }).notNull().unique(),
-    userId: integer('user_id').references(() => users.id, {
+    userId: uuid('user_id').references(() => users.id, {
       onDelete: 'cascade',
     }),
     endpoint: varchar('endpoint', { length: 255 }).notNull(),

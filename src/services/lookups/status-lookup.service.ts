@@ -6,9 +6,9 @@ import { CacheService } from 'src/cache/cache.service';
 
 @Injectable()
 export class StatusLookupService implements OnModuleInit {
-  private reservationStatusCache = new Map<string, number>();
-  private invoiceStatusCache = new Map<string, number>();
-  private invoiceTypeCache = new Map<string, number>();
+  private reservationStatusCache = new Map<string, string>();
+  private invoiceStatusCache = new Map<string, string>();
+  private invoiceTypeCache = new Map<string, string>();
 
   constructor(
     @Inject(DB_PROVIDER)
@@ -41,7 +41,7 @@ export class StatusLookupService implements OnModuleInit {
     }
   }
 
-  getReservationStatusId(name: string): number {
+  getReservationStatusId(name: string): string {
     const id = this.reservationStatusCache.get(name);
     if (!id) {
       throw new Error(`Reservation status '${name}' not found`);
@@ -49,7 +49,7 @@ export class StatusLookupService implements OnModuleInit {
     return id;
   }
 
-  getInvoiceStatusId(name: string): number {
+  getInvoiceStatusId(name: string): string {
     const id = this.invoiceStatusCache.get(name);
     if (!id) {
       throw new Error(`Invoice status '${name}' not found`);
@@ -57,7 +57,7 @@ export class StatusLookupService implements OnModuleInit {
     return id;
   }
 
-  getInvoiceTypeId(name: string): number {
+  getInvoiceTypeId(name: string): string {
     const id = this.invoiceTypeCache.get(name);
     if (!id) {
       throw new Error(`Invoice type '${name}' not found`);

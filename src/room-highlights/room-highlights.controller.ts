@@ -21,7 +21,7 @@ export class RoomHighlightsController {
   constructor(private roomHighlightsService: RoomHighlightsService) {}
 
   @Get()
-  async getRoomHighlights(@Query('roomId', ParseIntPipe) roomId?: number) {
+  async getRoomHighlights(@Query('roomId') roomId?: string) {
     if (roomId) {
       return await this.roomHighlightsService.getRoomHighlightsByRoom(roomId);
     }
@@ -29,7 +29,7 @@ export class RoomHighlightsController {
   }
 
   @Get(':id')
-  async getRoomHighlightById(@Param('id', ParseIntPipe) id: number) {
+  async getRoomHighlightById(@Param('id') id: string) {
     return await this.roomHighlightsService.getRoomHighlightById(id);
   }
 
@@ -41,7 +41,7 @@ export class RoomHighlightsController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteRoomHighlight(@Param('id', ParseIntPipe) id: number) {
+  async deleteRoomHighlight(@Param('id') id: string) {
     return await this.roomHighlightsService.deleteRoomHighlight(id);
   }
 }

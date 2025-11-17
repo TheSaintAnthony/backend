@@ -117,7 +117,7 @@ export class InvoicesService {
     });
   }
 
-  async syncInvoiceToProvider(invoiceId: number) {
+  async syncInvoiceToProvider(invoiceId: string) {
     const invoice = await this.getInvoiceById(invoiceId);
 
     const lineItems = await this.db
@@ -148,9 +148,9 @@ export class InvoicesService {
       lineItems: lineItems.map((item) => ({
         description: item.description,
         productCode: item.productCode || undefined,
-        quantity: parseFloat(item.quantity),
-        unitPrice: parseFloat(item.unitPrice),
-        discount: item.discount ? parseFloat(item.discount) : undefined,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || undefined,
         itemType: item.itemType || undefined,
         startDate: item.startDate || undefined,
         endDate: item.endDate || undefined,
@@ -177,7 +177,7 @@ export class InvoicesService {
     return result;
   }
 
-  async getExternalInvoiceStatus(invoiceId: number) {
+  async getExternalInvoiceStatus(invoiceId: string) {
     const invoice = await this.getInvoiceById(invoiceId);
 
     if (!invoice.externalInvoiceId || !invoice.providerId) {
@@ -191,7 +191,7 @@ export class InvoicesService {
     return await strategy.getInvoiceStatus(invoice.externalInvoiceId);
   }
 
-  async cancelExternalInvoice(invoiceId: number) {
+  async cancelExternalInvoice(invoiceId: string) {
     const invoice = await this.getInvoiceById(invoiceId);
 
     if (!invoice.externalInvoiceId || !invoice.providerId) {
@@ -239,21 +239,21 @@ export class InvoicesService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async getInvoiceById(id: number) {
+  async getInvoiceById(id: string) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice', String(id));
+      throw new NotFoundException('Invoice', id);
     }
 
     return invoice;
   }
 
   async getInvoicesByReservation(
-    reservationId: number,
+    reservationId: string,
     pagination?: PaginationDto,
   ) {
     const page = pagination?.page || 1;
@@ -276,14 +276,14 @@ export class InvoicesService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async editInvoice(id: number, data: EditInvoiceDto) {
+  async editInvoice(id: string, data: EditInvoiceDto) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice', String(id));
+      throw new NotFoundException('Invoice', id);
     }
 
     const updateData: Record<string, unknown> = {};
@@ -333,14 +333,14 @@ export class InvoicesService {
       .returning();
   }
 
-  async deleteInvoice(id: number) {
+  async deleteInvoice(id: string) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
 
     if (!invoice) {
-      throw new NotFoundException('Invoice', String(id));
+      throw new NotFoundException('Invoice', id);
     }
 
     return await this.db
@@ -368,21 +368,21 @@ export class InvoicesService {
       .returning();
   }
 
-  async getLineItemsByInvoice(invoiceId: number) {
+  async getLineItemsByInvoice(invoiceId: string) {
     return await this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
   }
 
-  async editLineItem(id: number, data: EditInvoiceLineItemDto) {
+  async editLineItem(id: string, data: EditInvoiceLineItemDto) {
     const [lineItem] = await this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id));
 
     if (!lineItem) {
-      throw new NotFoundException('Invoice line item', String(id));
+      throw new NotFoundException('Invoice line item', id);
     }
 
     const updateData: Record<string, unknown> = {};
@@ -410,14 +410,14 @@ export class InvoicesService {
       .returning();
   }
 
-  async deleteLineItem(id: number) {
+  async deleteLineItem(id: string) {
     const [lineItem] = await this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id));
 
     if (!lineItem) {
-      throw new NotFoundException('Invoice line item', String(id));
+      throw new NotFoundException('Invoice line item', id);
     }
 
     return await this.db

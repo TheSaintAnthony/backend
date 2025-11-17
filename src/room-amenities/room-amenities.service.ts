@@ -23,34 +23,34 @@ export class RoomAmenitiesService {
     return await this.db.select().from(schema.roomAmenities);
   }
 
-  async getRoomAmenityById(id: number) {
+  async getRoomAmenityById(id: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id));
 
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity', String(id));
+      throw new NotFoundException('Room amenity', id);
     }
 
     return roomAmenity;
   }
 
-  async getRoomAmenitiesByRoom(roomId: number) {
+  async getRoomAmenitiesByRoom(roomId: string) {
     return await this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.roomId, roomId));
   }
 
-  async deleteRoomAmenity(id: number) {
+  async deleteRoomAmenity(id: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id));
 
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity', String(id));
+      throw new NotFoundException('Room amenity', id);
     }
 
     return await this.db
@@ -59,7 +59,7 @@ export class RoomAmenitiesService {
       .returning();
   }
 
-  async deleteRoomAmenityByRoomAndAmenity(roomId: number, amenityId: number) {
+  async deleteRoomAmenityByRoomAndAmenity(roomId: string, amenityId: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)

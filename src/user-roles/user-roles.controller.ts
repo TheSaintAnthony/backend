@@ -30,13 +30,13 @@ export class UserRolesController {
 
   @Roles(UserRole.ADMIN)
   @Get('user/:userId')
-  async getUserRolesByUserId(@Param('userId', ParseIntPipe) userId: number) {
+  async getUserRolesByUserId(@Param('userId') userId: string) {
     return await this.userRolesService.getUserRolesByUser(userId);
   }
 
   @Roles(UserRole.ADMIN)
   @Get(':id')
-  async getUserRoleById(@Param('id', ParseIntPipe) id: number) {
+  async getUserRoleById(@Param('id') id: string) {
     return await this.userRolesService.getUserRoleById(id);
   }
 
@@ -48,7 +48,7 @@ export class UserRolesController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteUserRole(@Param('id', ParseIntPipe) id: number) {
+  async deleteUserRole(@Param('id') id: string) {
     return await this.userRolesService.deleteUserRole(id);
   }
 }

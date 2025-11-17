@@ -1,6 +1,6 @@
 import {
   pgTable,
-  integer,
+  uuid,
   numeric,
   varchar,
   timestamp,
@@ -14,15 +14,15 @@ import { paymentMethods, paymentStatus } from './lookup-tables.schema';
 export const payments = pgTable(
   'payments',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    invoiceId: integer('invoice_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    invoiceId: uuid('invoice_id')
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
     amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
-    paymentMethodId: integer('payment_method_id')
+    paymentMethodId: uuid('payment_method_id')
       .notNull()
       .references(() => paymentMethods.id),
-    paymentStatusId: integer('payment_status_id')
+    paymentStatusId: uuid('payment_status_id')
       .notNull()
       .references(() => paymentStatus.id),
     transactionId: varchar('transaction_id', { length: 255 }),

@@ -6,18 +6,18 @@ import {
   IsBoolean,
   Min,
   IsNotEmpty,
+  IsUUID,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EditRoomDto {
   @ApiPropertyOptional({
     description: 'Room type ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  roomTypeId?: number;
+  @IsUUID()
+  roomTypeId?: string;
 
   @ApiPropertyOptional({
     description: 'Room name',

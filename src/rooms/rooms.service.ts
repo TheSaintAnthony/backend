@@ -99,7 +99,7 @@ export class RoomsService {
         ),
       );
 
-    const roomsMap = new Map<number, RoomWithDetails>();
+    const roomsMap = new Map<string, RoomWithDetails>();
 
     for (const row of roomsData) {
       if (!roomsMap.has(row.id)) {
@@ -143,7 +143,7 @@ export class RoomsService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async getRoomById(id: number): Promise<RoomResponse> {
+  async getRoomById(id: string): Promise<RoomResponse> {
     const cacheKey = `room:${id}`;
     const cached = await this.cacheService.get<RoomResponse>(cacheKey);
     if (cached) return cached;
@@ -186,7 +186,7 @@ export class RoomsService {
       .where(eq(schema.rooms.id, id));
 
     if (!roomsData || roomsData.length === 0) {
-      throw new NotFoundException('Room', String(id));
+      throw new NotFoundException('Room', id);
     }
 
     const room: RoomWithDetails = {
@@ -228,7 +228,7 @@ export class RoomsService {
     return result;
   }
 
-  async getRoomsByProperty(propertyId: number, pagination?: PaginationDto) {
+  async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 10;
     const offset = (page - 1) * limit;
@@ -293,7 +293,7 @@ export class RoomsService {
         ),
       );
 
-    const roomsMap = new Map<number, RoomWithDetails>();
+    const roomsMap = new Map<string, RoomWithDetails>();
 
     for (const row of roomsData) {
       if (!roomsMap.has(row.id)) {
@@ -337,14 +337,14 @@ export class RoomsService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async editRoom(id: number, data: EditRoomDto) {
+  async editRoom(id: string, data: EditRoomDto) {
     const [room] = await this.db
       .select()
       .from(schema.rooms)
       .where(eq(schema.rooms.id, id));
 
     if (!room) {
-      throw new NotFoundException('Room', String(id));
+      throw new NotFoundException('Room', id);
     }
 
     const result = await this.db
@@ -357,14 +357,14 @@ export class RoomsService {
     return result;
   }
 
-  async deleteRoom(id: number) {
+  async deleteRoom(id: string) {
     const [room] = await this.db
       .select()
       .from(schema.rooms)
       .where(eq(schema.rooms.id, id));
 
     if (!room) {
-      throw new NotFoundException('Room', String(id));
+      throw new NotFoundException('Room', id);
     }
 
     const result = await this.db
@@ -452,7 +452,7 @@ export class RoomsService {
             roomId,
             checkIn,
             checkOut,
-            nights,
+            nights: String(nights),
             available: false,
             error: errorMessage,
           });
@@ -464,7 +464,7 @@ export class RoomsService {
         roomId,
         checkIn,
         checkOut,
-        nights,
+        nights: String(nights),
         avgPricePerNight: avgPricePerNight.toFixed(2),
         roomTotal: roomPrice.toFixed(2),
         available: isAvailable,
@@ -482,10 +482,10 @@ export class RoomsService {
   }
 
   async checkRoomAvailability(
-    roomId: number,
+    roomId: string,
     checkIn: string,
     checkOut: string,
-    excludeUserId?: number,
+    excludeUserId?: string,
   ): Promise<boolean> {
     const overlappingReservations = await this.db
       .select()
@@ -525,7 +525,7 @@ export class RoomsService {
   }
 
   async calculateTotalPrice(
-    roomId: number,
+    roomId: string,
     checkInStr: string,
     checkOutStr: string,
   ): Promise<number> {

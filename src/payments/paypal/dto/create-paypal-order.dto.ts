@@ -1,11 +1,10 @@
-import { IsInt, IsPositive, IsNumberString } from 'class-validator';
+import { IsInt, IsPositive, IsNumberString, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePaypalOrderDto {
   @ApiProperty()
-  @IsInt()
-  @IsPositive()
-  invoiceId: number;
+  @IsUUID()
+  invoiceId: string;
 
   @ApiProperty()
   @IsNumberString()

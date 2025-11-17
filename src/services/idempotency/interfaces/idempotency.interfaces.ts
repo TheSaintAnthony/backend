@@ -1,6 +1,6 @@
 export interface IdempotencyRecord {
   key: string;
-  userId?: number;
+  userId?: string;
   endpoint: string;
   requestBody: unknown;
   responseBody: unknown;

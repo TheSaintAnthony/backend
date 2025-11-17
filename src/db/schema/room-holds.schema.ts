@@ -1,13 +1,13 @@
-import { pgTable, integer, date, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, date, timestamp } from 'drizzle-orm/pg-core';
 import { rooms } from './rooms.schema';
 import { users } from './users.schema';
 
 export const roomHolds = pgTable('room_holds', {
-  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-  roomId: integer('room_id')
+  id: uuid('id').primaryKey().defaultRandom(),
+  roomId: uuid('room_id')
     .notNull()
     .references(() => rooms.id, { onDelete: 'cascade' }),
-  userId: integer('user_id')
+  userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   checkIn: date('check_in').notNull(),

@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,8 +22,8 @@ export class InvoicesController {
 
   @Get()
   async getInvoices(
-    @Query('reservationId', new ParseIntPipe({ optional: true }))
-    reservationId: number | undefined,
+    @Query('reservationId', new ParseUUIDPipe({ optional: true }))
+    reservationId: string | undefined,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -42,7 +42,7 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  async getInvoiceById(@Param('id', ParseIntPipe) id: number) {
+  async getInvoiceById(@Param('id') id: string) {
     return await this.invoicesService.getInvoiceById(id);
   }
 
@@ -53,14 +53,14 @@ export class InvoicesController {
 
   @Patch(':id')
   async editInvoice(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditInvoiceDto,
   ) {
     return await this.invoicesService.editInvoice(id, body);
   }
 
   @Delete(':id')
-  async deleteInvoice(@Param('id', ParseIntPipe) id: number) {
+  async deleteInvoice(@Param('id') id: string) {
     return await this.invoicesService.deleteInvoice(id);
   }
 }

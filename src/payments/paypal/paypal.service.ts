@@ -22,9 +22,9 @@ import { PaymentStatus, PaymentMethod } from 'src/constants';
 export class PaypalService implements OnModuleInit {
   private client: Client;
   private ordersController: OrdersController;
-  private paypalMethodId: number;
-  private pendingStatusId: number;
-  private completedStatusId: number;
+  private paypalMethodId: string;
+  private pendingStatusId: string;
+  private completedStatusId: string;
 
   constructor(
     private paymentsService: PaymentsService,

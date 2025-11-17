@@ -1,6 +1,6 @@
 export interface RoomBookingInput {
-  roomId: number;
+  roomId: string;
   checkIn: string;
   checkOut: string;
-  guestsCount: number;
+  guestsCount: string;
 }

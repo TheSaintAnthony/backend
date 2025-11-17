@@ -23,34 +23,34 @@ export class RoomHighlightsService {
     return await this.db.select().from(schema.roomHighlights);
   }
 
-  async getRoomHighlightById(id: number) {
+  async getRoomHighlightById(id: string) {
     const [roomHighlight] = await this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id));
 
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight', String(id));
+      throw new NotFoundException('Room highlight', id);
     }
 
     return roomHighlight;
   }
 
-  async getRoomHighlightsByRoom(roomId: number) {
+  async getRoomHighlightsByRoom(roomId: string) {
     return await this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.roomId, roomId));
   }
 
-  async deleteRoomHighlight(id: number) {
+  async deleteRoomHighlight(id: string) {
     const [roomHighlight] = await this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id));
 
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight', String(id));
+      throw new NotFoundException('Room highlight', id);
     }
 
     return await this.db
@@ -60,8 +60,8 @@ export class RoomHighlightsService {
   }
 
   async deleteRoomHighlightByRoomAndHighlight(
-    roomId: number,
-    highlightId: number,
+    roomId: string,
+    highlightId: string,
   ) {
     const [roomHighlight] = await this.db
       .select()

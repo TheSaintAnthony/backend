@@ -9,21 +9,20 @@ import {
   ValidateNested,
   IsDateString,
   Length,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { NestedInvoiceLineItemDto } from './nested-invoice-line-item.dto';
 
 export class CreateInvoiceDto {
-  @ApiProperty({ description: 'Reservation ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  reservationId: number;
+  @ApiProperty({ description: 'Reservation ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  reservationId: string;
 
-  @ApiProperty({ description: 'User ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  userId: number;
+  @ApiProperty({ description: 'User ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  userId: string;
 
   @ApiProperty({ description: 'Total invoice amount', example: '1230.00' })
   @IsNumberString()
@@ -99,11 +98,10 @@ export class CreateInvoiceDto {
 
   @ApiProperty({
     description: 'Invoice type ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsInt()
-  @IsPositive()
-  invoiceTypeId: number;
+  @IsUUID()
+  invoiceTypeId: string;
 
   @ApiPropertyOptional({
     description: 'Invoice due date',
@@ -123,17 +121,15 @@ export class CreateInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'Invoice provider ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  providerId?: number;
+  @IsUUID()
+  providerId?: string;
 
-  @ApiProperty({ description: 'Invoice status ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  statusId: number;
+  @ApiProperty({ description: 'Invoice status ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
+  statusId: string;
 
   @ApiProperty({
     description: 'Invoice line items',

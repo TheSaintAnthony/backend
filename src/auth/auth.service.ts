@@ -89,7 +89,7 @@ export class AuthService {
   }
 
   async verifyUser(token: string) {
-    const id: number = await this.decodeVerifyUserTokenToId(token);
+    const id: string = await this.decodeVerifyUserTokenToId(token);
     return await this.usersService.verifyUser(id);
   }
 
@@ -117,7 +117,7 @@ export class AuthService {
       const passwordChangedAtTimestamp = new Date(
         user.passwordChangedAt,
       ).getTime();
-      const tokenIssuedAtTimestamp = tokenIssuedAt * 1000; // JWT iat is in seconds
+      const tokenIssuedAtTimestamp = Number(tokenIssuedAt) * 1000; // JWT iat is in seconds
 
       if (tokenIssuedAtTimestamp < passwordChangedAtTimestamp) {
         throw new UnauthorizedException(
@@ -148,7 +148,7 @@ export class AuthService {
       ) {
         return {
           email: payload.email,
-          tokenIssuedAt: payload.iat as number,
+          tokenIssuedAt: payload.iat as string,
         };
       }
       throw new BadRequestException('Invalid token payload');

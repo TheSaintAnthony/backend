@@ -58,41 +58,41 @@ export class ReservationRoomsService {
     return await this.db.select().from(schema.reservationRooms);
   }
 
-  async getReservationRoomById(id: number) {
+  async getReservationRoomById(id: string) {
     const [reservationRoom] = await this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.id, id));
 
     if (!reservationRoom) {
-      throw new NotFoundException('Reservation room', String(id));
+      throw new NotFoundException('Reservation room', id);
     }
 
     return reservationRoom;
   }
 
-  async getReservationRoomsByReservation(reservationId: number) {
+  async getReservationRoomsByReservation(reservationId: string) {
     return await this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.reservationId, reservationId));
   }
 
-  async getReservationRoomsByRoom(roomId: number) {
+  async getReservationRoomsByRoom(roomId: string) {
     return await this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.roomId, roomId));
   }
 
-  async editReservationRoom(id: number, data: EditReservationRoomDto) {
+  async editReservationRoom(id: string, data: EditReservationRoomDto) {
     const [reservationRoom] = await this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.id, id));
 
     if (!reservationRoom) {
-      throw new NotFoundException('Reservation room', String(id));
+      throw new NotFoundException('Reservation room', id);
     }
 
     return await this.db
@@ -102,14 +102,14 @@ export class ReservationRoomsService {
       .returning();
   }
 
-  async deleteReservationRoom(id: number) {
+  async deleteReservationRoom(id: string) {
     const [reservationRoom] = await this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.id, id));
 
     if (!reservationRoom) {
-      throw new NotFoundException('Reservation room', String(id));
+      throw new NotFoundException('Reservation room', id);
     }
 
     return await this.db

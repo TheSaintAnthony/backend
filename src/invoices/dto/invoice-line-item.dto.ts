@@ -5,14 +5,14 @@ import {
   IsOptional,
   IsString,
   IsDateString,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateInvoiceLineItemDto {
   @ApiProperty({ description: 'Invoice ID' })
-  @IsInt()
-  @IsPositive()
-  invoiceId: number;
+  @IsUUID()
+  invoiceId: string;
 
   @ApiProperty({ description: 'Description of the product/service' })
   @IsString()
@@ -30,9 +30,8 @@ export class CreateInvoiceLineItemDto {
 
   @ApiPropertyOptional({ description: 'Reference ID to internal item' })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  itemReferenceId?: number;
+  @IsUUID()
+  itemReferenceId?: string;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumberString()
@@ -80,9 +79,8 @@ export class EditInvoiceLineItemDto {
 
   @ApiPropertyOptional({ description: 'Reference ID to internal item' })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  itemReferenceId?: number;
+  @IsUUID()
+  itemReferenceId?: string;
 
   @ApiPropertyOptional({ description: 'Quantity' })
   @IsOptional()

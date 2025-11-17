@@ -150,7 +150,7 @@ St. Anthony Team`;
     });
   }
 
-  async sendVerifyUserLink(data: { id: number; email: string }) {
+  async sendVerifyUserLink(data: { id: string; email: string }) {
     const payload = { subb: data.id, email: data.email };
 
     const token = await this.jwtService.signAsync(payload, {
@@ -196,7 +196,7 @@ St. Anthony Team`;
       \t\tCheck-in: ${room.checkIn}
       \t\tCheck-out: ${room.checkOut}
       \t\tGuests: ${room.guestsCount}
-      \t\tPrice: $${room.price.toFixed(2)}`;
+      \t\tPrice: $${Number(room.price).toFixed(2)}`;
       })
       .join('\n');
 

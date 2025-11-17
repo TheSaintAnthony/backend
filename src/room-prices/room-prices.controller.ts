@@ -24,7 +24,7 @@ export class RoomPricesController {
   @Roles(UserRole.ADMIN)
   @Get()
   async getRoomPrices(
-    @Query('roomId', new ParseIntPipe({ optional: true })) roomId?: number,
+    @Query('roomId') roomId?: string,
   ) {
     if (roomId !== undefined) {
       return await this.roomPricesService.getRoomPricesByRoom(roomId);
@@ -34,7 +34,7 @@ export class RoomPricesController {
 
   @Roles(UserRole.ADMIN)
   @Get(':id')
-  async getRoomPriceById(@Param('id', ParseIntPipe) id: number) {
+  async getRoomPriceById(@Param('id') id: string) {
     return await this.roomPricesService.getRoomPriceById(id);
   }
 
@@ -47,7 +47,7 @@ export class RoomPricesController {
   @Roles(UserRole.ADMIN)
   @Patch(':id')
   async editRoomPrice(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditRoomPriceDto,
   ) {
     return await this.roomPricesService.editRoomPrice(id, body);
@@ -55,7 +55,7 @@ export class RoomPricesController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteRoomPrice(@Param('id', ParseIntPipe) id: number) {
+  async deleteRoomPrice(@Param('id') id: string) {
     return await this.roomPricesService.deleteRoomPrice(id);
   }
 }

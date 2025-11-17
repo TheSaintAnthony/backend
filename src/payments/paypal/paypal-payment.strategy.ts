@@ -20,7 +20,7 @@ export class PaypalPaymentStrategy implements IPaymentStrategy {
     metadata?: Record<string, string>;
   }): Promise<PaymentCreationResult> {
     const order = await this.paypalService.createOrder({
-      invoiceId: Number(params.orderId),
+      invoiceId: params.orderId,
       amount: params.amount,
     });
 

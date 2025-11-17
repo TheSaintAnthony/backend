@@ -47,20 +47,20 @@ export class PaymentsService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async getPaymentById(id: number) {
+  async getPaymentById(id: string) {
     const [payment] = await this.db
       .select()
       .from(schema.payments)
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment', String(id));
+      throw new NotFoundException('Payment', id);
     }
 
     return payment;
   }
 
-  async getPaymentsByInvoice(invoiceId: number, pagination?: PaginationDto) {
+  async getPaymentsByInvoice(invoiceId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 10;
     const offset = (page - 1) * limit;
@@ -81,14 +81,14 @@ export class PaymentsService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async editPayment(id: number, data: EditPaymentDto) {
+  async editPayment(id: string, data: EditPaymentDto) {
     const [payment] = await this.db
       .select()
       .from(schema.payments)
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment', String(id));
+      throw new NotFoundException('Payment', id);
     }
 
     return await this.db
@@ -98,14 +98,14 @@ export class PaymentsService {
       .returning();
   }
 
-  async deletePayment(id: number) {
+  async deletePayment(id: string) {
     const [payment] = await this.db
       .select()
       .from(schema.payments)
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment', String(id));
+      throw new NotFoundException('Payment', id);
     }
 
     return await this.db
@@ -127,14 +127,14 @@ export class PaymentsService {
     return payment;
   }
 
-  async updatePayment(id: number, data: EditPaymentDto) {
+  async updatePayment(id: string, data: EditPaymentDto) {
     const [payment] = await this.db
       .select()
       .from(schema.payments)
       .where(eq(schema.payments.id, id));
 
     if (!payment) {
-      throw new NotFoundException('Payment', String(id));
+      throw new NotFoundException('Payment', id);
     }
 
     return await this.db

@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,8 +22,8 @@ export class PaymentsController {
 
   @Get()
   async getPayments(
-    @Query('invoiceId', new ParseIntPipe({ optional: true }))
-    invoiceId: number | undefined,
+    @Query('invoiceId', new ParseUUIDPipe({ optional: true }))
+    invoiceId: string | undefined,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -42,7 +42,7 @@ export class PaymentsController {
   }
 
   @Get(':id')
-  async getPaymentById(@Param('id', ParseIntPipe) id: number) {
+  async getPaymentById(@Param('id') id: string) {
     return await this.paymentsService.getPaymentById(id);
   }
 
@@ -53,14 +53,14 @@ export class PaymentsController {
 
   @Patch(':id')
   async editPayment(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditPaymentDto,
   ) {
     return await this.paymentsService.editPayment(id, body);
   }
 
   @Delete(':id')
-  async deletePayment(@Param('id', ParseIntPipe) id: number) {
+  async deletePayment(@Param('id') id: string) {
     return await this.paymentsService.deletePayment(id);
   }
 }

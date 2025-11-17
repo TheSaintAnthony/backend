@@ -20,7 +20,7 @@ export class PaymentStrategyFactory {
     // private creditCardStrategy: CreditCardPaymentStrategy,
   ) {}
 
-  async getStrategy(paymentMethodId: number): Promise<IPaymentStrategy> {
+  async getStrategy(paymentMethodId: string): Promise<IPaymentStrategy> {
     // Fetch payment method from database
     const [method] = await this.db
       .select()

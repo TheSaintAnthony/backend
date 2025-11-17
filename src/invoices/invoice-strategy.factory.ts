@@ -13,14 +13,14 @@ export class InvoiceStrategyFactory {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
-  async getStrategy(providerId: number): Promise<IInvoiceStrategy> {
+  async getStrategy(providerId: string): Promise<IInvoiceStrategy> {
     const [provider] = await this.db
       .select()
       .from(schema.invoiceProviders)
       .where(eq(schema.invoiceProviders.id, providerId));
 
     if (!provider) {
-      throw new NotFoundException('Invoice provider', String(providerId));
+      throw new NotFoundException('Invoice provider', providerId);
     }
 
     if (!provider.isActive) {

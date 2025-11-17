@@ -21,8 +21,8 @@ export class ReservationRoomsController {
 
   @Get()
   async getReservationRooms(
-    @Query('reservationId', ParseIntPipe) reservationId?: number,
-    @Query('roomId', ParseIntPipe) roomId?: number,
+    @Query('reservationId') reservationId?: string,
+    @Query('roomId') roomId?: string,
   ) {
     if (reservationId) {
       return await this.reservationRoomsService.getReservationRoomsByReservation(
@@ -38,7 +38,7 @@ export class ReservationRoomsController {
   }
 
   @Get(':id')
-  async getReservationRoomById(@Param('id', ParseIntPipe) id: number) {
+  async getReservationRoomById(@Param('id') id: string) {
     return await this.reservationRoomsService.getReservationRoomById(id);
   }
 
@@ -49,14 +49,14 @@ export class ReservationRoomsController {
 
   @Patch(':id')
   async editReservationRoom(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditReservationRoomDto,
   ) {
     return await this.reservationRoomsService.editReservationRoom(id, body);
   }
 
   @Delete(':id')
-  async deleteReservationRoom(@Param('id', ParseIntPipe) id: number) {
+  async deleteReservationRoom(@Param('id') id: string) {
     return await this.reservationRoomsService.deleteReservationRoom(id);
   }
 }

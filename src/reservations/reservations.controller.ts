@@ -47,7 +47,7 @@ export class ReservationsController {
 
   @Get(':id')
   async getReservationById(@Param('id') id: string) {
-    return this.reservationsService.getReservationById(Number(id));
+    return this.reservationsService.getReservationById(id);
   }
 
   @Post('bookings')
@@ -62,7 +62,7 @@ export class ReservationsController {
   @Post('bookings/complete')
   @Idempotent()
   async completeBooking(
-    @Body() body: { transactionId: string; paymentMethodId: number },
+    @Body() body: { transactionId: string; paymentMethodId: string },
   ) {
     return this.reservationsService.completeBooking(
       body.transactionId,
@@ -75,18 +75,18 @@ export class ReservationsController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.reservationsService.cancelReservation(Number(id), req.user.sub);
+    return this.reservationsService.cancelReservation(id, req.user.sub);
   }
 
   @Post(':id/retry-payment')
   @Idempotent()
   async retryPayment(
     @Param('id') id: string,
-    @Body() body: { paymentMethodId: number },
+    @Body() body: { paymentMethodId: string },
     @Request() req: AuthenticatedRequest,
   ) {
     return this.reservationsService.retryPayment(
-      Number(id),
+      id,
       req.user.sub,
       body.paymentMethodId,
     );

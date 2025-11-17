@@ -85,7 +85,7 @@ export class UsersService {
     };
   }
 
-  async getUserById(id: number) {
+  async getUserById(id: string) {
     const [user] = await this.db
       .select({
         id: schema.users.id,
@@ -104,7 +104,7 @@ export class UsersService {
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User', String(id));
+      throw new NotFoundException('User', id);
     }
 
     return user;
@@ -167,7 +167,7 @@ export class UsersService {
       .where(eq(schema.users.id, userId));
   }
 
-  async editUser(id: number, data: EditUserDto) {
+  async editUser(id: string, data: EditUserDto) {
     const { address, ...userData } = data;
 
     const [user] = await this.db
@@ -176,10 +176,10 @@ export class UsersService {
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User', String(id));
+      throw new NotFoundException('User', id);
     }
 
-    const addressId: number = user.addressId!;
+    const addressId: string = user.addressId!;
     await this.db
       .update(schema.addresses)
       .set({ ...address })
@@ -191,20 +191,20 @@ export class UsersService {
       .where(eq(schema.users.id, id));
   }
 
-  async deleteUser(id: number) {
+  async deleteUser(id: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.id, id));
 
     if (!user) {
-      throw new NotFoundException('User', String(id));
+      throw new NotFoundException('User', id);
     }
 
     return await this.db.delete(schema.users).where(eq(schema.users.id, id));
   }
 
-  async verifyUser(id: number) {
+  async verifyUser(id: string) {
     return await this.db
       .update(schema.users)
       .set({ verifiedAt: new Date() })

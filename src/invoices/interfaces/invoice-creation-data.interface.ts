@@ -6,7 +6,7 @@ export interface InvoiceCreationData {
   customerAddress?: string;
   invoiceDate: Date;
   dueDate?: Date;
-  invoiceTypeId: number;
+  invoiceTypeId: string;
   currency?: string;
   notes?: string;
   lineItems: InvoiceLineItemData[];
@@ -17,9 +17,9 @@ export interface InvoiceCreationData {
 export interface InvoiceLineItemData {
   description: string;
   productCode?: string;
-  quantity: number;
-  unitPrice: number;
-  discount?: number;
+  quantity: string;
+  unitPrice: string;
+  discount?: string;
   itemType?: string;
   startDate?: Date;
   endDate?: Date;

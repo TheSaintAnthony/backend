@@ -1,7 +1,7 @@
 export interface RoomValidation {
-  roomId: number;
+  roomId: string;
   checkIn: string;
   checkOut: string;
-  guestsCount: number;
-  price: number;
+  guestsCount: string;
+  price: string;
 }

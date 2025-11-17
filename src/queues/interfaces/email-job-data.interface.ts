@@ -1,5 +1,5 @@
 import { EmailConfirmation } from 'src/reservations/interfaces';
 
 export interface EmailJobData {
-  data: EmailConfirmation | string | { id: number; email: string } | undefined;
+  data: EmailConfirmation | string | { id: string; email: string } | undefined;
 }

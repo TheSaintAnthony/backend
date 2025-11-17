@@ -42,21 +42,21 @@ export class OccurrencesService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async getOccurrenceById(id: number) {
+  async getOccurrenceById(id: string) {
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence', String(id));
+      throw new NotFoundException('Occurrence', id);
     }
 
     return occurrence;
   }
 
   async getOccurrencesByReservation(
-    reservationId: number,
+    reservationId: string,
     pagination?: PaginationDto,
   ) {
     const page = pagination?.page || 1;
@@ -79,14 +79,14 @@ export class OccurrencesService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async editOccurrence(id: number, data: EditOccurrenceDto) {
+  async editOccurrence(id: string, data: EditOccurrenceDto) {
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence', String(id));
+      throw new NotFoundException('Occurrence', id);
     }
 
     return await this.db
@@ -96,14 +96,14 @@ export class OccurrencesService {
       .returning();
   }
 
-  async deleteOccurrence(id: number) {
+  async deleteOccurrence(id: string) {
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
       .where(eq(schema.occurrences.id, id));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence', String(id));
+      throw new NotFoundException('Occurrence', id);
     }
 
     return await this.db

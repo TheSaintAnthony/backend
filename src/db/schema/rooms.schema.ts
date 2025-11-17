@@ -1,5 +1,6 @@
 import {
   pgTable,
+  uuid,
   integer,
   varchar,
   text,
@@ -10,11 +11,11 @@ import { roomTypes } from './lookup-tables.schema';
 import { boolean } from 'drizzle-orm/pg-core';
 
 export const rooms = pgTable('rooms', {
-  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-  propertyId: integer('property_id')
+  id: uuid('id').primaryKey().defaultRandom(),
+  propertyId: uuid('property_id')
     .notNull()
     .references(() => properties.id, { onDelete: 'cascade' }),
-  roomTypeId: integer('room_type_id').references(() => roomTypes.id),
+  roomTypeId: uuid('room_type_id').references(() => roomTypes.id),
   name: varchar('name', { length: 100 }).notNull(),
   description: text('description'),
   bedCount: integer('bed_count'),

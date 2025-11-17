@@ -31,8 +31,8 @@ import { InvoicesService } from 'src/invoices/invoices.service';
 
 @Injectable()
 export class ReservationsService implements OnModuleInit {
-  private completedPaymentStatusId: number;
-  private pendingPaymentStatusId: number;
+  private completedPaymentStatusId: string;
+  private pendingPaymentStatusId: string;
   private readonly HOLD_DURATION_MINUTES = 10;
 
   constructor(
@@ -48,10 +48,10 @@ export class ReservationsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const completedStatusCached = await this.cacheService.get<{ id: number }>(
+    const completedStatusCached = await this.cacheService.get<{ id: string }>(
       'payment_status:completed',
     );
-    const pendingStatusCached = await this.cacheService.get<{ id: number }>(
+    const pendingStatusCached = await this.cacheService.get<{ id: string }>(
       'payment_status:pending',
     );
 
@@ -93,7 +93,7 @@ export class ReservationsService implements OnModuleInit {
 
   private async validateRoomsAndCalculatePrice(
     tx: NodePgDatabase<typeof schema>,
-    userId: number,
+    userId: string,
     rooms: RoomBookingInput[],
   ): Promise<{ totalPrice: number; validatedRooms: RoomValidation[] }> {
     if (!rooms || rooms.length === 0) {
@@ -132,7 +132,7 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Room', String(roomId));
       }
 
-      if (room.maxCapacity && guestsCount > room.maxCapacity) {
+      if (room.maxCapacity && Number(guestsCount) > room.maxCapacity) {
         throw new BadRequestException(
           `Room ${roomId}: Guest count exceeds capacity`,
         );
@@ -193,7 +193,7 @@ export class ReservationsService implements OnModuleInit {
         checkIn,
         checkOut,
         guestsCount,
-        price: roomPrice,
+        price: String(roomPrice),
       });
     }
 
@@ -201,7 +201,7 @@ export class ReservationsService implements OnModuleInit {
   }
 
   private async sendConfirmationEmail(
-    userId: number,
+    userId: string,
     totalPrice: string,
     depositAmount: string,
     validatedRooms: RoomValidation[],
@@ -223,9 +223,9 @@ export class ReservationsService implements OnModuleInit {
 
   private async createReservationWithRooms(
     tx: NodePgDatabase<typeof schema>,
-    userId: number,
-    statusId: number,
-    paymentStatusId: number,
+    userId: string,
+    statusId: string,
+    paymentStatusId: string,
     totalPrice: string,
     validatedRooms: RoomValidation[],
     specialRequests?: string,
@@ -248,7 +248,7 @@ export class ReservationsService implements OnModuleInit {
         roomId: room.roomId,
         checkIn: room.checkIn,
         checkOut: room.checkOut,
-        guestsCount: room.guestsCount,
+        guestsCount: parseInt(room.guestsCount),
         accessCode: await this.generateUniqueAccessCode(
           room.checkIn,
           room.checkOut,
@@ -293,12 +293,12 @@ export class ReservationsService implements OnModuleInit {
 
   private async createInvoiceAndPayment(
     tx: NodePgDatabase<typeof schema>,
-    reservationId: number,
-    userId: number,
+    reservationId: string,
+    userId: string,
     amount: string,
-    invoiceStatusId: number,
-    paymentMethodId: number,
-    paymentStatusId: number,
+    invoiceStatusId: string,
+    paymentMethodId: string,
+    paymentStatusId: string,
     transactionId: string | undefined,
     validatedRooms: RoomValidation[],
   ) {
@@ -322,13 +322,13 @@ export class ReservationsService implements OnModuleInit {
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
         const nights = this.calculateNights(checkIn, checkOut);
-        const totalAmount = roomValidation.price.toFixed(2);
+        const totalAmount = Number(roomValidation.price).toFixed(2);
 
         return {
           description: `${room.name} - ${nights} night(s)`,
           productCode: `ROOM_${room.id}`,
           quantity: nights.toString(),
-          unitPrice: (roomValidation.price / nights).toFixed(2),
+          unitPrice: (Number(roomValidation.price) / nights).toFixed(2),
           totalAmount: totalAmount,
           itemType: 'accommodation',
           startDate: checkIn.toISOString(),
@@ -391,20 +391,20 @@ export class ReservationsService implements OnModuleInit {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
-  async getReservationById(id: number) {
+  async getReservationById(id: string) {
     const [reservation] = await this.db
       .select()
       .from(schema.reservations)
       .where(eq(schema.reservations.id, id));
 
     if (!reservation) {
-      throw new NotFoundException('Reservation', String(id));
+      throw new NotFoundException('Reservation', id);
     }
 
     return reservation;
   }
 
-  async getReservationsByUser(userId: number, pagination?: PaginationDto) {
+  async getReservationsByUser(userId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 10;
     const offset = (page - 1) * limit;
@@ -475,7 +475,7 @@ export class ReservationsService implements OnModuleInit {
       )
       .orderBy(schema.reservations.createdAt);
 
-    const reservationsMap = new Map<number, ReservationWithRooms>();
+    const reservationsMap = new Map<string, ReservationWithRooms>();
 
     for (const row of results) {
       const reservationId = row.reservationId;
@@ -518,7 +518,7 @@ export class ReservationsService implements OnModuleInit {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async createBooking(userId: number, data: CreateBookingDto) {
+  async createBooking(userId: string, data: CreateBookingDto) {
     const { rooms, specialRequests, paymentMethodId, metadata } = data;
 
     return this.db.transaction(async (tx) => {
@@ -589,7 +589,7 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  async completeBooking(transactionId: string, paymentMethodId: number) {
+  async completeBooking(transactionId: string, paymentMethodId: string) {
     return this.db.transaction(async (tx) => {
       // Check if payment already completed (idempotency)
       const [existingPayment] = await tx
@@ -717,8 +717,8 @@ export class ReservationsService implements OnModuleInit {
           roomId: r.roomId,
           checkIn: r.checkIn,
           checkOut: r.checkOut,
-          guestsCount: r.guestsCount,
-          price: parseFloat(reservation.totalPrice) / reservationRooms.length,
+          guestsCount: r.guestsCount.toString(),
+          price: (parseFloat(reservation.totalPrice) / reservationRooms.length).toString(),
         })),
         reservation.specialRequests || undefined,
       );
@@ -737,7 +737,7 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  async cancelReservation(reservationId: number, userId: number) {
+  async cancelReservation(reservationId: string, userId: string) {
     return this.db.transaction(async (tx) => {
       const [reservation] = await tx
         .select()
@@ -807,9 +807,9 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async retryPayment(
-    reservationId: number,
-    userId: number,
-    paymentMethodId: number,
+    reservationId: string,
+    userId: string,
+    paymentMethodId: string,
   ) {
     return this.db.transaction(async (tx) => {
       // Get reservation with rooms
@@ -898,7 +898,7 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  async getPendingReservations(userId: number) {
+  async getPendingReservations(userId: string) {
     const pendingStatusId = this.statusLookupService.getReservationStatusId(
       RESERVATION_STATUS_NAMES.PENDING,
     );

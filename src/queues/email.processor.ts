@@ -36,7 +36,7 @@ export class EmailConsumer extends WorkerHost {
 
         case 'sendVerifyUserLink':
           await this.emailsService.sendVerifyUserLink(
-            jobData as { id: number; email: string },
+            jobData as { id: string; email: string },
           );
           break;
 

@@ -5,6 +5,7 @@ import {
   IsString,
   IsOptional,
   IsDateString,
+  IsUUID,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -16,15 +17,13 @@ export class EditPaymentDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  paymentMethodId?: number;
+  @IsUUID()
+  paymentMethodId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  paymentStatusId?: number;
+  @IsUUID()
+  paymentStatusId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

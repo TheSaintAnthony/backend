@@ -1,6 +1,6 @@
 import {
   pgTable,
-  integer,
+  uuid,
   numeric,
   timestamp,
   check,
@@ -13,13 +13,13 @@ import { paymentStatus, reservationStatus } from './lookup-tables.schema';
 export const reservations = pgTable(
   'reservations',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    userId: integer('user_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    statusId: integer('status_id').references(() => reservationStatus.id),
+    statusId: uuid('status_id').references(() => reservationStatus.id),
     totalPrice: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
-    paymentStatusId: integer('payment_status_id')
+    paymentStatusId: uuid('payment_status_id')
       .notNull()
       .references(() => paymentStatus.id, { onDelete: 'cascade' }),
     depositAmount: numeric('deposit_amount', {

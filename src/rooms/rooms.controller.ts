@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -31,8 +31,8 @@ export class RoomsController {
   @Public()
   @Get()
   async getRooms(
-    @Query('propertyId', new ParseIntPipe({ optional: true }))
-    propertyId: number | undefined,
+    @Query('propertyId', new ParseUUIDPipe({ optional: true }))
+    propertyId: string | undefined,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -49,7 +49,7 @@ export class RoomsController {
 
   @Public()
   @Get(':id')
-  async getRoomById(@Param('id', ParseIntPipe) id: number) {
+  async getRoomById(@Param('id') id: string) {
     return await this.roomsService.getRoomById(id);
   }
 
@@ -74,7 +74,7 @@ export class RoomsController {
   @Roles(UserRole.ADMIN)
   @Patch(':id')
   async editRoom(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditRoomDto,
   ) {
     return await this.roomsService.editRoom(id, body);
@@ -82,7 +82,7 @@ export class RoomsController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteRoom(@Param('id', ParseIntPipe) id: number) {
+  async deleteRoom(@Param('id') id: string) {
     return await this.roomsService.deleteRoom(id);
   }
 }

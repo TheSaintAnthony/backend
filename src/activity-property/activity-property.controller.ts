@@ -22,8 +22,8 @@ export class ActivityPropertyController {
 
   @Get()
   async getActivityProperties(
-    @Query('propertyId', ParseIntPipe) propertyId?: number,
-    @Query('activityId', ParseIntPipe) activityId?: number,
+    @Query('propertyId') propertyId?: string,
+    @Query('activityId') activityId?: string,
   ) {
     if (propertyId) {
       return await this.activityPropertyService.getActivityPropertiesByProperty(
@@ -39,7 +39,7 @@ export class ActivityPropertyController {
   }
 
   @Get(':id')
-  async getActivityPropertyById(@Param('id', ParseIntPipe) id: number) {
+  async getActivityPropertyById(@Param('id') id: string) {
     return await this.activityPropertyService.getActivityPropertyById(id);
   }
 
@@ -51,7 +51,7 @@ export class ActivityPropertyController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteActivityProperty(@Param('id', ParseIntPipe) id: number) {
+  async deleteActivityProperty(@Param('id') id: string) {
     return await this.activityPropertyService.deleteActivityProperty(id);
   }
 }

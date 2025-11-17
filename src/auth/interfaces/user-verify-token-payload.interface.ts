@@ -1,4 +1,4 @@
 export interface UserVerifyTokenPayload {
-  subb: number;
+  subb: string;
   email: string;
 }

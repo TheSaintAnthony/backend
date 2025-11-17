@@ -1,5 +1,6 @@
 import {
   pgTable,
+  uuid,
   integer,
   uniqueIndex,
   date,
@@ -13,11 +14,11 @@ import { sql } from 'drizzle-orm';
 export const reservationRooms = pgTable(
   'reservation_rooms',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    roomId: integer('room_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id, { onDelete: 'cascade' }),
-    reservationId: integer('reservation_id')
+    reservationId: uuid('reservation_id')
       .notNull()
       .references(() => reservations.id, { onDelete: 'cascade' }),
     checkIn: date('check_in').notNull(),

@@ -21,7 +21,7 @@ export class RoomAmenitiesController {
   constructor(private roomAmenitiesService: RoomAmenitiesService) {}
 
   @Get()
-  async getRoomAmenities(@Query('roomId', ParseIntPipe) roomId?: number) {
+  async getRoomAmenities(@Query('roomId') roomId?: string) {
     if (roomId) {
       return await this.roomAmenitiesService.getRoomAmenitiesByRoom(roomId);
     }
@@ -29,7 +29,7 @@ export class RoomAmenitiesController {
   }
 
   @Get(':id')
-  async getRoomAmenityById(@Param('id', ParseIntPipe) id: number) {
+  async getRoomAmenityById(@Param('id') id: string) {
     return await this.roomAmenitiesService.getRoomAmenityById(id);
   }
 
@@ -41,7 +41,7 @@ export class RoomAmenitiesController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  async deleteRoomAmenity(@Param('id', ParseIntPipe) id: number) {
+  async deleteRoomAmenity(@Param('id') id: string) {
     return await this.roomAmenitiesService.deleteRoomAmenity(id);
   }
 }

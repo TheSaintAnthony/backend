@@ -23,41 +23,41 @@ export class ActivityPropertyService {
     return await this.db.select().from(schema.activityProperty);
   }
 
-  async getActivityPropertyById(id: number) {
+  async getActivityPropertyById(id: string) {
     const [activityProperty] = await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id));
 
     if (!activityProperty) {
-      throw new NotFoundException('Activity property', String(id));
+      throw new NotFoundException('Activity property', id);
     }
 
     return activityProperty;
   }
 
-  async getActivityPropertiesByProperty(propertyId: number) {
+  async getActivityPropertiesByProperty(propertyId: string) {
     return await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.propertyId, propertyId));
   }
 
-  async getActivityPropertiesByActivity(activityId: number) {
+  async getActivityPropertiesByActivity(activityId: string) {
     return await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.activityId, activityId));
   }
 
-  async deleteActivityProperty(id: number) {
+  async deleteActivityProperty(id: string) {
     const [activityProperty] = await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id));
 
     if (!activityProperty) {
-      throw new NotFoundException('Activity property', String(id));
+      throw new NotFoundException('Activity property', id);
     }
 
     return await this.db
@@ -67,8 +67,8 @@ export class ActivityPropertyService {
   }
 
   async deleteActivityPropertyByActivityAndProperty(
-    activityId: number,
-    propertyId: number,
+    activityId: string,
+    propertyId: string,
   ) {
     const [activityProperty] = await this.db
       .select()

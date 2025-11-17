@@ -5,28 +5,26 @@ import {
   IsString,
   IsOptional,
   IsDateString,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePaymentDto {
   @ApiProperty()
-  @IsInt()
-  @IsPositive()
-  invoiceId: number;
+  @IsUUID()
+  invoiceId: string;
 
   @ApiProperty()
   @IsNumberString()
   amount: string;
 
   @ApiProperty()
-  @IsInt()
-  @IsPositive()
-  paymentMethodId: number;
+  @IsUUID()
+  paymentMethodId: string;
 
   @ApiProperty()
-  @IsInt()
-  @IsPositive()
-  paymentStatusId: number;
+  @IsUUID()
+  paymentStatusId: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -56,7 +56,7 @@ export class PropertiesService {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async getPropertyById(id: number) {
+  async getPropertyById(id: string) {
     const cacheKey = `property:${id}`;
     const cached = await this.cacheService.get(cacheKey);
     if (cached) return cached;
@@ -67,14 +67,14 @@ export class PropertiesService {
       .where(eq(schema.properties.id, id));
 
     if (!property) {
-      throw new NotFoundException('Property', String(id));
+      throw new NotFoundException('Property', id);
     }
 
     await this.cacheService.set(cacheKey, property, 3600);
     return property;
   }
 
-  async editProperty(id: number, data: EditPropertyDto) {
+  async editProperty(id: string, data: EditPropertyDto) {
     const [property] = await this.db
       .select()
       .from(schema.properties)
@@ -82,11 +82,11 @@ export class PropertiesService {
       .limit(1);
 
     if (!property) {
-      throw new NotFoundException('Property', String(id));
+      throw new NotFoundException('Property', id);
     }
 
     const { address, ...propertyData } = data;
-    const addressId: number = property.addressId!;
+    const addressId: string = property.addressId!;
 
     const [updateAddressResult] = await this.db
       .update(schema.addresses)
@@ -107,14 +107,14 @@ export class PropertiesService {
     return result;
   }
 
-  async deleteProperty(id: number) {
+  async deleteProperty(id: string) {
     const [property] = await this.db
       .select()
       .from(schema.properties)
       .where(eq(schema.properties.id, id));
 
     if (!property) {
-      throw new NotFoundException('Property', String(id));
+      throw new NotFoundException('Property', id);
     }
 
     const [result] = await this.db

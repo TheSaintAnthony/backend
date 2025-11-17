@@ -18,8 +18,8 @@ export class RoomHoldsService {
   ) {}
 
   async createHold(
-    userId: number,
-    roomId: number,
+    userId: string,
+    roomId: string,
     checkIn: string,
     checkOut: string,
   ) {
@@ -43,8 +43,8 @@ export class RoomHoldsService {
   }
 
   async hasActiveHold(
-    userId: number,
-    roomId: number,
+    userId: string,
+    roomId: string,
     checkIn: string,
     checkOut: string,
   ): Promise<boolean> {
@@ -68,10 +68,10 @@ export class RoomHoldsService {
   }
 
   async hasConflictingHolds(
-    roomId: number,
+    roomId: string,
     checkIn: string,
     checkOut: string,
-    excludeUserId?: number,
+    excludeUserId?: string,
   ): Promise<boolean> {
     const now = new Date();
 
@@ -107,8 +107,8 @@ export class RoomHoldsService {
   }
 
   async releaseHold(
-    userId: number,
-    roomId: number,
+    userId: string,
+    roomId: string,
     checkIn: string,
     checkOut: string,
   ) {
@@ -124,7 +124,7 @@ export class RoomHoldsService {
       );
   }
 
-  async releaseUserHoldsForRoom(userId: number, roomId: number) {
+  async releaseUserHoldsForRoom(userId: string, roomId: string) {
     await this.db
       .delete(schema.roomHolds)
       .where(
@@ -135,7 +135,7 @@ export class RoomHoldsService {
       );
   }
 
-  async releaseAllUserHolds(userId: number) {
+  async releaseAllUserHolds(userId: string) {
     await this.db
       .delete(schema.roomHolds)
       .where(eq(schema.roomHolds.userId, userId));

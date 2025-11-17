@@ -1,5 +1,4 @@
-import { IsOptional, IsDateString, IsEnum, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsDateString, IsEnum, IsUUID } from 'class-validator';
 
 export enum GroupByPeriod {
   DAY = 'day',
@@ -22,20 +21,14 @@ export class DateRangeDto {
   groupBy?: GroupByPeriod;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  propertyId?: number;
+  @IsUUID()
+  propertyId?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  roomId?: number;
+  @IsUUID()
+  roomId?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  roomTypeId?: number;
+  @IsUUID()
+  roomTypeId?: string;
 }

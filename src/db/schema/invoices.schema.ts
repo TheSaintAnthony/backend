@@ -1,5 +1,6 @@
 import {
   pgTable,
+  uuid,
   integer,
   numeric,
   timestamp,
@@ -19,11 +20,11 @@ import {
 export const invoices = pgTable(
   'invoices',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    reservationId: integer('reservation_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    reservationId: uuid('reservation_id')
       .notNull()
       .references(() => reservations.id, { onDelete: 'cascade' }),
-    userId: integer('user_id')
+    userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
     totalAmount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
@@ -36,19 +37,19 @@ export const invoices = pgTable(
     customerAddress: text('customer_address'),
     customerCountry: varchar('customer_country', { length: 2 }),
     invoiceNumber: varchar('invoice_number', { length: 50 }),
-    invoiceTypeId: integer('invoice_type_id')
+    invoiceTypeId: uuid('invoice_type_id')
       .notNull()
       .references(() => invoiceTypes.id),
     dueDate: timestamp('due_date', { withTimezone: true }),
     notes: text('notes'),
-    providerId: integer('provider_id').references(() => invoiceProviders.id),
+    providerId: uuid('provider_id').references(() => invoiceProviders.id),
     externalInvoiceId: varchar('external_invoice_id', { length: 255 }),
     externalInvoiceNumber: varchar('external_invoice_number', { length: 100 }),
     externalInvoiceUrl: text('external_invoice_url'),
     externalInvoicePdfPath: text('external_invoice_pdf_path'),
     syncedAt: timestamp('synced_at', { withTimezone: true }),
     syncError: text('sync_error'),
-    statusId: integer('status_id')
+    statusId: uuid('status_id')
       .notNull()
       .references(() => invoiceStatus.id),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -69,14 +70,14 @@ export const invoices = pgTable(
 export const invoiceLineItems = pgTable(
   'invoice_line_items',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    invoiceId: integer('invoice_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    invoiceId: uuid('invoice_id')
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
     description: text('description').notNull(),
     productCode: varchar('product_code', { length: 100 }),
     itemType: varchar('item_type', { length: 50 }),
-    itemReferenceId: integer('item_reference_id'),
+    itemReferenceId: uuid('item_reference_id'),
     quantity: numeric('quantity', { precision: 10, scale: 2 })
       .notNull()
       .default('1.00'),

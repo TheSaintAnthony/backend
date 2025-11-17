@@ -1,7 +1,7 @@
 import { AmenityHighlight } from './amenity-highlight.interface';
 
 export interface RoomWithDetails {
-  id: number;
+  id: string;
   name: string | null;
   description: string | null;
   bedCount: number | null;

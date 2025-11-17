@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   IsDateString,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -25,9 +26,8 @@ export class NestedInvoiceLineItemDto {
 
   @ApiPropertyOptional({ description: 'Reference ID to internal item' })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  itemReferenceId?: number;
+  @IsUUID()
+  itemReferenceId?: string;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumberString()

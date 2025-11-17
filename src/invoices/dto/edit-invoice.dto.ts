@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsDateString,
   Length,
+  IsUUID,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -91,12 +92,11 @@ export class EditInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'Invoice type ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  invoiceTypeId?: number;
+  @IsUUID()
+  invoiceTypeId?: string;
 
   @ApiPropertyOptional({
     description: 'Invoice due date',
@@ -116,12 +116,11 @@ export class EditInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'Invoice provider ID',
-    example: 1,
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  providerId?: number;
+  @IsUUID()
+  providerId?: string;
 
   @ApiPropertyOptional({
     description: 'External invoice ID from provider',
@@ -171,9 +170,8 @@ export class EditInvoiceDto {
   @IsString()
   syncError?: string;
 
-  @ApiPropertyOptional({ description: 'Invoice status ID', example: 2 })
+  @ApiPropertyOptional({ description: 'Invoice status ID', example: '123e4567-e89b-12d3-a456-426614174000' })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  statusId?: number;
+  @IsUUID()
+  statusId?: string;
 }

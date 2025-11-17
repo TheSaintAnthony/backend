@@ -398,9 +398,9 @@ export class ReportsService {
         return acc;
       },
       {} as Record<
-        number,
+        string,
         {
-          propertyId: number;
+          propertyId: string;
           propertyName: string | null;
           totalBookedNights: number;
           totalAvailableNights: number;
@@ -447,9 +447,9 @@ export class ReportsService {
         return acc;
       },
       {} as Record<
-        number,
+        string,
         {
-          roomTypeId: number;
+          roomTypeId: string;
           roomTypeName: string | null;
           totalBookedNights: number;
           totalAvailableNights: number;

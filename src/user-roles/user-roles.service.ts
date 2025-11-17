@@ -23,34 +23,34 @@ export class UserRolesService {
     return await this.db.select().from(schema.userRoles);
   }
 
-  async getUserRoleById(id: number) {
+  async getUserRoleById(id: string) {
     const [userRole] = await this.db
       .select()
       .from(schema.userRoles)
       .where(eq(schema.userRoles.id, id));
 
     if (!userRole) {
-      throw new NotFoundException('User role', String(id));
+      throw new NotFoundException('User role', id);
     }
 
     return userRole;
   }
 
-  async getUserRolesByUser(userId: number) {
+  async getUserRolesByUser(userId: string) {
     return await this.db
       .select()
       .from(schema.userRoles)
       .where(eq(schema.userRoles.userId, userId));
   }
 
-  async deleteUserRole(id: number) {
+  async deleteUserRole(id: string) {
     const [userRole] = await this.db
       .select()
       .from(schema.userRoles)
       .where(eq(schema.userRoles.id, id));
 
     if (!userRole) {
-      throw new NotFoundException('User role', String(id));
+      throw new NotFoundException('User role', id);
     }
 
     return await this.db
@@ -59,7 +59,7 @@ export class UserRolesService {
       .returning();
   }
 
-  async deleteUserRoleByUserAndRole(userId: number, roleId: number) {
+  async deleteUserRoleByUserAndRole(userId: string, roleId: string) {
     const [userRole] = await this.db
       .select()
       .from(schema.userRoles)

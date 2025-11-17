@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -22,8 +22,8 @@ export class OccurrencesController {
 
   @Get()
   async getOccurrences(
-    @Query('reservationId', new ParseIntPipe({ optional: true }))
-    reservationId: number | undefined,
+    @Query('reservationId', new ParseUUIDPipe({ optional: true }))
+    reservationId: string | undefined,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
@@ -42,7 +42,7 @@ export class OccurrencesController {
   }
 
   @Get(':id')
-  async getOccurrenceById(@Param('id', ParseIntPipe) id: number) {
+  async getOccurrenceById(@Param('id') id: string) {
     return await this.occurrencesService.getOccurrenceById(id);
   }
 
@@ -53,14 +53,14 @@ export class OccurrencesController {
 
   @Patch(':id')
   async editOccurrence(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditOccurrenceDto,
   ) {
     return await this.occurrencesService.editOccurrence(id, body);
   }
 
   @Delete(':id')
-  async deleteOccurrence(@Param('id', ParseIntPipe) id: number) {
+  async deleteOccurrence(@Param('id') id: string) {
     return await this.occurrencesService.deleteOccurrence(id);
   }
 }

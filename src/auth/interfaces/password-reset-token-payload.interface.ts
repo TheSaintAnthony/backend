@@ -1,4 +1,4 @@
 export interface PasswordResetTokenPayload {
   email: string;
-  iat?: number; // JWT issued at timestamp (seconds since epoch)
+  iat?: string; // JWT issued at timestamp (seconds since epoch)
 }

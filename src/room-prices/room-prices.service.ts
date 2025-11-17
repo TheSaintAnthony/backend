@@ -23,34 +23,34 @@ export class RoomPricesService {
     return await this.db.select().from(schema.roomPrices);
   }
 
-  async getRoomPriceById(id: number) {
+  async getRoomPriceById(id: string) {
     const [roomPrice] = await this.db
       .select()
       .from(schema.roomPrices)
       .where(eq(schema.roomPrices.id, id));
 
     if (!roomPrice) {
-      throw new NotFoundException('Room price', String(id));
+      throw new NotFoundException('Room price', id);
     }
 
     return roomPrice;
   }
 
-  async getRoomPricesByRoom(roomId: number) {
+  async getRoomPricesByRoom(roomId: string) {
     return await this.db
       .select()
       .from(schema.roomPrices)
       .where(eq(schema.roomPrices.roomId, roomId));
   }
 
-  async editRoomPrice(id: number, data: EditRoomPriceDto) {
+  async editRoomPrice(id: string, data: EditRoomPriceDto) {
     const [roomPrice] = await this.db
       .select()
       .from(schema.roomPrices)
       .where(eq(schema.roomPrices.id, id));
 
     if (!roomPrice) {
-      throw new NotFoundException('Room price', String(id));
+      throw new NotFoundException('Room price', id);
     }
 
     return await this.db
@@ -60,14 +60,14 @@ export class RoomPricesService {
       .returning();
   }
 
-  async deleteRoomPrice(id: number) {
+  async deleteRoomPrice(id: string) {
     const [roomPrice] = await this.db
       .select()
       .from(schema.roomPrices)
       .where(eq(schema.roomPrices.id, id));
 
     if (!roomPrice) {
-      throw new NotFoundException('Room price', String(id));
+      throw new NotFoundException('Room price', id);
     }
 
     return await this.db
