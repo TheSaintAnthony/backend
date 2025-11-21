@@ -47,11 +47,13 @@ export class PropertiesService {
       .from(schema.properties);
     const total = totalResult.count;
 
-    const data = await this.db
-      .select()
-      .from(schema.properties)
-      .limit(limit)
-      .offset(offset);
+    const data = await this.db.query.properties.findMany({
+      limit,
+      offset,
+      with: {
+        address: true,
+      },
+    });
 
     return createPaginatedResponse(data, total, page, limit);
   }
@@ -61,10 +63,12 @@ export class PropertiesService {
     const cached = await this.cacheService.get(cacheKey);
     if (cached) return cached;
 
-    const [property] = await this.db
-      .select()
-      .from(schema.properties)
-      .where(eq(schema.properties.id, id));
+    const property = await this.db.query.properties.findFirst({
+      where: eq(schema.properties.id, id),
+      with: {
+        address: true,
+      },
+    });
 
     if (!property) {
       throw new NotFoundException('Property', id);

@@ -86,7 +86,7 @@ export class UsersService {
   }
 
   async getUserById(id: string) {
-    const [user] = await this.db
+    const userRows = await this.db
       .select({
         id: schema.users.id,
         firstName: schema.users.firstName,
@@ -99,15 +99,41 @@ export class UsersService {
         createdAt: schema.users.createdAt,
         updatedAt: schema.users.updatedAt,
         deletedAt: schema.users.deletedAt,
+        roleId: schema.roles.id,
+        roleName: schema.roles.name,
       })
       .from(schema.users)
+      .leftJoin(schema.userRoles, eq(schema.userRoles.userId, schema.users.id))
+      .leftJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
       .where(eq(schema.users.id, id));
 
-    if (!user) {
+    if (!userRows || userRows.length === 0) {
       throw new NotFoundException('User', id);
     }
 
-    return user;
+    // Aggregate roles into an array
+    const user = userRows[0];
+    const roles = userRows
+      .filter((row) => row.roleId && row.roleName)
+      .map((row) => ({
+        id: row.roleId,
+        name: row.roleName,
+      }));
+
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      addressId: user.addressId,
+      nif: user.nif,
+      companyName: user.companyName,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
+      roles,
+    };
   }
 
   async createUser(data: Omit<SignUpDto, 'password'> & { password: string }) {
