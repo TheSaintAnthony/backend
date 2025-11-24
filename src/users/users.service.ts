@@ -1,12 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { NotFoundException, UnauthorizedException } from 'src/filters';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { SignUpDto } from 'src/auth/dto/auth.dto';
 import { EditUserDto } from './dto';
 import { UserRole } from 'src/constants';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +18,75 @@ export class UsersService {
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
+
+  async getUsers(pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.users);
+    const total = totalResult.count;
+
+    const usersRows = await this.db
+      .select({
+        id: schema.users.id,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        addressId: schema.users.addressId,
+        nif: schema.users.nif,
+        companyName: schema.users.companyName,
+        createdAt: schema.users.createdAt,
+        verifiedAt: schema.users.verifiedAt,
+        updatedAt: schema.users.updatedAt,
+        deletedAt: schema.users.deletedAt,
+        roleId: schema.roles.id,
+        roleName: schema.roles.name,
+      })
+      .from(schema.users)
+      .leftJoin(schema.userRoles, eq(schema.userRoles.userId, schema.users.id))
+      .leftJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
+      .limit(limit)
+      .offset(offset);
+
+    // Group by user and aggregate roles
+    const usersMap = new Map<string, any>();
+
+    for (const row of usersRows) {
+      if (!usersMap.has(row.id)) {
+        usersMap.set(row.id, {
+          id: row.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          email: row.email,
+          phone: row.phone,
+          addressId: row.addressId,
+          nif: row.nif,
+          companyName: row.companyName,
+          createdAt: row.createdAt,
+          verifiedAt: row.verifiedAt,
+          updatedAt: row.updatedAt,
+          deletedAt: row.deletedAt,
+          roles: [],
+        });
+      }
+
+      const user = usersMap.get(row.id)!;
+      if (row.roleId && row.roleName) {
+        user.roles.push({
+          id: row.roleId,
+          name: row.roleName,
+        });
+      }
+    }
+
+    const data = Array.from(usersMap.values());
+    return createPaginatedResponse(data, total, page, limit);
+  }
+
 
   async findOneByEmail(email: string) {
     const [user] = await this.db

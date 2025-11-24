@@ -2,6 +2,8 @@ import { AmenityHighlight } from './amenity-highlight.interface';
 
 export interface RoomWithDetails {
   id: string;
+  propertyId: string;
+  roomTypeId: string | null;
   name: string | null;
   description: string | null;
   bedCount: number | null;

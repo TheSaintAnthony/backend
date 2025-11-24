@@ -63,4 +63,13 @@ export class EditRoomDto {
   @IsOptional()
   @IsBoolean()
   available?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Property ID',
+    example: '34093nv',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  propertyId?: string;
 }

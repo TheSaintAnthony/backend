@@ -59,6 +59,8 @@ export class RoomsService {
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
+        propertyId: schema.rooms.propertyId,
+        roomTypeId: schema.rooms.roomTypeId,
         name: schema.rooms.name,
         description: schema.rooms.description,
         bedCount: schema.rooms.bedCount,
@@ -105,6 +107,8 @@ export class RoomsService {
       if (!roomsMap.has(row.id)) {
         roomsMap.set(row.id, {
           id: row.id,
+          propertyId: row.propertyId,
+          roomTypeId: row.roomTypeId,
           name: row.name,
           description: row.description,
           bedCount: row.bedCount,
@@ -150,6 +154,8 @@ export class RoomsService {
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
+        propertyId: schema.rooms.propertyId,
+        roomTypeId: schema.rooms.roomTypeId,
         name: schema.rooms.name,
         description: schema.rooms.description,
         bedCount: schema.rooms.bedCount,
@@ -191,6 +197,8 @@ export class RoomsService {
 
     const room: RoomWithDetails = {
       id: roomsData[0].id,
+      propertyId: roomsData[0].propertyId,
+      roomTypeId: roomsData[0].roomTypeId,
       name: roomsData[0].name,
       description: roomsData[0].description,
       bedCount: roomsData[0].bedCount,
@@ -264,6 +272,7 @@ export class RoomsService {
         amenityName: schema.amenities.name,
         highlightId: schema.highlights.id,
         highlightName: schema.highlights.name,
+        roomTypeId: schema.rooms.roomTypeId,
       })
       .from(schema.rooms)
       .leftJoin(
@@ -308,6 +317,8 @@ export class RoomsService {
           maxCapacity: row.maxCapacity,
           amenities: [],
           highlights: [],
+          propertyId: propertyId,
+          roomTypeId: row.roomTypeId,
         });
       }
 
