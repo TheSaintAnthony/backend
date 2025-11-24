@@ -21,23 +21,34 @@ export class StatusLookupService implements OnModuleInit {
   }
 
   private async loadStatuses() {
-    const [reservationStatuses, invoiceStatuses, invoiceTypes] =
-      await Promise.all([
-        this.db.select().from(schema.reservationStatus),
-        this.db.select().from(schema.invoiceStatus),
-        this.db.select().from(schema.invoiceTypes),
-      ]);
+    try {
+      const [reservationStatuses, invoiceStatuses, invoiceTypes] =
+        await Promise.all([
+          this.db.select().from(schema.reservationStatus),
+          this.db.select().from(schema.invoiceStatus),
+          this.db.select().from(schema.invoiceTypes),
+        ]);
 
-    for (const status of reservationStatuses) {
-      this.reservationStatusCache.set(status.name, status.id);
-    }
+      for (const status of reservationStatuses) {
+        this.reservationStatusCache.set(status.name, status.id);
+      }
 
-    for (const status of invoiceStatuses) {
-      this.invoiceStatusCache.set(status.name, status.id);
-    }
+      for (const status of invoiceStatuses) {
+        this.invoiceStatusCache.set(status.name, status.id);
+      }
 
-    for (const type of invoiceTypes) {
-      this.invoiceTypeCache.set(type.name, type.id);
+      for (const type of invoiceTypes) {
+        this.invoiceTypeCache.set(type.name, type.id);
+      }
+
+      console.log('StatusLookupService initialized:', {
+        reservationStatuses: reservationStatuses.length,
+        invoiceStatuses: invoiceStatuses.length,
+        invoiceTypes: invoiceTypes.length,
+      });
+    } catch (error) {
+      console.error('Failed to load statuses:', error);
+      throw error;
     }
   }
 
@@ -60,7 +71,8 @@ export class StatusLookupService implements OnModuleInit {
   getInvoiceTypeId(name: string): string {
     const id = this.invoiceTypeCache.get(name);
     if (!id) {
-      throw new Error(`Invoice type '${name}' not found`);
+      console.error('Invoice type cache:', Array.from(this.invoiceTypeCache.keys()));
+      throw new Error(`Invoice type '${name}' not found. Available types: ${Array.from(this.invoiceTypeCache.keys()).join(', ')}`);
     }
     return id;
   }
