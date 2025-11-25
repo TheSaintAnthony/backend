@@ -1,6 +1,4 @@
 import {
-  IsInt,
-  IsPositive,
   IsNumberString,
   IsOptional,
   IsString,
@@ -16,11 +14,17 @@ import { Type } from 'class-transformer';
 import { NestedInvoiceLineItemDto } from './nested-invoice-line-item.dto';
 
 export class CreateInvoiceDto {
-  @ApiProperty({ description: 'Reservation ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Reservation ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   reservationId: string;
 
-  @ApiProperty({ description: 'User ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'User ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   userId: string;
 
@@ -34,7 +38,6 @@ export class CreateInvoiceDto {
   @Length(3, 3)
   currency?: string;
 
-  // Customer billing information (snapshot - will be copied from user if not provided)
   @ApiProperty({ description: 'Customer name', example: 'João Silva' })
   @IsString()
   customerName: string;
@@ -127,7 +130,10 @@ export class CreateInvoiceDto {
   @IsUUID()
   providerId?: string;
 
-  @ApiProperty({ description: 'Invoice status ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Invoice status ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   statusId: string;
 

@@ -34,6 +34,7 @@
     "@nestjs/swagger": "^11.2.1",
     "@nestjs/throttler": "^6.4.0",
     "@paypal/paypal-server-sdk": "1.1.0",
+    "@types/multer": "^2.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.63.1",
     "class-transformer": "^0.5.1",

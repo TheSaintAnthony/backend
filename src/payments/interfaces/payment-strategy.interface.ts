@@ -13,15 +13,4 @@ export interface IPaymentStrategy {
   capturePayment(transactionId: string): Promise<PaymentCaptureResult>;
 
   getPaymentStatus(transactionId: string): Promise<PaymentStatusResult>;
-
-  /*refundPayment(
-    transactionId: string,
-    amount?: string,
-  ): RefundResult | Promise<RefundResult>; */
-
-  //  validateWebhook(payload: unknown, signature: string): boolean;
-
-  /*  processWebhook(
-    payload: unknown,
-    ): PaymentStatusResult | Promise<PaymentStatusResult>; */
 }

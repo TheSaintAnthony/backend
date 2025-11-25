@@ -52,10 +52,7 @@ export class InvoicesController {
   }
 
   @Patch(':id')
-  async editInvoice(
-    @Param('id') id: string,
-    @Body() body: EditInvoiceDto,
-  ) {
+  async editInvoice(@Param('id') id: string, @Body() body: EditInvoiceDto) {
     return await this.invoicesService.editInvoice(id, body);
   }
 

@@ -1,4 +1,10 @@
-import { pgTable, uuid, integer, varchar, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  integer,
+  varchar,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 export const invoiceSequences = pgTable(
   'invoice_sequences',

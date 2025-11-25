@@ -1,4 +1,4 @@
-import { IsInt, IsPositive, IsString, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EditOccurrenceDto {
@@ -10,7 +10,10 @@ export class EditOccurrenceDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Occurrence status ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiPropertyOptional({
+    description: 'Occurrence status ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsOptional()
   @IsUUID()
   statusId?: string;

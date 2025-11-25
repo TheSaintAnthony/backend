@@ -4,10 +4,13 @@ import {
   IsOptional,
   IsNotEmpty,
   ValidateNested,
+  IsArray,
+  IsNumberString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EditAddressDto } from 'src/addresses/dto';
+import { NestedImageDto } from 'src/images/dto/nested-image.dto';
 
 export class EditPropertyDto {
   @ApiPropertyOptional({ description: 'Property name', example: 'Grand Hotel' })
@@ -77,4 +80,22 @@ export class EditPropertyDto {
   @IsString()
   @IsNotEmpty()
   checkOutTime: string;
+
+  @ApiPropertyOptional({
+    description: 'Tourism fee',
+    example: '5.00',
+  })
+  @IsOptional()
+  @IsNumberString()
+  tourismFee?: string;
+
+  @ApiPropertyOptional({
+    description: 'Images for the property (replaces existing images)',
+    type: [NestedImageDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NestedImageDto)
+  images?: NestedImageDto[];
 }

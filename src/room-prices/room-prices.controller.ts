@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -23,9 +22,7 @@ export class RoomPricesController {
 
   @Roles(UserRole.ADMIN)
   @Get()
-  async getRoomPrices(
-    @Query('roomId') roomId?: string,
-  ) {
+  async getRoomPrices(@Query('roomId') roomId?: string) {
     if (roomId !== undefined) {
       return await this.roomPricesService.getRoomPricesByRoom(roomId);
     }
@@ -46,10 +43,7 @@ export class RoomPricesController {
 
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async editRoomPrice(
-    @Param('id') id: string,
-    @Body() body: EditRoomPriceDto,
-  ) {
+  async editRoomPrice(@Param('id') id: string, @Body() body: EditRoomPriceDto) {
     return await this.roomPricesService.editRoomPrice(id, body);
   }
 

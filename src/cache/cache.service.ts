@@ -51,7 +51,6 @@ export class CacheService implements OnModuleInit {
       const keys: string[] = [];
       let cursor = '0';
 
-      // Use SCAN instead of KEYS to avoid blocking Redis in production
       do {
         const [newCursor, foundKeys] = await this.redis.scan(
           cursor,
@@ -65,7 +64,6 @@ export class CacheService implements OnModuleInit {
       } while (cursor !== '0');
 
       if (keys.length > 0) {
-        // Delete in batches to avoid command size limits
         const batchSize = 1000;
         for (let i = 0; i < keys.length; i += batchSize) {
           const batch = keys.slice(i, i + batchSize);

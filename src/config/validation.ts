@@ -21,4 +21,5 @@ export const validationSchema = Joi.object({
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().required(),
   REDIS_PASSWORD: Joi.string().required(),
+  IMAGES_PATH: Joi.string().required(),
 });

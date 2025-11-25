@@ -10,12 +10,14 @@ import {
   UpdateLookupValue,
   ActivityData,
 } from './interfaces';
+import { ImagesService } from 'src/images/images.service';
 
 @Injectable()
 export class LookupsService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
+    private imagesService: ImagesService,
   ) {}
 
   private getTableName(): string {
@@ -53,7 +55,6 @@ export class LookupsService {
       await this.ensureNotExists(table, value.name);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.db.insert(table).values(value as any);
   }
 
@@ -72,13 +73,11 @@ export class LookupsService {
   ): Promise<unknown> {
     await this.ensureExistsById(table, id);
 
-    return (
-      this.db
-        .update(table)
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        .set(value as any)
-        .where(eq(table.id, id))
-    );
+    return this.db
+      .update(table)
+
+      .set(value as any)
+      .where(eq(table.id, id));
   }
 
   async deleteValue(table: LookupTable, id: string) {
@@ -266,26 +265,96 @@ export class LookupsService {
     return this.deleteValue(schema.paymentMethods, id);
   }
 
-  addActivity(data: ActivityData) {
-    return this.addValue(schema.activities, {
-      name: data.name,
-      description: data.description,
+  async addActivity(data: ActivityData) {
+    const { images, ...activityData } = data;
+
+    const [createdActivity] = await this.db
+      .insert(schema.activities)
+      .values({
+        ...activityData,
+      })
+      .returning();
+
+    if (images && images.length > 0) {
+      await this.imagesService.createImages(
+        images.map((img) => ({
+          entityTypeCode: 'activity',
+          entityId: createdActivity.id,
+          ...img,
+        })),
+      );
+    }
+
+    return this.getActivityById(createdActivity.id);
+  }
+
+  async getActivities() {
+    const activities = await this.db.query.activities.findMany();
+
+    const activitiesWithImages = await Promise.all(
+      activities.map(async (activity) => {
+        const images = await this.imagesService.getImagesByEntity(
+          'activity',
+          activity.id,
+        );
+        return { ...activity, images };
+      }),
+    );
+
+    return activitiesWithImages;
+  }
+
+  async getActivityById(id: string) {
+    const activity = await this.db.query.activities.findFirst({
+      where: eq(schema.activities.id, id),
     });
+
+    if (!activity) {
+      throw new NotFoundException('Activity', id);
+    }
+
+    const images = await this.imagesService.getImagesByEntity('activity', id);
+    return { ...activity, images };
   }
 
-  getActivities() {
-    return this.getAll(schema.activities);
-  }
-
-  getActivityById(id: string) {
-    return this.getById(schema.activities, id);
-  }
-
-  editActivity(id: string, data: ActivityData) {
-    return this.updateValue(schema.activities, id, {
-      name: data.name,
-      description: data.description,
+  async editActivity(id: string, data: ActivityData) {
+    const activity = await this.db.query.activities.findFirst({
+      where: eq(schema.activities.id, id),
     });
+
+    if (!activity) {
+      throw new NotFoundException('Activity', id);
+    }
+
+    const { images, ...activityData } = data;
+
+    await this.db
+      .update(schema.activities)
+      .set({ ...activityData })
+      .where(eq(schema.activities.id, id));
+
+    if (images !== undefined) {
+      const existingImages = await this.imagesService.getImagesByEntity(
+        'activity',
+        id,
+      );
+
+      await Promise.all(
+        existingImages.map((img) => this.imagesService.deleteImage(img.id)),
+      );
+
+      if (images.length > 0) {
+        await this.imagesService.createImages(
+          images.map((img) => ({
+            entityTypeCode: 'activity',
+            entityId: id,
+            ...img,
+          })),
+        );
+      }
+    }
+
+    return this.getActivityById(id);
   }
 
   deleteActivity(id: string) {

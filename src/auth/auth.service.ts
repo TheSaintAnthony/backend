@@ -117,7 +117,7 @@ export class AuthService {
       const passwordChangedAtTimestamp = new Date(
         user.passwordChangedAt,
       ).getTime();
-      const tokenIssuedAtTimestamp = Number(tokenIssuedAt) * 1000; // JWT iat is in seconds
+      const tokenIssuedAtTimestamp = Number(tokenIssuedAt) * 1000;
 
       if (tokenIssuedAtTimestamp < passwordChangedAtTimestamp) {
         throw new UnauthorizedException(

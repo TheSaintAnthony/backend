@@ -52,10 +52,7 @@ export class PaymentsController {
   }
 
   @Patch(':id')
-  async editPayment(
-    @Param('id') id: string,
-    @Body() body: EditPaymentDto,
-  ) {
+  async editPayment(@Param('id') id: string, @Body() body: EditPaymentDto) {
     return await this.paymentsService.editPayment(id, body);
   }
 

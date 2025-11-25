@@ -20,6 +20,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { OccurrencesModule } from './occurrences/occurrences.module';
 import { PaypalModule } from './payments/paypal/paypal.module';
+import { ImagesModule } from './images/images.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from './config/validation';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -77,6 +78,7 @@ import { ReportsModule } from './reports/reports.module';
     PaymentsModule,
     OccurrencesModule,
     PaypalModule,
+    ImagesModule,
     HealthModule,
     QueuesModule,
     ReportsModule,

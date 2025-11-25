@@ -321,7 +321,6 @@ export class ReservationsService implements OnModuleInit {
           .where(eq(schema.addresses.id, user.addressId))
       : [null];
 
-    // Use custom invoice data if provided, otherwise use user's data
     let customerName: string;
     let customerEmail: string;
     let customerPhone: string | undefined;
@@ -331,13 +330,15 @@ export class ReservationsService implements OnModuleInit {
     let customerCompanyName: string | undefined;
 
     if (customInvoiceData) {
-      customerName = customInvoiceData.customerName || `${user.firstName} ${user.lastName}`;
+      customerName =
+        customInvoiceData.customerName || `${user.firstName} ${user.lastName}`;
       customerEmail = customInvoiceData.customerEmail || user.email;
-      customerPhone = customInvoiceData.customerPhone || user.phone || undefined;
+      customerPhone =
+        customInvoiceData.customerPhone || user.phone || undefined;
       customerTaxId = customInvoiceData.customerTaxId || user.nif || undefined;
-      customerCompanyName = customInvoiceData.customerCompanyName || user.companyName || undefined;
+      customerCompanyName =
+        customInvoiceData.customerCompanyName || user.companyName || undefined;
 
-      // Build address from custom data
       if (customInvoiceData.customerAddress || customInvoiceData.customerCity) {
         const addressParts = [
           customInvoiceData.customerAddress,
@@ -345,7 +346,8 @@ export class ReservationsService implements OnModuleInit {
           customInvoiceData.customerZipCode,
           customInvoiceData.customerCountry,
         ].filter(Boolean);
-        customerAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
+        customerAddress =
+          addressParts.length > 0 ? addressParts.join(', ') : undefined;
       } else if (address) {
         customerAddress = `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`;
       }
@@ -356,7 +358,6 @@ export class ReservationsService implements OnModuleInit {
           ? address.country.substring(0, 2).toUpperCase()
           : undefined;
     } else {
-      // Use user's data
       customerName = `${user.firstName} ${user.lastName}`;
       customerEmail = user.email;
       customerPhone = user.phone || undefined;
@@ -365,7 +366,9 @@ export class ReservationsService implements OnModuleInit {
       customerAddress = address
         ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
         : undefined;
-      customerCountry = address ? address.country.substring(0, 2).toUpperCase() : undefined;
+      customerCountry = address
+        ? address.country.substring(0, 2).toUpperCase()
+        : undefined;
     }
 
     const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('invoice');
@@ -573,7 +576,8 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async createBooking(userId: string, data: CreateBookingDto) {
-    const { rooms, specialRequests, paymentMethodId, metadata, invoiceData } = data;
+    const { rooms, specialRequests, paymentMethodId, metadata, invoiceData } =
+      data;
 
     return this.db.transaction(async (tx) => {
       const { totalPrice, validatedRooms } =
@@ -581,11 +585,9 @@ export class ReservationsService implements OnModuleInit {
 
       const totalPriceStr = totalPrice.toString();
 
-      // Get the appropriate payment strategy based on payment method
       const paymentStrategy =
         await this.paymentStrategyFactory.getStrategy(paymentMethodId);
 
-      // Create reservation as PENDING initially
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
@@ -598,7 +600,6 @@ export class ReservationsService implements OnModuleInit {
         specialRequests,
       );
 
-      // Create payment using the strategy (works for ANY payment method!)
       const paymentResult = await paymentStrategy.createPayment({
         amount: totalPriceStr,
         currency: 'EUR',
@@ -606,7 +607,6 @@ export class ReservationsService implements OnModuleInit {
         metadata,
       });
 
-      // Create invoice and payment record
       const invoice = await this.createInvoiceAndPayment(
         tx,
         reservation.id,
@@ -622,7 +622,6 @@ export class ReservationsService implements OnModuleInit {
         invoiceData,
       );
 
-      // Return appropriate response based on payment type
       return {
         success: true,
         reservation,
@@ -646,7 +645,6 @@ export class ReservationsService implements OnModuleInit {
 
   async completeBooking(transactionId: string, paymentMethodId: string) {
     return this.db.transaction(async (tx) => {
-      // Check if payment already completed (idempotency)
       const [existingPayment] = await tx
         .select()
         .from(schema.payments)
@@ -681,11 +679,9 @@ export class ReservationsService implements OnModuleInit {
         }
       }
 
-      // Get payment strategy
       const paymentStrategy =
         await this.paymentStrategyFactory.getStrategy(paymentMethodId);
 
-      // Capture payment (works for all methods!)
       const captureResult = await paymentStrategy.capturePayment(transactionId);
 
       if (!captureResult.success) {
@@ -694,7 +690,6 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update payment status
       await tx
         .update(schema.payments)
         .set({
@@ -703,7 +698,6 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.payments.id, existingPayment.id));
 
-      // Get invoice
       const [invoice] = await tx
         .select()
         .from(schema.invoices)
@@ -717,7 +711,6 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update invoice status
       await tx
         .update(schema.invoices)
         .set({
@@ -727,7 +720,6 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.invoices.id, invoice.id));
 
-      // Get reservation
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -741,7 +733,6 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update reservation status
       await tx
         .update(schema.reservations)
         .set({
@@ -752,18 +743,15 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.reservations.id, reservation.id));
 
-      // Clear room holds
       await tx
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, reservation.userId));
 
-      // Get reservation rooms for email
       const reservationRooms = await tx
         .select()
         .from(schema.reservationRooms)
         .where(eq(schema.reservationRooms.reservationId, reservation.id));
 
-      // Send confirmation email
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
@@ -773,7 +761,9 @@ export class ReservationsService implements OnModuleInit {
           checkIn: r.checkIn,
           checkOut: r.checkOut,
           guestsCount: r.guestsCount.toString(),
-          price: (parseFloat(reservation.totalPrice) / reservationRooms.length).toString(),
+          price: (
+            parseFloat(reservation.totalPrice) / reservationRooms.length
+          ).toString(),
         })),
         reservation.specialRequests || undefined,
       );
@@ -867,7 +857,6 @@ export class ReservationsService implements OnModuleInit {
     paymentMethodId: string,
   ) {
     return this.db.transaction(async (tx) => {
-      // Get reservation with rooms
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -883,7 +872,6 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      // Only allow retry for PENDING reservations
       const pendingStatusId = this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.PENDING,
       );
@@ -894,18 +882,15 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Get payment strategy
       const paymentStrategy =
         await this.paymentStrategyFactory.getStrategy(paymentMethodId);
 
-      // Create new payment
       const paymentResult = await paymentStrategy.createPayment({
         amount: reservation.totalPrice,
         currency: 'EUR',
         orderId: reservation.id.toString(),
       });
 
-      // Update payment record with new transaction ID
       const [payment] = await tx
         .select()
         .from(schema.payments)

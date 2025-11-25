@@ -11,6 +11,7 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { CacheService } from 'src/cache/cache.service';
+import { ImagesService } from 'src/images/images.service';
 
 @Injectable()
 export class PropertiesService {
@@ -18,23 +19,36 @@ export class PropertiesService {
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private cacheService: CacheService,
+    private imagesService: ImagesService,
   ) {}
 
   async createProperty(data: CreatePropertyDto) {
-    const { address, ...propertyData } = data;
+    const { address, images, ...propertyData } = data;
 
     const [createdAddress] = await this.db
       .insert(schema.addresses)
       .values({ ...address })
       .returning({ id: schema.addresses.id });
 
-    return await this.db
+    const [createdProperty] = await this.db
       .insert(schema.properties)
       .values({
         addressId: createdAddress.id,
         ...propertyData,
       })
       .returning();
+
+    if (images && images.length > 0) {
+      await this.imagesService.createImages(
+        images.map((img) => ({
+          entityTypeCode: 'property',
+          entityId: createdProperty.id,
+          ...img,
+        })),
+      );
+    }
+
+    return this.getPropertyById(createdProperty.id);
   }
 
   async getProperties(pagination?: PaginationDto) {
@@ -55,7 +69,17 @@ export class PropertiesService {
       },
     });
 
-    return createPaginatedResponse(data, total, page, limit);
+    const propertiesWithImages = await Promise.all(
+      data.map(async (property) => {
+        const images = await this.imagesService.getImagesByEntity(
+          'property',
+          property.id,
+        );
+        return { ...property, images };
+      }),
+    );
+
+    return createPaginatedResponse(propertiesWithImages, total, page, limit);
   }
 
   async getPropertyById(id: string) {
@@ -74,8 +98,11 @@ export class PropertiesService {
       throw new NotFoundException('Property', id);
     }
 
-    await this.cacheService.set(cacheKey, property, 3600);
-    return property;
+    const images = await this.imagesService.getImagesByEntity('property', id);
+    const propertyWithImages = { ...property, images };
+
+    await this.cacheService.set(cacheKey, propertyWithImages, 3600);
+    return propertyWithImages;
   }
 
   async editProperty(id: string, data: EditPropertyDto) {
@@ -89,26 +116,49 @@ export class PropertiesService {
       throw new NotFoundException('Property', id);
     }
 
-    const { address, ...propertyData } = data;
+    const { address, images, ...propertyData } = data;
     const addressId: string = property.addressId!;
 
-    const [updateAddressResult] = await this.db
-      .update(schema.addresses)
-      .set({ ...address })
-      .where(eq(schema.addresses.id, addressId))
-      .returning();
+    if (address) {
+      const [updateAddressResult] = await this.db
+        .update(schema.addresses)
+        .set({ ...address })
+        .where(eq(schema.addresses.id, addressId))
+        .returning();
 
-    if (!updateAddressResult) {
-      throw new NotFoundException('Address', String(addressId));
+      if (!updateAddressResult) {
+        throw new NotFoundException('Address', String(addressId));
+      }
     }
 
-    const result = await this.db
+    await this.db
       .update(schema.properties)
       .set({ ...propertyData })
       .where(eq(schema.properties.id, id));
 
+    if (images !== undefined) {
+      const existingImages = await this.imagesService.getImagesByEntity(
+        'property',
+        id,
+      );
+
+      await Promise.all(
+        existingImages.map((img) => this.imagesService.deleteImage(img.id)),
+      );
+
+      if (images.length > 0) {
+        await this.imagesService.createImages(
+          images.map((img) => ({
+            entityTypeCode: 'property',
+            entityId: id,
+            ...img,
+          })),
+        );
+      }
+    }
+
     await this.cacheService.del(`property:${id}`);
-    return result;
+    return this.getPropertyById(id);
   }
 
   async deleteProperty(id: string) {

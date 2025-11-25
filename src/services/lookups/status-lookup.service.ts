@@ -40,14 +40,7 @@ export class StatusLookupService implements OnModuleInit {
       for (const type of invoiceTypes) {
         this.invoiceTypeCache.set(type.name, type.id);
       }
-
-      console.log('StatusLookupService initialized:', {
-        reservationStatuses: reservationStatuses.length,
-        invoiceStatuses: invoiceStatuses.length,
-        invoiceTypes: invoiceTypes.length,
-      });
     } catch (error) {
-      console.error('Failed to load statuses:', error);
       throw error;
     }
   }
@@ -71,8 +64,9 @@ export class StatusLookupService implements OnModuleInit {
   getInvoiceTypeId(name: string): string {
     const id = this.invoiceTypeCache.get(name);
     if (!id) {
-      console.error('Invoice type cache:', Array.from(this.invoiceTypeCache.keys()));
-      throw new Error(`Invoice type '${name}' not found. Available types: ${Array.from(this.invoiceTypeCache.keys()).join(', ')}`);
+      throw new Error(
+        `Invoice type '${name}' not found. Available types: ${Array.from(this.invoiceTypeCache.keys()).join(', ')}`,
+      );
     }
     return id;
   }

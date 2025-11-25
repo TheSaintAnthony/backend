@@ -14,14 +14,9 @@ export class PaymentStrategyFactory {
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private paypalStrategy: PaypalPaymentStrategy,
-    // Future strategies will be injected here:
-    // private mbWayStrategy: MbWayPaymentStrategy,
-    // private mbReferenceStrategy: MbReferencePaymentStrategy,
-    // private creditCardStrategy: CreditCardPaymentStrategy,
   ) {}
 
   async getStrategy(paymentMethodId: string): Promise<IPaymentStrategy> {
-    // Fetch payment method from database
     const [method] = await this.db
       .select()
       .from(schema.paymentMethods)
@@ -31,20 +26,9 @@ export class PaymentStrategyFactory {
       throw new NotFoundException('Payment method', String(paymentMethodId));
     }
 
-    // Return appropriate strategy based on method name
     switch (method.name.toUpperCase()) {
       case PaymentMethod.PAYPAL.toUpperCase():
         return this.paypalStrategy;
-
-      // Future payment methods:
-      // case PaymentMethod.MB_WAY.toUpperCase():
-      //   return this.mbWayStrategy;
-      //
-      // case PaymentMethod.MB_REFERENCE.toUpperCase():
-      //   return this.mbReferenceStrategy;
-      //
-      // case PaymentMethod.CREDIT_CARD.toUpperCase():
-      //   return this.creditCardStrategy;
 
       default:
         throw new BadRequestException(

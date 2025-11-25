@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -51,10 +50,7 @@ export class PropertiesController {
 
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async editProperty(
-    @Param('id') id: string,
-    @Body() dto: EditPropertyDto,
-  ) {
+  async editProperty(@Param('id') id: string, @Body() dto: EditPropertyDto) {
     return await this.propertiesService.editProperty(id, dto);
   }
 

@@ -25,6 +25,11 @@ import { invoices, invoiceLineItems } from './invoices.schema';
 import { payments } from './payments.schema';
 import { occurrences } from './occurrences.schema';
 import { reservationRooms } from './reservation-rooms.schema';
+import { activities } from './activities.schema';
+import { activityProperty } from './activity-property.schema';
+import { entityTypes } from './entity-types.schema';
+import { images } from './images.schema';
+import { imageMetadata } from './image-metadata.schema';
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   address: one(addresses, {
@@ -52,6 +57,7 @@ export const buildingsRelations = relations(properties, ({ one, many }) => ({
     references: [addresses.id],
   }),
   rooms: many(rooms),
+  images: many(images),
 }));
 
 export const roomsRelations = relations(rooms, ({ one, many }) => ({
@@ -67,6 +73,7 @@ export const roomsRelations = relations(rooms, ({ one, many }) => ({
   highlights: many(roomHighlights),
   prices: many(roomPrices),
   reservations: many(reservations),
+  images: many(images),
 }));
 
 export const roomAmenitiesRelations = relations(roomAmenities, ({ one }) => ({
@@ -186,5 +193,46 @@ export const reservationRoomsRelations = relations(
       fields: [reservationRooms.roomId],
       references: [rooms.id],
     }),
+  }),
+);
+
+export const entityTypesRelations = relations(entityTypes, ({ many }) => ({
+  images: many(images),
+}));
+
+export const imagesRelations = relations(images, ({ one }) => ({
+  entityType: one(entityTypes, {
+    fields: [images.entityTypeId],
+    references: [entityTypes.id],
+  }),
+  metadata: one(imageMetadata, {
+    fields: [images.id],
+    references: [imageMetadata.imageId],
+  }),
+}));
+
+export const imageMetadataRelations = relations(imageMetadata, ({ one }) => ({
+  image: one(images, {
+    fields: [imageMetadata.imageId],
+    references: [images.id],
+  }),
+}));
+
+export const activitiesRelations = relations(activities, ({ many }) => ({
+  images: many(images),
+}));
+
+export const activityPropertyRelations = relations(
+  activityProperty,
+  ({ one, many }) => ({
+    activity: one(activities, {
+      fields: [activityProperty.activityId],
+      references: [activities.id],
+    }),
+    property: one(properties, {
+      fields: [activityProperty.propertyId],
+      references: [properties.id],
+    }),
+    images: many(images),
   }),
 );

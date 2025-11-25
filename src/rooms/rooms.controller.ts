@@ -73,10 +73,7 @@ export class RoomsController {
 
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async editRoom(
-    @Param('id') id: string,
-    @Body() body: EditRoomDto,
-  ) {
+  async editRoom(@Param('id') id: string, @Body() body: EditRoomDto) {
     return await this.roomsService.editRoom(id, body);
   }
 

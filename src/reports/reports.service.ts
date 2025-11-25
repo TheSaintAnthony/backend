@@ -12,14 +12,9 @@ export class ReportsService {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
-  /**
-   * Revenue Overview Report
-   * Returns total revenue, breakdown by property/room type, average booking value, growth rates
-   */
   async getRevenueOverview(filters: DateRangeDto) {
     const { startDate, endDate, propertyId } = filters;
 
-    // Build date filter conditions
     const dateConditions = [];
     if (startDate) {
       dateConditions.push(
@@ -32,7 +27,6 @@ export class ReportsService {
       );
     }
 
-    // Get confirmed reservation status (paid bookings)
     const [confirmedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
@@ -47,7 +41,6 @@ export class ReportsService {
       Boolean,
     );
 
-    // Total revenue query
     const revenueConditions = [
       ...dateConditions,
       validStatusIds.length > 0
@@ -71,7 +64,6 @@ export class ReportsService {
 
     const totalRevenue = totalRevenueResult[0];
 
-    // Revenue by property
     const revenueByProperty = await this.db
       .select({
         propertyId: schema.properties.id,
@@ -100,7 +92,6 @@ export class ReportsService {
       )
       .groupBy(schema.properties.id, schema.properties.name);
 
-    // Revenue by room type
     const revenueByRoomType = await this.db
       .select({
         roomTypeId: schema.roomTypes.id,
@@ -124,7 +115,6 @@ export class ReportsService {
       .where(and(...revenueConditions))
       .groupBy(schema.roomTypes.id, schema.roomTypes.name);
 
-    // Revenue by payment method
     const revenueByPaymentMethod = await this.db
       .select({
         paymentMethodId: schema.paymentMethods.id,
@@ -148,7 +138,6 @@ export class ReportsService {
       .where(and(...revenueConditions))
       .groupBy(schema.paymentMethods.id, schema.paymentMethods.name);
 
-    // Outstanding invoices (pending/unpaid)
     const [pendingInvoiceStatus] = await this.db
       .select()
       .from(schema.invoiceStatus)
@@ -180,10 +169,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Booking Trends Report
-   * Returns booking counts, status breakdown, trends over time
-   */
   async getBookingTrends(filters: DateRangeDto) {
     const { startDate, endDate, groupBy = 'day' } = filters;
 
@@ -199,7 +184,6 @@ export class ReportsService {
       );
     }
 
-    // Total bookings by status
     const bookingsByStatus = await this.db
       .select({
         statusId: schema.reservationStatus.id,
@@ -215,7 +199,6 @@ export class ReportsService {
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
       .groupBy(schema.reservationStatus.id, schema.reservationStatus.name);
 
-    // Bookings over time (grouped by period)
     let dateGroupExpression;
     switch (groupBy) {
       case GroupByPeriod.DAY:
@@ -245,7 +228,6 @@ export class ReportsService {
       .groupBy(dateGroupExpression)
       .orderBy(dateGroupExpression);
 
-    // Calculate cancellation rate
     const [cancelledStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
@@ -261,7 +243,6 @@ export class ReportsService {
     const cancellationRate =
       totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0;
 
-    // Average lead time (days between booking creation and check-in)
     const leadTimeResult = await this.db
       .select({
         averageLeadTime: sql<number>`AVG(EXTRACT(DAY FROM (${schema.reservationRooms.checkIn}::timestamp - ${schema.reservations.createdAt}::timestamp)))`,
@@ -285,14 +266,9 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Occupancy Analytics Report
-   * Returns occupancy rates by room, room type, and property
-   */
   async getOccupancyAnalytics(filters: DateRangeDto) {
     const { startDate, endDate, propertyId } = filters;
 
-    // Default to current month if no dates provided
     const start = startDate
       ? new Date(startDate)
       : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -300,12 +276,10 @@ export class ReportsService {
       ? new Date(endDate)
       : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
 
-    // Calculate total available nights
     const daysDiff = Math.ceil(
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    // Get all rooms (optionally filtered by property)
     const roomsQuery = this.db
       .select({
         id: schema.rooms.id,
@@ -328,7 +302,6 @@ export class ReportsService {
 
     const rooms = await roomsQuery;
 
-    // Get booked nights for each room
     const startDateStr = start.toISOString().split('T')[0];
     const endDateStr = end.toISOString().split('T')[0];
 
@@ -355,7 +328,6 @@ export class ReportsService {
       bookedNights.map((b) => [b.roomId, b.totalNights || 0]),
     );
 
-    // Calculate occupancy for each room
     const roomOccupancy = rooms.map((room) => {
       const nights = bookedNightsMap.get(room.id) || 0;
       const availableNights = daysDiff;
@@ -375,7 +347,6 @@ export class ReportsService {
       };
     });
 
-    // Aggregate by property
     const propertyOccupancy = rooms.reduce(
       (acc, room) => {
         const nights = bookedNightsMap.get(room.id) || 0;
@@ -422,7 +393,6 @@ export class ReportsService {
       }),
     );
 
-    // Aggregate by room type
     const roomTypeOccupancy = rooms.reduce(
       (acc, room) => {
         if (!room.roomTypeId) return acc;
@@ -471,7 +441,6 @@ export class ReportsService {
       }),
     );
 
-    // Calculate average length of stay
     const avgLengthOfStay = await this.db
       .select({
         averageNights: sql<number>`AVG(EXTRACT(DAY FROM (${schema.reservationRooms.checkOut}::date - ${schema.reservationRooms.checkIn}::date)))`,
@@ -504,10 +473,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Customer Insights Report
-   * Returns customer analytics including new vs returning, top customers, CLV
-   */
   async getCustomerInsights(filters: DateRangeDto) {
     const { startDate, endDate } = filters;
 
@@ -519,7 +484,6 @@ export class ReportsService {
       dateConditions.push(lte(schema.users.createdAt, new Date(endDate)));
     }
 
-    // Total customers
     const [totalCustomersResult] = await this.db
       .select({
         totalCustomers: count(schema.users.id),
@@ -527,7 +491,6 @@ export class ReportsService {
       .from(schema.users)
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
 
-    // Customer acquisition over time
     const customerAcquisition = await this.db
       .select({
         month: sql<string>`DATE_TRUNC('month', ${schema.users.createdAt})`,
@@ -538,7 +501,6 @@ export class ReportsService {
       .groupBy(sql`DATE_TRUNC('month', ${schema.users.createdAt})`)
       .orderBy(sql`DATE_TRUNC('month', ${schema.users.createdAt})`);
 
-    // Top customers by revenue
     const topCustomers = await this.db
       .select({
         userId: schema.users.id,
@@ -563,8 +525,6 @@ export class ReportsService {
       .orderBy(desc(sum(schema.reservations.totalPrice)))
       .limit(20);
 
-    // New vs returning customers (customers with 1 booking vs multiple)
-    // Get count of customers by booking frequency
     const allCustomersWithBookings = await this.db
       .select({
         userId: schema.users.id,
@@ -602,7 +562,6 @@ export class ReportsService {
       },
     ];
 
-    // Customer demographics by country
     const customersByCountry = await this.db
       .select({
         country: schema.addresses.country,
@@ -618,7 +577,6 @@ export class ReportsService {
       .orderBy(desc(count(sql`DISTINCT ${schema.users.id}`)))
       .limit(10);
 
-    // Calculate average bookings per customer
     const totalBookingsCount = allCustomersWithBookings.reduce(
       (sum, c) => sum + c.bookingCount,
       0,

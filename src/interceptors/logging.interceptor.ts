@@ -95,9 +95,10 @@ export class LoggingInterceptor implements NestInterceptor {
     const correlationId = this.correlationIdService.get();
     const white = '\x1b[37m';
     const reset = '\x1b[0m';
-    this.logger.log(`${white}${message}; correlationId: ${correlationId}${reset}`);
+    this.logger.log(
+      `${white}${message}; correlationId: ${correlationId}${reset}`,
+    );
   }
-  
 
   private logError(message: string, trace?: string): void {
     const correlationId = this.correlationIdService.get();

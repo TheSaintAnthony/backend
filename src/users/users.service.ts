@@ -52,8 +52,24 @@ export class UsersService {
       .limit(limit)
       .offset(offset);
 
-    // Group by user and aggregate roles
-    const usersMap = new Map<string, any>();
+    const usersMap = new Map<
+      string,
+      {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string;
+        phone: string | null;
+        addressId: string | null;
+        nif: string | null;
+        companyName: string | null;
+        createdAt: Date;
+        verifiedAt: Date | null;
+        updatedAt: Date | null;
+        deletedAt: Date | null;
+        roles: Array<{ id: string; name: string }>;
+      }
+    >();
 
     for (const row of usersRows) {
       if (!usersMap.has(row.id)) {
@@ -86,7 +102,6 @@ export class UsersService {
     const data = Array.from(usersMap.values());
     return createPaginatedResponse(data, total, page, limit);
   }
-
 
   async findOneByEmail(email: string) {
     const [user] = await this.db
@@ -184,7 +199,6 @@ export class UsersService {
       throw new NotFoundException('User', id);
     }
 
-    // Aggregate roles into an array
     const user = userRows[0];
     const roles = userRows
       .filter((row) => row.roleId && row.roleName)

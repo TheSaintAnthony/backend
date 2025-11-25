@@ -18,6 +18,7 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { CacheService } from 'src/cache/cache.service';
+import { ImagesService } from 'src/images/images.service';
 
 @Injectable()
 export class RoomsService {
@@ -27,13 +28,28 @@ export class RoomsService {
     private roomPricesService: RoomPricesService,
     private roomHoldsService: RoomHoldsService,
     private cacheService: CacheService,
+    private imagesService: ImagesService,
   ) {}
 
   async createRoom(data: CreateRoomDto) {
-    return await this.db
+    const { images, ...roomData } = data;
+
+    const [createdRoom] = await this.db
       .insert(schema.rooms)
-      .values({ ...data })
+      .values({ ...roomData })
       .returning();
+
+    if (images && images.length > 0) {
+      await this.imagesService.createImages(
+        images.map((img) => ({
+          entityTypeCode: 'room',
+          entityId: createdRoom.id,
+          ...img,
+        })),
+      );
+    }
+
+    return this.getRoomById(createdRoom.id);
   }
 
   async getRooms(pagination?: PaginationDto) {
@@ -144,7 +160,17 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
 
-    return createPaginatedResponse(data, total, page, limit);
+    const roomsWithImages = await Promise.all(
+      data.map(async (room) => {
+        const images = await this.imagesService.getImagesByEntity(
+          'room',
+          room.id,
+        );
+        return { ...room, images };
+      }),
+    );
+
+    return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
 
   async getRoomById(id: string): Promise<RoomResponse> {
@@ -226,10 +252,13 @@ export class RoomsService {
       }
     }
 
+    const images = await this.imagesService.getImagesByEntity('room', id);
+
     const result = {
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
+      images,
     };
 
     await this.cacheService.set(cacheKey, result, 3600);
@@ -358,14 +387,36 @@ export class RoomsService {
       throw new NotFoundException('Room', id);
     }
 
-    const result = await this.db
+    const { images, ...roomData } = data;
+
+    await this.db
       .update(schema.rooms)
-      .set({ ...data })
-      .where(eq(schema.rooms.id, id))
-      .returning();
+      .set({ ...roomData })
+      .where(eq(schema.rooms.id, id));
+
+    if (images !== undefined) {
+      const existingImages = await this.imagesService.getImagesByEntity(
+        'room',
+        id,
+      );
+
+      await Promise.all(
+        existingImages.map((img) => this.imagesService.deleteImage(img.id)),
+      );
+
+      if (images.length > 0) {
+        await this.imagesService.createImages(
+          images.map((img) => ({
+            entityTypeCode: 'room',
+            entityId: id,
+            ...img,
+          })),
+        );
+      }
+    }
 
     await this.cacheService.del(`room:${id}`);
-    return result;
+    return this.getRoomById(id);
   }
 
   async deleteRoom(id: string) {

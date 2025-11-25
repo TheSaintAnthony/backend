@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -34,10 +33,7 @@ export class AddressesController {
   }
 
   @Patch(':id')
-  async editAddress(
-    @Param('id') id: string,
-    @Body() body: EditAddressDto,
-  ) {
+  async editAddress(@Param('id') id: string, @Body() body: EditAddressDto) {
     return await this.addressesService.editAddress(id, body);
   }
 

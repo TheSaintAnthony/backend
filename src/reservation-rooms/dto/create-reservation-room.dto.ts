@@ -1,19 +1,18 @@
-import {
-  IsInt,
-  IsPositive,
-  IsDateString,
-  IsOptional,
-  Min,
-  IsUUID,
-} from 'class-validator';
+import { IsInt, IsDateString, IsOptional, Min, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateReservationRoomDto {
-  @ApiProperty({ description: 'Room ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Room ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   roomId: string;
 
-  @ApiProperty({ description: 'Reservation ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Reservation ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsUUID()
   reservationId: string;
 

@@ -24,10 +24,7 @@ export class UsersController {
 
   @Roles(UserRole.ADMIN)
   @Get()
-  async getUsers(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  async getUsers(@Query('page') page?: number, @Query('limit') limit?: number) {
     const pagination: PaginationDto = {
       page: page || 1,
       limit: limit || 10,

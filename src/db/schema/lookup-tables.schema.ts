@@ -59,3 +59,8 @@ export const invoiceProviders = pgTable('invoice_providers', {
   description: varchar('description', { length: 255 }),
   isActive: boolean('is_active').default(false).notNull(),
 });
+
+export const activityCategories = pgTable('activity_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+});

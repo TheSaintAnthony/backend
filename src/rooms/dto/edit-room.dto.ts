@@ -1,14 +1,17 @@
 import {
   IsInt,
-  IsPositive,
   IsString,
   IsOptional,
   IsBoolean,
   Min,
   IsNotEmpty,
   IsUUID,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { NestedImageDto } from 'src/images/dto/nested-image.dto';
 
 export class EditRoomDto {
   @ApiPropertyOptional({
@@ -72,4 +75,14 @@ export class EditRoomDto {
   @IsString()
   @IsNotEmpty()
   propertyId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Images for the room (replaces existing images)',
+    type: [NestedImageDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NestedImageDto)
+  images?: NestedImageDto[];
 }

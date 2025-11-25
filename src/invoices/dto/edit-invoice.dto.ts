@@ -1,6 +1,4 @@
 import {
-  IsInt,
-  IsPositive,
   IsNumberString,
   IsOptional,
   IsString,
@@ -26,7 +24,6 @@ export class EditInvoiceDto {
   @Length(3, 3)
   currency?: string;
 
-  // Customer billing information
   @ApiPropertyOptional({ description: 'Customer name', example: 'João Silva' })
   @IsOptional()
   @IsString()
@@ -170,7 +167,10 @@ export class EditInvoiceDto {
   @IsString()
   syncError?: string;
 
-  @ApiPropertyOptional({ description: 'Invoice status ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiPropertyOptional({
+    description: 'Invoice status ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsOptional()
   @IsUUID()
   statusId?: string;

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -37,10 +36,7 @@ export class LookupsController {
   }
 
   @Patch('amenities/:id')
-  editAmenity(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editAmenity(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editAmenity(id, dto.name);
   }
 
@@ -67,10 +63,7 @@ export class LookupsController {
   }
 
   @Patch('room/types/:id')
-  editRoomType(
-    @Param('id') id: string,
-    @Body() dto: CreateRoomTypeDto,
-  ) {
+  editRoomType(@Param('id') id: string, @Body() dto: CreateRoomTypeDto) {
     return this.lookupsService.editRoomType(id, dto.name, dto.maxCapacity);
   }
 
@@ -97,10 +90,7 @@ export class LookupsController {
   }
 
   @Patch('highlights/:id')
-  editHighlight(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editHighlight(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editHighlight(id, dto.name);
   }
 
@@ -127,10 +117,7 @@ export class LookupsController {
   }
 
   @Patch('reservation/status/:id')
-  editReservationStatus(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editReservationStatus(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editReservationStatus(id, dto.name);
   }
 
@@ -157,10 +144,7 @@ export class LookupsController {
   }
 
   @Patch('invoice/status/:id')
-  editInvoiceStatus(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editInvoiceStatus(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editInvoiceStatus(id, dto.name);
   }
 
@@ -187,10 +171,7 @@ export class LookupsController {
   }
 
   @Patch('occurrence/status/:id')
-  editOccurrenceStatus(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editOccurrenceStatus(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editOccurrenceStatus(id, dto.name);
   }
 
@@ -215,10 +196,7 @@ export class LookupsController {
   }
 
   @Patch('roles/:id')
-  editRole(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editRole(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editRole(id, dto.name);
   }
 
@@ -245,10 +223,7 @@ export class LookupsController {
   }
 
   @Patch('payment/status/:id')
-  editPaymentStatus(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editPaymentStatus(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editPaymentStatus(id, dto.name);
   }
 
@@ -275,10 +250,7 @@ export class LookupsController {
   }
 
   @Patch('payment/methods/:id')
-  editPaymentMethod(
-    @Param('id') id: string,
-    @Body() dto: CreateLookupDto,
-  ) {
+  editPaymentMethod(@Param('id') id: string, @Body() dto: CreateLookupDto) {
     return this.lookupsService.editPaymentMethod(id, dto.name);
   }
 
@@ -305,10 +277,7 @@ export class LookupsController {
   }
 
   @Patch('activities/:id')
-  editActivity(
-    @Param('id') id: string,
-    @Body() dto: CreateActivityDto,
-  ) {
+  editActivity(@Param('id') id: string, @Body() dto: CreateActivityDto) {
     return this.lookupsService.editActivity(id, dto);
   }
 
