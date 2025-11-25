@@ -371,7 +371,7 @@ export class ReservationsService implements OnModuleInit {
         : undefined;
     }
 
-    const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('invoice');
+    const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('Invoice');
 
     const lineItems = await Promise.all(
       validatedRooms.map(async (roomValidation) => {

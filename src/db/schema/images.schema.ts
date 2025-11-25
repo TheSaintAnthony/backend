@@ -51,8 +51,9 @@ export const images = pgTable(
       table.displayOrder,
     ),
 
-    uniquePrimaryPerEntity: uniqueIndex('idx_one_primary_per_entity')
-      .on(table.entityTypeId, table.entityId)
-      .where(and(eq(table.isPrimary, true), isNull(table.deletedAt))),
+    uniquePrimaryPerEntity: uniqueIndex('idx_one_primary_per_entity').on(
+      table.entityTypeId,
+      table.entityId,
+    ),
   }),
 );

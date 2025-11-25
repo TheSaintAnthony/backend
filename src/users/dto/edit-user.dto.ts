@@ -47,4 +47,20 @@ export class EditUserDto {
   @ValidateNested()
   @Type(() => EditAddressDto)
   address: EditAddressDto;
+
+  @ApiPropertyOptional({
+    description: 'NIF / VAT number',
+    example: '123456789',
+  })
+  @IsOptional()
+  @IsString()
+  nif?: string;
+
+  @ApiPropertyOptional({
+    description: 'Company name',
+    example: 'Acme Corp',
+  })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }

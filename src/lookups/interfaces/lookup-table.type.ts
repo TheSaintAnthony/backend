@@ -10,4 +10,5 @@ export type LookupTable =
   | typeof schema.roles
   | typeof schema.paymentStatus
   | typeof schema.paymentMethods
-  | typeof schema.activities;
+  | typeof schema.activities
+  | typeof schema.activityCategories;

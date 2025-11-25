@@ -360,4 +360,24 @@ export class LookupsService {
   deleteActivity(id: string) {
     return this.deleteValue(schema.activities, id);
   }
+
+  addActivityCategory(value: string) {
+    return this.addValue(schema.activityCategories, { name: value });
+  }
+
+  getActivityCategories() {
+    return this.getAll(schema.activityCategories);
+  }
+
+  getActivityCategoryById(id: string) {
+    return this.getById(schema.activityCategories, id);
+  }
+
+  editActivityCategory(id: string, value: string) {
+    return this.updateValue(schema.activityCategories, id, { name: value });
+  }
+
+  deleteActivityCategory(id: string) {
+    return this.deleteValue(schema.activityCategories, id);
+  }
 }

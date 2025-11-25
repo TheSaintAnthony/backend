@@ -14,6 +14,7 @@ export * from './invoices.schema';
 export * from './invoice-sequences.schema';
 export * from './payments.schema';
 export * from './occurrences.schema';
+export * from './occurrence-responses.schema';
 export * from './activities.schema';
 export * from './activity-property.schema';
 export * from './entity-types.schema';

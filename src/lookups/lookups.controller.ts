@@ -285,4 +285,34 @@ export class LookupsController {
   deleteActivity(@Param('id') id: string) {
     return this.lookupsService.deleteActivity(id);
   }
+
+  @Post('activity-categories')
+  addActivityCategory(@Body() body: { name: string }) {
+    return this.lookupsService.addActivityCategory(body.name);
+  }
+
+  @Public()
+  @Get('activity-categories')
+  getActivityCategories() {
+    return this.lookupsService.getActivityCategories();
+  }
+
+  @Public()
+  @Get('activity-categories/:id')
+  getActivityCategoryById(@Param('id') id: string) {
+    return this.lookupsService.getActivityCategoryById(id);
+  }
+
+  @Patch('activity-categories/:id')
+  editActivityCategory(
+    @Param('id') id: string,
+    @Body() body: { name: string },
+  ) {
+    return this.lookupsService.editActivityCategory(id, body.name);
+  }
+
+  @Delete('activity-categories/:id')
+  deleteActivityCategory(@Param('id') id: string) {
+    return this.lookupsService.deleteActivityCategory(id);
+  }
 }
