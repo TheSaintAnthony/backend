@@ -83,4 +83,33 @@ export class CreateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, string>;
+
+  @ApiPropertyOptional({
+    description: 'Custom invoice data (overrides user profile data)',
+    type: 'object',
+    properties: {
+      customerName: { type: 'string' },
+      customerEmail: { type: 'string' },
+      customerPhone: { type: 'string' },
+      customerAddress: { type: 'string' },
+      customerCity: { type: 'string' },
+      customerZipCode: { type: 'string' },
+      customerCountry: { type: 'string' },
+      customerTaxId: { type: 'string' },
+      customerCompanyName: { type: 'string' },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  invoiceData?: {
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    customerCity?: string;
+    customerZipCode?: string;
+    customerCountry?: string;
+    customerTaxId?: string;
+    customerCompanyName?: string;
+  };
 }

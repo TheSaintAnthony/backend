@@ -301,6 +301,17 @@ export class ReservationsService implements OnModuleInit {
     paymentStatusId: string,
     transactionId: string | undefined,
     validatedRooms: RoomValidation[],
+    customInvoiceData?: {
+      customerName?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+      customerCity?: string;
+      customerZipCode?: string;
+      customerCountry?: string;
+      customerTaxId?: string;
+      customerCompanyName?: string;
+    },
   ) {
     const user = await this.usersService.getUserById(userId);
     const [address] = user.addressId
@@ -310,9 +321,52 @@ export class ReservationsService implements OnModuleInit {
           .where(eq(schema.addresses.id, user.addressId))
       : [null];
 
-    const customerAddress = address
-      ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
-      : undefined;
+    // Use custom invoice data if provided, otherwise use user's data
+    let customerName: string;
+    let customerEmail: string;
+    let customerPhone: string | undefined;
+    let customerAddress: string | undefined;
+    let customerCountry: string | undefined;
+    let customerTaxId: string | undefined;
+    let customerCompanyName: string | undefined;
+
+    if (customInvoiceData) {
+      customerName = customInvoiceData.customerName || `${user.firstName} ${user.lastName}`;
+      customerEmail = customInvoiceData.customerEmail || user.email;
+      customerPhone = customInvoiceData.customerPhone || user.phone || undefined;
+      customerTaxId = customInvoiceData.customerTaxId || user.nif || undefined;
+      customerCompanyName = customInvoiceData.customerCompanyName || user.companyName || undefined;
+
+      // Build address from custom data
+      if (customInvoiceData.customerAddress || customInvoiceData.customerCity) {
+        const addressParts = [
+          customInvoiceData.customerAddress,
+          customInvoiceData.customerCity,
+          customInvoiceData.customerZipCode,
+          customInvoiceData.customerCountry,
+        ].filter(Boolean);
+        customerAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
+      } else if (address) {
+        customerAddress = `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`;
+      }
+
+      customerCountry = customInvoiceData.customerCountry
+        ? customInvoiceData.customerCountry.substring(0, 2).toUpperCase()
+        : address
+          ? address.country.substring(0, 2).toUpperCase()
+          : undefined;
+    } else {
+      // Use user's data
+      customerName = `${user.firstName} ${user.lastName}`;
+      customerEmail = user.email;
+      customerPhone = user.phone || undefined;
+      customerTaxId = user.nif || undefined;
+      customerCompanyName = user.companyName || undefined;
+      customerAddress = address
+        ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
+        : undefined;
+      customerCountry = address ? address.country.substring(0, 2).toUpperCase() : undefined;
+    }
 
     const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('invoice');
 
@@ -346,13 +400,13 @@ export class ReservationsService implements OnModuleInit {
         userId,
         totalAmount: amount,
         currency: 'EUR',
-        customerName: `${user.firstName} ${user.lastName}`,
-        customerCompanyName: user.companyName || undefined,
-        customerTaxId: user.nif || undefined,
-        customerEmail: user.email,
-        customerPhone: user.phone || undefined,
+        customerName,
+        customerCompanyName: customerCompanyName || undefined,
+        customerTaxId: customerTaxId || undefined,
+        customerEmail,
+        customerPhone: customerPhone || undefined,
         customerAddress,
-        customerCountry: address ? address.country.substring(0, 2).toUpperCase() : undefined,
+        customerCountry,
         invoiceNumber,
         invoiceTypeId,
         statusId: invoiceStatusId,
@@ -519,7 +573,7 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async createBooking(userId: string, data: CreateBookingDto) {
-    const { rooms, specialRequests, paymentMethodId, metadata } = data;
+    const { rooms, specialRequests, paymentMethodId, metadata, invoiceData } = data;
 
     return this.db.transaction(async (tx) => {
       const { totalPrice, validatedRooms } =
@@ -565,6 +619,7 @@ export class ReservationsService implements OnModuleInit {
         this.pendingPaymentStatusId,
         paymentResult.transactionId,
         validatedRooms,
+        invoiceData,
       );
 
       // Return appropriate response based on payment type
