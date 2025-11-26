@@ -493,7 +493,9 @@ export class RoomsService {
 
     // Single room mode: backward compatible
     if (!roomId) {
-      throw new BadRequestException('Either roomId or roomIds must be provided');
+      throw new BadRequestException(
+        'Either roomId or roomIds must be provided',
+      );
     }
 
     const room = await this.getRoomById(roomId);

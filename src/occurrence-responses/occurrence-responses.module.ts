@@ -10,4 +10,3 @@ import { DrizzleModule } from 'src/db/drizzle.module';
   exports: [OccurrenceResponsesService],
 })
 export class OccurrenceResponsesModule {}
-

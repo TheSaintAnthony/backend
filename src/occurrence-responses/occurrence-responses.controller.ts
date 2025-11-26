@@ -7,9 +7,7 @@ import { CreateOccurrenceResponseDto } from './dto';
 @ApiBearerAuth('access-token')
 @Controller('occurrence-responses')
 export class OccurrenceResponsesController {
-  constructor(
-    private occurrenceResponsesService: OccurrenceResponsesService,
-  ) {}
+  constructor(private occurrenceResponsesService: OccurrenceResponsesService) {}
 
   @Post()
   async createResponse(@Body() body: CreateOccurrenceResponseDto) {
@@ -23,4 +21,3 @@ export class OccurrenceResponsesController {
     );
   }
 }
-

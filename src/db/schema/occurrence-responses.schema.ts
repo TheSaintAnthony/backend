@@ -20,4 +20,3 @@ export const occurrenceResponses = pgTable('occurrence_responses', {
     .notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
-

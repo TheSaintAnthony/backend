@@ -68,4 +68,3 @@ export class OccurrenceResponsesService {
       .orderBy(desc(schema.occurrenceResponses.createdAt));
   }
 }
-

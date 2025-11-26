@@ -58,7 +58,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
     exposedHeaders: ['Content-Type'],
   });
-  
+
   // Configure helmet to not interfere with CORS
   app.use(
     helmet({

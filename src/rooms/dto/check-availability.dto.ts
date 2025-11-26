@@ -1,4 +1,10 @@
-import { IsDateString, IsUUID, IsOptional, IsArray, ValidateIf } from 'class-validator';
+import {
+  IsDateString,
+  IsUUID,
+  IsOptional,
+  IsArray,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CheckAvailabilityDto {
@@ -12,7 +18,10 @@ export class CheckAvailabilityDto {
 
   @ApiPropertyOptional({
     description: 'Array of room IDs to check (for batch check)',
-    example: ['123e4567-e89b-12d3-a456-426614174000', '223e4567-e89b-12d3-a456-426614174000'],
+    example: [
+      '123e4567-e89b-12d3-a456-426614174000',
+      '223e4567-e89b-12d3-a456-426614174000',
+    ],
     type: [String],
   })
   @ValidateIf((o) => !o.roomId)
