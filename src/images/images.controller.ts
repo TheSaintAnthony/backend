@@ -11,7 +11,12 @@ import {
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
+  Res,
+  Req,
 } from '@nestjs/common';
+import * as express from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -25,12 +30,16 @@ import { CreateImageDto, UpdateImageDto, GetImagesQueryDto } from './dto';
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
+import { FileStorageService } from 'src/services/file-storage.service';
 
 @ApiTags('Images')
 @ApiBearerAuth('access-token')
 @Controller('images')
 export class ImagesController {
-  constructor(private imagesService: ImagesService) {}
+  constructor(
+    private imagesService: ImagesService,
+    private fileStorageService: FileStorageService,
+  ) {}
 
   @ApiOperation({ summary: 'Upload a single image file' })
   @ApiConsumes('multipart/form-data')
@@ -136,6 +145,55 @@ export class ImagesController {
   @Get()
   async getImages(@Query() query: GetImagesQueryDto) {
     return await this.imagesService.getImages(query);
+  }
+
+  @ApiOperation({ summary: 'Serve image file' })
+  @Public()
+  @Get('serve/images/:entityType/:filename')
+  async serveImage(
+    @Param('entityType') entityType: string,
+    @Param('filename') filename: string,
+    @Res() res: express.Response,
+  ) {
+    // Set CORS headers first
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
+
+    // Construct the path: images/room/filename.png
+    const imagePath = `images/${entityType}/${filename}`;
+    const desktopPath = '/Users/luismiranda/Desktop';
+    const fullPath = path.join(desktopPath, imagePath);
+
+    // Security check: ensure the path is within the desktop directory
+    const resolvedPath = path.resolve(fullPath);
+    const resolvedDesktop = path.resolve(desktopPath);
+    if (!resolvedPath.startsWith(resolvedDesktop)) {
+      return res.status(403).send('Forbidden');
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).send('Image not found');
+    }
+
+    // Determine content type
+    const ext = path.extname(resolvedPath).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+    };
+    const contentType = contentTypeMap[ext] || 'image/jpeg';
+
+    // Set headers and send file
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(resolvedPath);
   }
 
   @ApiOperation({ summary: 'Get image by ID' })

@@ -166,7 +166,12 @@ export class RoomsService {
           'room',
           room.id,
         );
-        return { ...room, images };
+        // Only return url and isPrimary
+        const simplifiedImages = images.map((img) => ({
+          url: img.url,
+          isPrimary: img.isPrimary,
+        }));
+        return { ...room, images: simplifiedImages };
       }),
     );
 
@@ -374,7 +379,22 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
 
-    return createPaginatedResponse(data, total, page, limit);
+    const roomsWithImages = await Promise.all(
+      data.map(async (room) => {
+        const images = await this.imagesService.getImagesByEntity(
+          'room',
+          room.id,
+        );
+        // Only return url and isPrimary
+        const simplifiedImages = images.map((img) => ({
+          url: img.url,
+          isPrimary: img.isPrimary,
+        }));
+        return { ...room, images: simplifiedImages };
+      }),
+    );
+
+    return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
 
   async editRoom(id: string, data: EditRoomDto) {
@@ -439,7 +459,42 @@ export class RoomsService {
   }
 
   async checkAvailability(data: CheckAvailabilityDto) {
-    const { roomId, checkIn, checkOut } = data;
+    const { roomId, roomIds, checkIn, checkOut } = data;
+
+    // Batch mode: multiple rooms
+    if (roomIds && roomIds.length > 0) {
+      const availabilityPromises = roomIds.map(async (id) => {
+        try {
+          const isAvailable = await this.checkRoomAvailability(
+            id,
+            checkIn,
+            checkOut,
+          );
+          return {
+            roomId: id,
+            available: isAvailable,
+          };
+        } catch {
+          return {
+            roomId: id,
+            available: false,
+          };
+        }
+      });
+
+      const results = await Promise.all(availabilityPromises);
+
+      return {
+        checkIn,
+        checkOut,
+        results,
+      };
+    }
+
+    // Single room mode: backward compatible
+    if (!roomId) {
+      throw new BadRequestException('Either roomId or roomIds must be provided');
+    }
 
     const room = await this.getRoomById(roomId);
     if (!room) {
