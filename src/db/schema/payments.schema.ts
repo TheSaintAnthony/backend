@@ -5,11 +5,10 @@ import {
   varchar,
   timestamp,
   check,
-  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { invoices } from './invoices.schema';
-import { paymentMethods, paymentStatus } from './lookup-tables.schema';
+import { paymentStatus } from './lookup-tables.schema';
 
 export const payments = pgTable(
   'payments',
@@ -19,9 +18,6 @@ export const payments = pgTable(
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
     amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
-    paymentMethodId: uuid('payment_method_id')
-      .notNull()
-      .references(() => paymentMethods.id),
     paymentStatusId: uuid('payment_status_id')
       .notNull()
       .references(() => paymentStatus.id),
@@ -33,10 +29,7 @@ export const payments = pgTable(
     paidAt: timestamp('paid_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (table) => ({
+  () => ({
     checkAmount: check('check_payment_amount_positive', sql`amount > 0`),
-    uniqueTransactionIdx: uniqueIndex('unique_transaction_per_method_idx')
-      .on(table.transactionId, table.paymentMethodId)
-      .where(sql`${table.transactionId} IS NOT NULL`),
   }),
 );

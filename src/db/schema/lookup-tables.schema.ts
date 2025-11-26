@@ -1,5 +1,5 @@
 import { pgTable } from 'drizzle-orm/pg-core';
-import { uuid, integer, varchar, boolean } from 'drizzle-orm/pg-core';
+import { uuid, integer, varchar } from 'drizzle-orm/pg-core';
 
 export const amenities = pgTable('amenities', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -46,18 +46,6 @@ export const roles = pgTable('roles', {
 export const paymentStatus = pgTable('payment_status', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 100 }).unique().notNull(),
-});
-
-export const paymentMethods = pgTable('payment_methods', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 100 }).unique().notNull(),
-});
-
-export const invoiceProviders = pgTable('invoice_providers', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 100 }).unique().notNull(),
-  description: varchar('description', { length: 255 }),
-  isActive: boolean('is_active').default(false).notNull(),
 });
 
 export const activityCategories = pgTable('activity_categories', {

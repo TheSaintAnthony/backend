@@ -10,11 +10,7 @@ import {
 import { sql } from 'drizzle-orm';
 import { reservations } from './reservations.schema';
 import { users } from './users.schema';
-import {
-  invoiceStatus,
-  invoiceTypes,
-  invoiceProviders,
-} from './lookup-tables.schema';
+import { invoiceStatus, invoiceTypes } from './lookup-tables.schema';
 
 export const invoices = pgTable(
   'invoices',
@@ -41,7 +37,6 @@ export const invoices = pgTable(
       .references(() => invoiceTypes.id),
     dueDate: timestamp('due_date', { withTimezone: true }),
     notes: text('notes'),
-    providerId: uuid('provider_id').references(() => invoiceProviders.id),
     externalInvoiceId: varchar('external_invoice_id', { length: 255 }),
     externalInvoiceNumber: varchar('external_invoice_number', { length: 100 }),
     externalInvoiceUrl: text('external_invoice_url'),
