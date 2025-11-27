@@ -9,6 +9,5 @@ export type LookupTable =
   | typeof schema.occurrenceStatus
   | typeof schema.roles
   | typeof schema.paymentStatus
-  | typeof schema.paymentMethods
   | typeof schema.activities
   | typeof schema.activityCategories;

@@ -122,13 +122,7 @@ export class CreateInvoiceDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({
-    description: 'Invoice provider ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsOptional()
-  @IsUUID()
-  providerId?: string;
+  // providerId removed - using Stripe only
 
   @ApiProperty({
     description: 'Invoice status ID',

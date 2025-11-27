@@ -13,58 +13,19 @@ export class InvoiceStrategyFactory {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
+  // Invoice provider factory methods removed - using Stripe only
+  // TODO: Implement Stripe invoice strategy when StripeService is ready
   async getStrategy(providerId: string): Promise<IInvoiceStrategy> {
-    const [provider] = await this.db
-      .select()
-      .from(schema.invoiceProviders)
-      .where(eq(schema.invoiceProviders.id, providerId));
-
-    if (!provider) {
-      throw new NotFoundException('Invoice provider', providerId);
-    }
-
-    if (!provider.isActive) {
-      throw new BadRequestException(
-        `Invoice provider '${provider.name}' is not currently active`,
-      );
-    }
-
-    switch (provider.name.toUpperCase()) {
-      default:
-        throw new BadRequestException(
-          `Invoice provider '${provider.name}' is not currently supported. Please implement a strategy for this provider.`,
-        );
-    }
+    throw new BadRequestException('Invoice provider factory not implemented - using Stripe directly');
   }
 
   async getStrategyByProviderName(
     providerName: string,
   ): Promise<IInvoiceStrategy> {
-    const [provider] = await this.db
-      .select()
-      .from(schema.invoiceProviders)
-      .where(eq(schema.invoiceProviders.name, providerName));
-
-    if (!provider) {
-      throw new NotFoundException('Invoice provider', providerName);
-    }
-
-    return this.getStrategy(provider.id);
+    throw new BadRequestException('Invoice provider factory not implemented - using Stripe directly');
   }
 
   async getDefaultStrategy(): Promise<IInvoiceStrategy> {
-    const [provider] = await this.db
-      .select()
-      .from(schema.invoiceProviders)
-      .where(eq(schema.invoiceProviders.isActive, true))
-      .limit(1);
-
-    if (!provider) {
-      throw new NotFoundException(
-        'No active invoice provider found. Please configure an invoicing system.',
-      );
-    }
-
-    return this.getStrategy(provider.id);
+    throw new BadRequestException('Invoice provider factory not implemented - using Stripe directly');
   }
 }

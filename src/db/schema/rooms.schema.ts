@@ -21,6 +21,8 @@ export const rooms = pgTable('rooms', {
   bedCount: integer('bed_count'),
   bathroomCount: integer('bathroom_count'),
   available: boolean('available').default(true).notNull(),
+  stripeProductId: varchar('stripe_product_id', { length: 255 }),
+  stripePriceId: varchar('stripe_price_id', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

@@ -13,6 +13,7 @@ export const users = pgTable('users', {
   }),
   nif: varchar('nif', { length: 20 }),
   companyName: varchar('company_name', { length: 255 }),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

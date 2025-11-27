@@ -1,6 +1,8 @@
 export const RESERVATION_STATUS_NAMES = {
   PENDING: 'Pending',
   CONFIRMED: 'Confirmed',
+  CHECKED_IN: 'Checked In',
+  CHECKED_OUT: 'Checked Out',
   CANCELLED: 'Cancelled',
   COMPLETED: 'Completed',
 } as const;

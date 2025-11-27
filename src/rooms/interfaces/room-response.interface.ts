@@ -11,4 +11,7 @@ export interface RoomResponse {
   maxCapacity: number | null;
   amenities: AmenityHighlight[] | null;
   highlights: AmenityHighlight[] | null;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+  images?: Array<{ url: string; isPrimary: boolean }> | null;
 }

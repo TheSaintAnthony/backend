@@ -16,9 +16,7 @@ export class CreatePaymentDto {
   @IsNumberString()
   amount: string;
 
-  @ApiProperty()
-  @IsUUID()
-  paymentMethodId: string;
+  // paymentMethodId removed - using Stripe only
 
   @ApiProperty()
   @IsUUID()

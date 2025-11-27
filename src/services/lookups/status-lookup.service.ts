@@ -9,6 +9,7 @@ export class StatusLookupService implements OnModuleInit {
   private reservationStatusCache = new Map<string, string>();
   private invoiceStatusCache = new Map<string, string>();
   private invoiceTypeCache = new Map<string, string>();
+  private paymentStatusCache = new Map<string, string>();
 
   constructor(
     @Inject(DB_PROVIDER)
@@ -22,11 +23,12 @@ export class StatusLookupService implements OnModuleInit {
 
   private async loadStatuses() {
     try {
-      const [reservationStatuses, invoiceStatuses, invoiceTypes] =
+      const [reservationStatuses, invoiceStatuses, invoiceTypes, paymentStatuses] =
         await Promise.all([
           this.db.select().from(schema.reservationStatus),
           this.db.select().from(schema.invoiceStatus),
           this.db.select().from(schema.invoiceTypes),
+          this.db.select().from(schema.paymentStatus),
         ]);
 
       for (const status of reservationStatuses) {
@@ -39,6 +41,10 @@ export class StatusLookupService implements OnModuleInit {
 
       for (const type of invoiceTypes) {
         this.invoiceTypeCache.set(type.name, type.id);
+      }
+
+      for (const status of paymentStatuses) {
+        this.paymentStatusCache.set(status.name, status.id);
       }
     } catch (error) {
       throw error;
@@ -67,6 +73,20 @@ export class StatusLookupService implements OnModuleInit {
       throw new Error(
         `Invoice type '${name}' not found. Available types: ${Array.from(this.invoiceTypeCache.keys()).join(', ')}`,
       );
+    }
+    return id;
+  }
+
+  async getPaymentStatusId(name: string): Promise<string> {
+    const id = this.paymentStatusCache.get(name);
+    if (!id) {
+      // Reload cache in case status was added
+      await this.loadStatuses();
+      const retryId = this.paymentStatusCache.get(name);
+      if (!retryId) {
+        throw new Error(`Payment status '${name}' not found`);
+      }
+      return retryId;
     }
     return id;
   }

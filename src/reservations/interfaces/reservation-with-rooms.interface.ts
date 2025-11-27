@@ -7,6 +7,9 @@ export interface ReservationRoom {
   guestsCount: number | null;
   roomName: string | null;
   roomDescription: string | null;
+  propertyId: string | null;
+  propertyName: string | null;
+  accessCode?: number | null;
 }
 
 export interface ReservationWithRooms {
@@ -21,5 +24,6 @@ export interface ReservationWithRooms {
   specialRequests: string | null;
   createdAt: Date;
   updatedAt: Date | null;
+  invoiceUrl?: string | null;
   rooms: ReservationRoom[];
 }

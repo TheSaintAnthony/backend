@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HealthService } from './health.service';
 import { HealthController } from './health.controller';
-import { PaypalModule } from 'src/payments/paypal/paypal.module';
 
 @Module({
-  imports: [PaypalModule],
+  imports: [],
   providers: [HealthService],
   controllers: [HealthController],
 })

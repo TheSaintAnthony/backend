@@ -232,32 +232,7 @@ export class LookupsController {
     return this.lookupsService.deletePaymentStatus(id);
   }
 
-  @Post('payment/methods')
-  addPaymentMethod(@Body() dto: CreateLookupDto) {
-    return this.lookupsService.addPaymentMethod(dto.name);
-  }
-
-  @Public()
-  @Get('payment/methods')
-  getPaymentMethods() {
-    return this.lookupsService.getPaymentMethods();
-  }
-
-  @Public()
-  @Get('payment/methods/:id')
-  getPaymentMethodById(@Param('id') id: string) {
-    return this.lookupsService.getPaymentMethodById(id);
-  }
-
-  @Patch('payment/methods/:id')
-  editPaymentMethod(@Param('id') id: string, @Body() dto: CreateLookupDto) {
-    return this.lookupsService.editPaymentMethod(id, dto.name);
-  }
-
-  @Delete('payment/methods/:id')
-  deletePaymentMethod(@Param('id') id: string) {
-    return this.lookupsService.deletePaymentMethod(id);
-  }
+  // Payment methods endpoints removed - using Stripe only
 
   @Post('activities')
   addActivity(@Body() dto: CreateActivityDto) {

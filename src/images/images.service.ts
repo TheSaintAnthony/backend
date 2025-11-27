@@ -1,14 +1,16 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateImageDto, UpdateImageDto, GetImagesQueryDto } from './dto';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql } from 'drizzle-orm';
 import { FileStorageService } from 'src/services/file-storage.service';
 
 @Injectable()
 export class ImagesService {
+  private readonly logger = new Logger(ImagesService.name);
+
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -100,17 +102,20 @@ export class ImagesService {
         );
     }
 
+    const insertValues: any = {
+      id: sql`gen_random_uuid()`,
+      entityTypeId: entityType.id,
+      entityId: data.entityId,
+      url: data.url,
+      altText: data.altText || null,
+      caption: data.caption || null,
+      displayOrder: data.displayOrder ?? 0,
+      isPrimary: data.isPrimary ?? false,
+    };
+
     const [image] = await this.db
       .insert(schema.images)
-      .values({
-        entityTypeId: entityType.id,
-        entityId: data.entityId,
-        url: data.url,
-        altText: data.altText,
-        caption: data.caption,
-        displayOrder: data.displayOrder ?? 0,
-        isPrimary: data.isPrimary ?? false,
-      })
+      .values(insertValues)
       .returning();
 
     if (

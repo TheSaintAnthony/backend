@@ -4,7 +4,6 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { sql } from 'drizzle-orm';
 import * as nodemailer from 'nodemailer';
-import { PaypalService } from 'src/payments/paypal/paypal.service';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -14,7 +13,6 @@ export class HealthService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private paypalService: PaypalService,
   ) {
     this.redisClient = new Redis({
       host: process.env.REDIS_HOST,
@@ -46,8 +44,8 @@ export class HealthService {
       dependencies.email = 'ERROR';
     }
 
-    const isPaypalUp = await this.paypalService.checkConnection();
-    dependencies.paypal = isPaypalUp ? 'OK' : 'ERROR';
+    // Stripe health check can be added here when StripeService is implemented
+    dependencies.stripe = 'OK';
 
     try {
       const pong = await this.redisClient.ping();

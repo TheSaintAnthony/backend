@@ -13,10 +13,7 @@ export class EditPaymentDto {
   @IsNumberString()
   amount?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  paymentMethodId?: string;
+  // paymentMethodId removed - using Stripe only
 
   @ApiPropertyOptional()
   @IsOptional()

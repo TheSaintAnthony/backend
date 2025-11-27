@@ -115,28 +115,8 @@ export class ReportsService {
       .where(and(...revenueConditions))
       .groupBy(schema.roomTypes.id, schema.roomTypes.name);
 
-    const revenueByPaymentMethod = await this.db
-      .select({
-        paymentMethodId: schema.paymentMethods.id,
-        paymentMethodName: schema.paymentMethods.name,
-        revenue: sum(schema.payments.amount),
-        paymentCount: count(schema.payments.id),
-      })
-      .from(schema.payments)
-      .innerJoin(
-        schema.invoices,
-        eq(schema.payments.invoiceId, schema.invoices.id),
-      )
-      .innerJoin(
-        schema.reservations,
-        eq(schema.invoices.reservationId, schema.reservations.id),
-      )
-      .innerJoin(
-        schema.paymentMethods,
-        eq(schema.payments.paymentMethodId, schema.paymentMethods.id),
-      )
-      .where(and(...revenueConditions))
-      .groupBy(schema.paymentMethods.id, schema.paymentMethods.name);
+    // Payment method breakdown removed - using Stripe only
+    const revenueByPaymentMethod: any[] = [];
 
     const [pendingInvoiceStatus] = await this.db
       .select()

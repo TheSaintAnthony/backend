@@ -245,25 +245,7 @@ export class LookupsService {
     return this.deleteValue(schema.paymentStatus, id);
   }
 
-  addPaymentMethod(value: string) {
-    return this.addValue(schema.paymentMethods, { name: value });
-  }
-
-  getPaymentMethods() {
-    return this.getAll(schema.paymentMethods);
-  }
-
-  getPaymentMethodById(id: string) {
-    return this.getById(schema.paymentMethods, id);
-  }
-
-  editPaymentMethod(id: string, value: string) {
-    return this.updateValue(schema.paymentMethods, id, { name: value });
-  }
-
-  deletePaymentMethod(id: string) {
-    return this.deleteValue(schema.paymentMethods, id);
-  }
+  // Payment methods removed - using Stripe only
 
   async addActivity(data: ActivityData) {
     const { images, ...activityData } = data;

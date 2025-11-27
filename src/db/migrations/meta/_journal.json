@@ -148,6 +148,20 @@
       "when": 1764168890964,
       "tag": "0020_payments-refactor",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1764237883078,
+      "tag": "0021_stripe-integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1764250233948,
+      "tag": "0022_-images-fix",
+      "breakpoints": true
     }
   ]
 }

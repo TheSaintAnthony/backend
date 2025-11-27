@@ -66,12 +66,7 @@ export class CreateBookingDto {
   @IsString()
   specialRequests?: string;
 
-  @ApiProperty({
-    description: 'Payment method ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsUUID()
-  paymentMethodId: string;
+  // paymentMethodId removed - using Stripe only
 
   @ApiPropertyOptional({
     description: 'Payment transaction ID',

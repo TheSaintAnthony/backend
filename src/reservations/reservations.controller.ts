@@ -5,15 +5,19 @@ import {
   Get,
   Param,
   Post,
+  Patch,
   Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
-import { CreateBookingDto } from './dto';
+import { CreateBookingDto, UpdateReservationDto } from './dto';
 import type { AuthenticatedRequest } from 'src/auth/interfaces';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/user-roles/roles.guard';
+import { Roles } from 'src/decorators/role.decorator';
+import { UserRole } from 'src/constants';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { Idempotent } from 'src/decorators';
 
@@ -23,6 +27,77 @@ import { Idempotent } from 'src/decorators';
 @Controller('reservations')
 export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
+
+  // Admin endpoints
+  @Get('admin/all')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getAllReservations(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: string,
+  ) {
+    const pagination: PaginationDto = {
+      page: page || 1,
+      limit: limit || 10,
+    };
+    return this.reservationsService.getAllReservations(pagination, status);
+  }
+
+  @Patch('admin/:id/status')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async updateReservationStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string },
+  ) {
+    return this.reservationsService.updateReservationStatus(id, body.status);
+  }
+
+  @Post('admin/:id/cancel')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async cancelReservationAdmin(
+    @Param('id') id: string,
+    @Body() body?: { issueRefund?: boolean },
+  ) {
+    return this.reservationsService.cancelReservationAdmin(
+      id,
+      body?.issueRefund || false,
+    );
+  }
+
+  @Patch('admin/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async updateReservation(
+    @Param('id') id: string,
+    @Body() body: UpdateReservationDto,
+  ) {
+    return this.reservationsService.updateReservation(id, body);
+  }
+
+  @Post('admin/:id/check-in')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async checkInReservation(@Param('id') id: string) {
+    return this.reservationsService.checkInReservation(id);
+  }
+
+  @Get('admin/search')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async searchReservations(
+    @Query('customerName') customerName?: string,
+    @Query('checkIn') checkIn?: string,
+    @Query('checkOut') checkOut?: string,
+  ) {
+    return this.reservationsService.findReservationByCustomerAndDates(
+      customerName,
+      checkIn,
+      checkOut,
+    );
+  }
 
   @Get()
   async getReservations(
@@ -62,11 +137,10 @@ export class ReservationsController {
   @Post('bookings/complete')
   @Idempotent()
   async completeBooking(
-    @Body() body: { transactionId: string; paymentMethodId: string },
+    @Body() body: { transactionId: string },
   ) {
     return this.reservationsService.completeBooking(
       body.transactionId,
-      body.paymentMethodId,
     );
   }
 
@@ -82,13 +156,11 @@ export class ReservationsController {
   @Idempotent()
   async retryPayment(
     @Param('id') id: string,
-    @Body() body: { paymentMethodId: string },
     @Request() req: AuthenticatedRequest,
   ) {
     return this.reservationsService.retryPayment(
       id,
       req.user.sub,
-      body.paymentMethodId,
     );
   }
 }
