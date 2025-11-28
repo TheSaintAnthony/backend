@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -20,7 +20,6 @@ import {
 import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
-import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
 export class RoomsService {
@@ -323,7 +322,15 @@ export class RoomsService {
 
     const firstRow = roomsData[0];
     const result: RoomResponse = {
-      ...room,
+      id: room.id,
+      propertyId: room.propertyId,
+      name: room.name,
+      description: room.description,
+      bedCount: room.bedCount,
+      bathroomCount: room.bathroomCount,
+      available: room.available,
+      roomType: room.roomType,
+      maxCapacity: room.maxCapacity,
       stripeProductId: firstRow.stripeProductId || null,
       stripePriceId: firstRow.stripePriceId || null,
       amenities: room.amenities.length > 0 ? room.amenities : null,

@@ -4,6 +4,7 @@ import { ReservationsService } from './reservations.service';
 import { ReservationsController } from './reservations.controller';
 import { RoomsModule } from 'src/rooms/rooms.module';
 import { UsersModule } from 'src/users/users.module';
+import { PropertiesModule } from 'src/properties/properties.module';
 import { EmailModule } from 'src/email/email.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { PaymentsModule } from 'src/payments/payments.module';
@@ -19,6 +20,7 @@ import { UserRolesModule } from 'src/user-roles/user-roles.module';
   imports: [
     RoomsModule,
     UsersModule,
+    PropertiesModule,
     EmailModule,
     AuthModule,
     PaymentsModule,

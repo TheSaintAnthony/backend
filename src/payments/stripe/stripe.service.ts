@@ -264,11 +264,11 @@ export class StripeService {
       });
 
       for (const item of params.lineItems) {
-        if (item.priceId) {
+        if (item.priceId && typeof item.priceId === 'string' && item.priceId.trim() !== '' && item.priceId.startsWith('price_')) {
           await this.stripe.invoiceItems.create({
             customer: params.customerId,
             invoice: invoice.id,
-            price: item.priceId as string,
+            price: item.priceId,
             quantity: item.quantity,
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
@@ -284,6 +284,8 @@ export class StripeService {
             quantity: item.quantity,
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
+        } else {
+          this.logger.warn(`Skipping invoice item with invalid price configuration: ${item.description}`);
         }
       }
 

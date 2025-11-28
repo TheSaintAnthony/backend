@@ -12,6 +12,7 @@ import {
 import { eq, inArray, count, and, ne, gt, sql, or, desc, isNull } from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
+import { PropertiesService } from 'src/properties/properties.service';
 import {
   PaymentStatus,
   RESERVATION_STATUS_NAMES,
@@ -42,6 +43,7 @@ export class ReservationsService implements OnModuleInit {
     private db: NodePgDatabase<typeof schema>,
     private roomsService: RoomsService,
     private usersService: UsersService,
+    private propertiesService: PropertiesService,
     @InjectQueue('email') private readonly emailQueue: Queue,
     private cacheService: CacheService,
     private statusLookupService: StatusLookupService,
@@ -360,6 +362,7 @@ export class ReservationsService implements OnModuleInit {
       customerTaxId?: string;
       customerCompanyName?: string;
     },
+    stripeCustomerId?: string,
   ) {
     const user = await this.usersService.getUserById(userId);
     const [address] = user.addressId
@@ -378,16 +381,32 @@ export class ReservationsService implements OnModuleInit {
     let customerCompanyName: string | undefined;
 
     if (customInvoiceData) {
-      customerName =
-        customInvoiceData.customerName || `${user.firstName} ${user.lastName}`;
-      customerEmail = customInvoiceData.customerEmail || user.email;
-      customerPhone =
-        customInvoiceData.customerPhone || user.phone || undefined;
-      customerTaxId = customInvoiceData.customerTaxId || user.nif || undefined;
-      customerCompanyName =
-        customInvoiceData.customerCompanyName || user.companyName || undefined;
+      const hasCustomName = customInvoiceData.customerName && customInvoiceData.customerName.trim() !== '';
+      const hasCustomEmail = customInvoiceData.customerEmail && customInvoiceData.customerEmail.trim() !== '';
+      const hasCustomPhone = customInvoiceData.customerPhone && customInvoiceData.customerPhone.trim() !== '';
+      const hasCustomTaxId = customInvoiceData.customerTaxId && customInvoiceData.customerTaxId.trim() !== '';
+      const hasCustomCompany = customInvoiceData.customerCompanyName && customInvoiceData.customerCompanyName.trim() !== '';
+      const hasCustomAddress = customInvoiceData.customerAddress && customInvoiceData.customerAddress.trim() !== '';
+      const hasCustomCity = customInvoiceData.customerCity && customInvoiceData.customerCity.trim() !== '';
+      const hasCustomCountry = customInvoiceData.customerCountry && customInvoiceData.customerCountry.trim() !== '';
 
-      if (customInvoiceData.customerAddress || customInvoiceData.customerCity) {
+      customerName = hasCustomName
+        ? customInvoiceData.customerName!
+        : `${user.firstName} ${user.lastName}`;
+      customerEmail = hasCustomEmail
+        ? customInvoiceData.customerEmail!
+        : user.email;
+      customerPhone = hasCustomPhone
+        ? customInvoiceData.customerPhone!
+        : user.phone || undefined;
+      customerTaxId = hasCustomTaxId
+        ? customInvoiceData.customerTaxId!
+        : user.nif || undefined;
+      customerCompanyName = hasCustomCompany
+        ? customInvoiceData.customerCompanyName!
+        : user.companyName || undefined;
+
+      if (hasCustomAddress || hasCustomCity) {
         const addressParts = [
           customInvoiceData.customerAddress,
           customInvoiceData.customerCity,
@@ -400,8 +419,8 @@ export class ReservationsService implements OnModuleInit {
         customerAddress = `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`;
       }
 
-      customerCountry = customInvoiceData.customerCountry
-        ? customInvoiceData.customerCountry.substring(0, 2).toUpperCase()
+      customerCountry = hasCustomCountry
+        ? customInvoiceData.customerCountry!.substring(0, 2).toUpperCase()
         : address
           ? address.country.substring(0, 2).toUpperCase()
           : undefined;
@@ -441,6 +460,39 @@ export class ReservationsService implements OnModuleInit {
         };
       }),
     );
+
+    let totalTourismFee = 0;
+    const tourismFeeLineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.propertyId) {
+          return null;
+        }
+
+        const property = await this.propertiesService.getPropertyById(room.propertyId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = this.calculateNights(checkIn, checkOut);
+        const guestsCount = parseInt(roomValidation.guestsCount);
+        const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+        const tourismFeeTotal = tourismFeePerPersonPerNight * guestsCount * nights;
+        totalTourismFee += tourismFeeTotal;
+
+        return {
+          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+          productCode: 'TOURIST_TAX',
+          quantity: (guestsCount * nights).toString(),
+          unitPrice: tourismFeePerPersonPerNight.toFixed(2),
+          totalAmount: tourismFeeTotal.toFixed(2),
+          itemType: 'tax',
+          startDate: checkIn.toISOString(),
+          endDate: checkOut.toISOString(),
+        };
+      }),
+    );
+
+    const validTourismFeeLineItems = tourismFeeLineItems.filter((item) => item !== null);
+    lineItems.push(...validTourismFeeLineItems);
 
     const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
 
@@ -487,7 +539,9 @@ export class ReservationsService implements OnModuleInit {
       transactionId,
     });
 
-    if (user.stripeCustomerId) {
+    const stripeCustomerIdToUse = stripeCustomerId || user.stripeCustomerId;
+    
+    if (stripeCustomerIdToUse) {
       try {
         const stripeLineItems = await Promise.all(
           validatedRooms.map(async (roomValidation) => {
@@ -498,25 +552,82 @@ export class ReservationsService implements OnModuleInit {
             const checkOut = new Date(roomValidation.checkOut);
             const nights = this.calculateNights(checkIn, checkOut);
 
+            const basePricePerNight = Number(roomValidation.price) / nights;
+            const priceWithVAT = basePricePerNight * 1.23;
+
+            if (basePricePerNight <= 0) {
+              throw new BadRequestException(
+                `Invalid price for room ${roomValidation.roomId}: ${roomValidation.price}`,
+              );
+            }
+
+            if (!room.stripePriceId && !room.stripeProductId) {
+              throw new BadRequestException(
+                `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
+              );
+            }
+
+            if (room.stripeProductId) {
+              return {
+                priceId: undefined,
+                priceData: {
+                  currency: 'eur',
+                  product: room.stripeProductId as string,
+                  unitAmount: Math.round(priceWithVAT * 100),
+                },
+                quantity: nights,
+                description: `${room.name} - ${nights} night(s)`,
+              };
+            } else {
+              throw new BadRequestException(
+                `Room ${roomValidation.roomId} is missing Stripe product configuration`,
+              );
+            }
+          }),
+        );
+
+        const tourismFeeStripeItems = await Promise.all(
+          validatedRooms.map(async (roomValidation) => {
+            const room = await this.roomsService.getRoomById(roomValidation.roomId);
+            if (!room.propertyId) {
+              return null;
+            }
+
+            const property = await this.propertiesService.getPropertyById(room.propertyId);
+            const checkIn = new Date(roomValidation.checkIn);
+            const checkOut = new Date(roomValidation.checkOut);
+            const nights = this.calculateNights(checkIn, checkOut);
+            const guestsCount = parseInt(roomValidation.guestsCount);
+            const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+
+            if (tourismFeePerPersonPerNight <= 0) {
+              return null;
+            }
+
+            const tourismFeeWithVAT = tourismFeePerPersonPerNight * 1.23;
+
+            if (!room.stripeProductId) {
+              return null;
+            }
+
             return {
-              priceId: (room.stripePriceId || undefined) as string | undefined,
-              priceData: room.stripePriceId
-                ? undefined
-                : {
-                    currency: 'eur',
-                    product: (room.stripeProductId || '') as string,
-                    unitAmount: Math.round(
-                      (Number(roomValidation.price) / nights) * 100,
-                    ),
-                  },
-              quantity: nights,
-              description: `${room.name} - ${nights} night(s)`,
+              priceId: undefined,
+              priceData: {
+                currency: 'eur',
+                product: room.stripeProductId as string,
+                unitAmount: Math.round(tourismFeeWithVAT * 100),
+              },
+              quantity: guestsCount * nights,
+              description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
             };
           }),
         );
 
+        const validTourismFeeItems = tourismFeeStripeItems.filter((item) => item !== null);
+        stripeLineItems.push(...validTourismFeeItems);
+
         const stripeInvoice = await this.stripeService.createInvoice({
-          customerId: user.stripeCustomerId,
+          customerId: stripeCustomerIdToUse,
           description: `Invoice ${invoiceNumber} for reservation ${reservationId}`,
           metadata: {
             reservationId,
@@ -702,15 +813,53 @@ export class ReservationsService implements OnModuleInit {
       const { totalPrice, validatedRooms } =
         await this.validateRoomsAndCalculatePrice(tx, userId, rooms);
 
+      let totalTourismFee = 0;
+      for (const roomValidation of validatedRooms) {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.propertyId) continue;
+
+        const property = await this.propertiesService.getPropertyById(room.propertyId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = Math.ceil(
+          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        const guestsCount = parseInt(roomValidation.guestsCount);
+        const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+        totalTourismFee += tourismFeePerPersonPerNight * guestsCount * nights;
+      }
+
       const totalPriceStr = totalPrice.toString();
+      const totalPriceWithVAT = ((totalPrice + totalTourismFee) * 1.23).toFixed(2);
 
       const user = await this.usersService.getUserById(userId);
 
-      const stripeCustomer = await this.stripeService.getOrCreateCustomer(
+      const invoiceCustomerEmail = invoiceData?.customerEmail && invoiceData.customerEmail.trim() !== ''
+        ? invoiceData.customerEmail
+        : user.email;
+      const invoiceCustomerName = invoiceData?.customerName && invoiceData.customerName.trim() !== ''
+        ? invoiceData.customerName
+        : `${user.firstName} ${user.lastName}`;
+      const invoiceCustomerPhone = invoiceData?.customerPhone && invoiceData.customerPhone.trim() !== ''
+        ? invoiceData.customerPhone
+        : user.phone || undefined;
+
+      const invoiceStripeCustomer = await this.stripeService.getOrCreateCustomer(
         userId,
-        invoiceData?.customerEmail || user.email,
-        invoiceData?.customerName || `${user.firstName} ${user.lastName}`,
-        invoiceData?.customerPhone || user.phone || undefined,
+        invoiceCustomerEmail,
+        invoiceCustomerName,
+        invoiceCustomerPhone,
+        {
+          userId,
+          invoiceCustomer: 'true',
+        },
+      );
+
+      const userStripeCustomer = await this.stripeService.getOrCreateCustomer(
+        userId,
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        user.phone || undefined,
         {
           userId,
         },
@@ -719,7 +868,7 @@ export class ReservationsService implements OnModuleInit {
       if (!user.stripeCustomerId) {
         await tx
           .update(schema.users)
-          .set({ stripeCustomerId: stripeCustomer.id })
+          .set({ stripeCustomerId: userStripeCustomer.id })
           .where(eq(schema.users.id, userId));
       }
 
@@ -739,7 +888,7 @@ export class ReservationsService implements OnModuleInit {
         tx,
         reservation.id,
         userId,
-        totalPriceStr,
+        totalPriceWithVAT,
         this.statusLookupService.getInvoiceStatusId(
           INVOICE_STATUS_NAMES.PENDING,
         ),
@@ -747,12 +896,13 @@ export class ReservationsService implements OnModuleInit {
         undefined,
         validatedRooms,
         invoiceData,
+        invoiceStripeCustomer.id,
       );
 
       const paymentResult = await this.stripeService.createPaymentIntent({
-        amount: totalPriceStr,
+        amount: totalPriceWithVAT,
         currency: 'EUR',
-        customerId: stripeCustomer.id,
+        customerId: invoiceStripeCustomer.id,
         orderId: reservation.id.toString(),
         description: `Booking ${reservation.id}`,
         statementDescriptor: 'ST ANTHONY',
