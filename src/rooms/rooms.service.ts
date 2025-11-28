@@ -20,6 +20,7 @@ import {
 import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
+import { PropertiesService } from 'src/properties/properties.service';
 
 @Injectable()
 export class RoomsService {
@@ -31,6 +32,8 @@ export class RoomsService {
     private cacheService: CacheService,
     private imagesService: ImagesService,
     private stripeService: StripeService,
+    @Inject(forwardRef(() => PropertiesService))
+    private propertiesService: PropertiesService,
   ) {}
 
   async createRoom(data: CreateRoomDto) {
@@ -669,12 +672,13 @@ export class RoomsService {
       throw new BadRequestException('At least one room must be specified');
     }
 
-    let totalPrice = 0;
+    let totalBasePrice = 0;
+    let totalTourismFee = 0;
     const roomQuotes: RoomQuote[] = [];
     let allAvailable = true;
 
     for (const roomRequest of rooms) {
-      const { roomId, checkIn, checkOut } = roomRequest;
+      const { roomId, checkIn, checkOut, guestsCount = 1 } = roomRequest;
 
       const room = await this.getRoomById(roomId);
       if (!room) {
@@ -700,12 +704,20 @@ export class RoomsService {
 
       let roomPrice = 0;
       let avgPricePerNight = 0;
+      let tourismFee = 0;
 
       if (isAvailable) {
         try {
           roomPrice = await this.calculateTotalPrice(roomId, checkIn, checkOut);
           avgPricePerNight = roomPrice / nights;
-          totalPrice += roomPrice;
+          totalBasePrice += roomPrice;
+
+          if (room.propertyId) {
+            const property = await this.propertiesService.getPropertyById(room.propertyId);
+            const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+            tourismFee = tourismFeePerPersonPerNight * guestsCount * nights;
+            totalTourismFee += tourismFee;
+          }
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -732,9 +744,20 @@ export class RoomsService {
       });
     }
 
+    const vatPercentage = 23;
+    const vatValue = totalBasePrice * (vatPercentage / 100);
+    const totalPrice = totalBasePrice + totalTourismFee + vatValue;
+
     return {
       rooms: roomQuotes,
       totalPrice: totalPrice.toFixed(2),
+      pricing: {
+        basePrice: totalBasePrice.toFixed(2),
+        tourismFee: totalTourismFee.toFixed(2),
+        vatPercentage: vatPercentage.toString(),
+        vatValue: vatValue.toFixed(2),
+        totalPrice: totalPrice.toFixed(2),
+      },
       allAvailable,
       message: allAvailable
         ? 'All rooms are available'

@@ -4,7 +4,11 @@ import {
   ValidateNested,
   ArrayMinSize,
   IsUUID,
+  IsOptional,
+  IsInt,
+  Min,
 } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -29,6 +33,16 @@ export class QuoteRoomDto {
   })
   @IsDateString()
   checkOut: string;
+
+  @ApiPropertyOptional({
+    description: 'Number of guests',
+    example: 2,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  guestsCount?: number;
 }
 
 export class GetPriceQuoteDto {

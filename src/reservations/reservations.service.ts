@@ -304,6 +304,7 @@ export class ReservationsService implements OnModuleInit {
           room.checkIn,
           room.checkOut,
         ),
+        deletedAt: null,
       })),
     );
 
@@ -331,6 +332,7 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.reservationRooms.accessCode, code),
             eq(schema.reservationRooms.checkIn, checkIn),
             eq(schema.reservationRooms.checkOut, checkOut),
+            isNull(schema.reservationRooms.deletedAt),
           ),
         );
       exists = result.count > 0;
@@ -604,8 +606,6 @@ export class ReservationsService implements OnModuleInit {
               return null;
             }
 
-            const tourismFeeWithVAT = tourismFeePerPersonPerNight * 1.23;
-
             if (!room.stripeProductId) {
               return null;
             }
@@ -615,7 +615,7 @@ export class ReservationsService implements OnModuleInit {
               priceData: {
                 currency: 'eur',
                 product: room.stripeProductId as string,
-                unitAmount: Math.round(tourismFeeWithVAT * 100),
+                unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
               },
               quantity: guestsCount * nights,
               description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
@@ -721,6 +721,7 @@ export class ReservationsService implements OnModuleInit {
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
         invoiceUrl: schema.invoices.externalInvoiceUrl,
+        invoiceTotalAmount: schema.invoices.totalAmount,
       })
       .from(schema.reservations)
       .leftJoin(
@@ -774,6 +775,7 @@ export class ReservationsService implements OnModuleInit {
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           invoiceUrl: row.invoiceUrl || null,
+          invoiceTotalAmount: row.invoiceTotalAmount || null,
           rooms: [],
         });
       }
@@ -830,7 +832,8 @@ export class ReservationsService implements OnModuleInit {
       }
 
       const totalPriceStr = totalPrice.toString();
-      const totalPriceWithVAT = ((totalPrice + totalTourismFee) * 1.23).toFixed(2);
+      const vatAmount = totalPrice * 0.23;
+      const totalPriceWithVAT = (totalPrice + totalTourismFee + vatAmount).toFixed(2);
 
       const user = await this.usersService.getUserById(userId);
 
@@ -922,6 +925,12 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.payments.invoiceId, invoice.id));
 
+      const basePrice = totalPrice;
+      const tourismFee = totalTourismFee;
+      const vatPercentage = 23;
+      const vatValue = basePrice * 0.23;
+      const finalTotal = basePrice + tourismFee + vatValue;
+
       return {
         success: true,
         reservation,
@@ -932,6 +941,13 @@ export class ReservationsService implements OnModuleInit {
           actionUrl: paymentResult.actionUrl,
           clientSecret: paymentResult.metadata?.clientSecret,
           metadata: paymentResult.metadata,
+        },
+        pricing: {
+          basePrice: basePrice.toFixed(2),
+          tourismFee: tourismFee.toFixed(2),
+          vatPercentage: vatPercentage.toString(),
+          vatValue: vatValue.toFixed(2),
+          totalPrice: finalTotal.toFixed(2),
         },
         totalPrice: totalPriceStr,
         message: paymentResult.requiresUserAction

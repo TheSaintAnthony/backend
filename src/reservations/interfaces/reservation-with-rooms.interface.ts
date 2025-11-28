@@ -25,5 +25,6 @@ export interface ReservationWithRooms {
   createdAt: Date;
   updatedAt: Date | null;
   invoiceUrl?: string | null;
+  invoiceTotalAmount?: string | null;
   rooms: ReservationRoom[];
 }

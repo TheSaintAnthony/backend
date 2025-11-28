@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { NotFoundException, DatabaseException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -22,6 +22,7 @@ export class PropertiesService {
     private db: NodePgDatabase<typeof schema>,
     private cacheService: CacheService,
     private imagesService: ImagesService,
+    @Inject(forwardRef(() => RoomsService))
     private roomsService: RoomsService,
     private activityPropertyService: ActivityPropertyService,
   ) {}
