@@ -68,4 +68,16 @@ export class ReportsController {
   ) {
     return this.reportsService.getCustomerInsights(filters);
   }
+
+  @Get('all')
+  @ApiOperation({
+    summary: 'Get all reports in one call',
+    description:
+      'Returns revenue, bookings, occupancy, and customer insights in a single response. Admin only.',
+  })
+  async getAllReports(
+    @Query(new ValidationPipe({ transform: true })) filters: DateRangeDto,
+  ) {
+    return this.reportsService.getAllReports(filters);
+  }
 }

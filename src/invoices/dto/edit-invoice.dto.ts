@@ -111,7 +111,6 @@ export class EditInvoiceDto {
   @IsString()
   notes?: string;
 
-  // providerId removed - using Stripe only
 
   @ApiPropertyOptional({
     description: 'External invoice ID from provider',
@@ -131,7 +130,7 @@ export class EditInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'URL to view invoice in external system',
-    example: 'https://cegid.example.com/invoices/123',
+    example: 'https://example.com/invoice/123',
   })
   @IsOptional()
   @IsString()

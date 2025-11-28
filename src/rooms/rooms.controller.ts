@@ -49,7 +49,13 @@ export class RoomsController {
 
   @Public()
   @Get(':id')
-  async getRoomById(@Param('id') id: string) {
+  async getRoomById(
+    @Param('id') id: string,
+    @Query('includeProperty') includeProperty?: string,
+  ) {
+    if (includeProperty === 'true') {
+      return await this.roomsService.getRoomWithProperty(id);
+    }
     return await this.roomsService.getRoomById(id);
   }
 

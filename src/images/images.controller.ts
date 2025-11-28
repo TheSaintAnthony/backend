@@ -155,30 +155,25 @@ export class ImagesController {
     @Param('filename') filename: string,
     @Res() res: express.Response,
   ) {
-    // Set CORS headers first
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
 
-    // Construct the path: images/room/filename.png
     const imagePath = `images/${entityType}/${filename}`;
     const desktopPath = '/Users/luismiranda/Desktop';
     const fullPath = path.join(desktopPath, imagePath);
 
-    // Security check: ensure the path is within the desktop directory
     const resolvedPath = path.resolve(fullPath);
     const resolvedDesktop = path.resolve(desktopPath);
     if (!resolvedPath.startsWith(resolvedDesktop)) {
       return res.status(403).send('Forbidden');
     }
 
-    // Check if file exists
     if (!fs.existsSync(resolvedPath)) {
       return res.status(404).send('Image not found');
     }
 
-    // Determine content type
     const ext = path.extname(resolvedPath).toLowerCase();
     const contentTypeMap: Record<string, string> = {
       '.jpg': 'image/jpeg',
@@ -190,7 +185,6 @@ export class ImagesController {
     };
     const contentType = contentTypeMap[ext] || 'image/jpeg';
 
-    // Set headers and send file
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(resolvedPath);

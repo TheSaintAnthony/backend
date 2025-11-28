@@ -141,10 +141,41 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Check for overlapping reservations, excluding cancelled ones
       const cancelledStatusId = this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.CANCELLED,
       );
+      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.PENDING,
+      );
+
+      const existingPendingReservations = await tx
+        .select({
+          reservationId: schema.reservations.id,
+        })
+        .from(schema.reservationRooms)
+        .innerJoin(
+          schema.reservations,
+          eq(schema.reservationRooms.reservationId, schema.reservations.id),
+        )
+        .where(
+          and(
+            eq(schema.reservationRooms.roomId, roomId),
+            eq(schema.reservations.statusId, pendingStatusId),
+            eq(schema.reservations.userId, userId),
+            isNull(schema.reservationRooms.deletedAt),
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+          ),
+        );
+
+      if (existingPendingReservations.length > 0) {
+        const pendingReservationIds = existingPendingReservations.map(
+          (r) => r.reservationId,
+        );
+        await tx
+          .update(schema.reservations)
+          .set({ statusId: cancelledStatusId })
+          .where(inArray(schema.reservations.id, pendingReservationIds));
+      }
 
       const overlappingReservations = await tx
         .select()
@@ -156,8 +187,12 @@ export class ReservationsService implements OnModuleInit {
         .where(
           and(
             eq(schema.reservationRooms.roomId, roomId),
-            ne(schema.reservations.statusId, cancelledStatusId), // Exclude cancelled
-            isNull(schema.reservationRooms.deletedAt), // Exclude soft-deleted
+            ne(schema.reservations.statusId, cancelledStatusId),
+            or(
+              ne(schema.reservations.userId, userId),
+              ne(schema.reservations.statusId, pendingStatusId),
+            ),
+            isNull(schema.reservationRooms.deletedAt),
             sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
           ),
         );
@@ -452,7 +487,6 @@ export class ReservationsService implements OnModuleInit {
       transactionId,
     });
 
-    // Create Stripe invoice if user has Stripe customer ID
     if (user.stripeCustomerId) {
       try {
         const stripeLineItems = await Promise.all(
@@ -493,7 +527,6 @@ export class ReservationsService implements OnModuleInit {
           autoAdvance: false,
         });
 
-        // Update invoice with Stripe invoice ID
         await tx
           .update(schema.invoices)
           .set({
@@ -503,7 +536,6 @@ export class ReservationsService implements OnModuleInit {
           })
           .where(eq(schema.invoices.id, invoice.id));
       } catch (error) {
-        // Log error but don't fail invoice creation
         console.error('Failed to create Stripe invoice:', error);
       }
     }
@@ -638,7 +670,6 @@ export class ReservationsService implements OnModuleInit {
       if (row.roomId !== null) {
         const reservation = reservationsMap.get(reservationId);
         if (reservation) {
-          // Check if room already exists to avoid duplicates
           const roomExists = reservation.rooms.some(
             (r) => r.id === row.roomId,
           );
@@ -673,10 +704,8 @@ export class ReservationsService implements OnModuleInit {
 
       const totalPriceStr = totalPrice.toString();
 
-      // Get user for Stripe customer
       const user = await this.usersService.getUserById(userId);
 
-      // Get or create Stripe customer
       const stripeCustomer = await this.stripeService.getOrCreateCustomer(
         userId,
         invoiceData?.customerEmail || user.email,
@@ -687,7 +716,6 @@ export class ReservationsService implements OnModuleInit {
         },
       );
 
-      // Update user with Stripe customer ID if not set
       if (!user.stripeCustomerId) {
         await tx
           .update(schema.users)
@@ -695,7 +723,6 @@ export class ReservationsService implements OnModuleInit {
           .where(eq(schema.users.id, userId));
       }
 
-      // Create reservation
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
@@ -708,7 +735,6 @@ export class ReservationsService implements OnModuleInit {
         specialRequests,
       );
 
-      // Create invoice first (needed for payment record)
       const invoice = await this.createInvoiceAndPayment(
         tx,
         reservation.id,
@@ -718,12 +744,11 @@ export class ReservationsService implements OnModuleInit {
           INVOICE_STATUS_NAMES.PENDING,
         ),
         this.pendingPaymentStatusId,
-        undefined, // transactionId will be set after PaymentIntent creation
+        undefined,
         validatedRooms,
         invoiceData,
       );
 
-      // Create Stripe PaymentIntent
       const paymentResult = await this.stripeService.createPaymentIntent({
         amount: totalPriceStr,
         currency: 'EUR',
@@ -739,7 +764,6 @@ export class ReservationsService implements OnModuleInit {
         },
       });
 
-      // Update payment record with PaymentIntent ID
       await tx
         .update(schema.payments)
         .set({
@@ -769,7 +793,6 @@ export class ReservationsService implements OnModuleInit {
 
   async completeBooking(transactionId: string) {
     return this.db.transaction(async (tx) => {
-      // Try to find payment by transactionId or externalReferenceId
       const [existingPayment] = await tx
         .select()
         .from(schema.payments)
@@ -782,16 +805,12 @@ export class ReservationsService implements OnModuleInit {
         .limit(1);
 
       if (!existingPayment) {
-        // If payment not found, it might have been created by webhook
-        // Try to verify the PaymentIntent status directly
         try {
           const paymentStatus = await this.stripeService.getPaymentIntentStatus(
             transactionId,
           );
 
           if (paymentStatus.status === 'completed') {
-            // Payment was completed but record not found - this shouldn't happen
-            // but we'll handle it gracefully
             throw new NotFoundException(
               'Payment record not found in database. Please contact support.',
               transactionId,
@@ -833,7 +852,6 @@ export class ReservationsService implements OnModuleInit {
         }
       }
 
-      // Check PaymentIntent status
       const paymentStatus = await this.stripeService.getPaymentIntentStatus(
         transactionId,
       );
@@ -844,7 +862,6 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update payment record
       await tx
         .update(schema.payments)
         .set({
@@ -866,24 +883,19 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update invoice status and pay Stripe invoice if it exists
       if (invoice.externalInvoiceId) {
         try {
-          // Pay the Stripe invoice
           const paidInvoice = await this.stripeService.payInvoice(
             invoice.externalInvoiceId,
           );
           
-          // Get the invoice URL (it might be available after payment)
           const invoiceUrl = paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
           
-          // If still no URL, try to retrieve it
           let finalUrl = invoiceUrl;
           if (!finalUrl) {
             finalUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
           }
           
-          // Update invoice with paid status and latest URL
           await tx
             .update(schema.invoices)
             .set({
@@ -895,9 +907,7 @@ export class ReservationsService implements OnModuleInit {
             })
             .where(eq(schema.invoices.id, invoice.id));
         } catch (error) {
-          // Log error but continue with local update
           console.error('Failed to pay Stripe invoice:', error);
-          // Try to get the URL anyway
           let invoiceUrl = invoice.externalInvoiceUrl;
           if (!invoiceUrl && invoice.externalInvoiceId) {
             try {
@@ -918,7 +928,6 @@ export class ReservationsService implements OnModuleInit {
             .where(eq(schema.invoices.id, invoice.id));
         }
       } else {
-        // Update invoice status locally if no Stripe invoice
         await tx
           .update(schema.invoices)
           .set({
@@ -943,7 +952,6 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Update reservation status
       await tx
         .update(schema.reservations)
         .set({
@@ -954,7 +962,6 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.reservations.id, reservation.id));
 
-      // Delete room holds
       await tx
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, reservation.userId));
@@ -964,7 +971,6 @@ export class ReservationsService implements OnModuleInit {
         .from(schema.reservationRooms)
         .where(eq(schema.reservationRooms.reservationId, reservation.id));
 
-      // Send confirmation email
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
@@ -1091,10 +1097,8 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      // Get user for Stripe customer
       const user = await this.usersService.getUserById(reservation.userId);
 
-      // Get or create Stripe customer
       const stripeCustomer = await this.stripeService.getOrCreateCustomer(
         reservation.userId,
         user.email,
@@ -1105,7 +1109,6 @@ export class ReservationsService implements OnModuleInit {
         },
       );
 
-      // Create new PaymentIntent for retry
       const paymentResult = await this.stripeService.createPaymentIntent({
         amount: reservation.totalPrice,
         currency: 'EUR',
@@ -1137,7 +1140,7 @@ export class ReservationsService implements OnModuleInit {
             transactionId: paymentResult.transactionId,
             externalReferenceId: paymentResult.transactionId,
             paymentStatusId: this.pendingPaymentStatusId,
-            paidAt: null, // Reset paid date
+            paidAt: null,
           })
           .where(eq(schema.payments.id, payment.payments.id));
 
@@ -1185,9 +1188,6 @@ export class ReservationsService implements OnModuleInit {
     return reservations;
   }
 
-  /**
-   * Get all reservations (admin only)
-   */
   async getAllReservations(
     pagination?: PaginationDto,
     statusFilter?: string,
@@ -1196,10 +1196,8 @@ export class ReservationsService implements OnModuleInit {
     const limit = pagination?.limit || 10;
     const offset = (page - 1) * limit;
 
-    // Build where conditions
     const whereConditions: any[] = [];
     
-    // Filter by status if provided
     if (statusFilter) {
       try {
         const statusId = this.statusLookupService.getReservationStatusId(statusFilter);
@@ -1208,7 +1206,6 @@ export class ReservationsService implements OnModuleInit {
         }
       } catch (error) {
         this.logger.warn(`Invalid status filter: ${statusFilter}`);
-        // If status not found, return empty results
         return createPaginatedResponse([], 0, page, limit);
       }
     }
@@ -1354,9 +1351,6 @@ export class ReservationsService implements OnModuleInit {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  /**
-   * Update reservation status (admin only)
-   */
   async updateReservationStatus(
     reservationId: string,
     statusName: string,
@@ -1382,9 +1376,6 @@ export class ReservationsService implements OnModuleInit {
     return this.getReservationById(reservationId);
   }
 
-  /**
-   * Cancel reservation as admin (with optional refund)
-   */
   async cancelReservationAdmin(
     reservationId: string,
     issueRefund: boolean = false,
@@ -1430,9 +1421,7 @@ export class ReservationsService implements OnModuleInit {
           })
           .where(eq(schema.invoices.id, invoice.id));
 
-        // Process refund if requested (outside transaction to avoid timeout)
         if (issueRefund) {
-          // Find the payment to get the PaymentIntent ID
           const [payment] = await tx
             .select()
             .from(schema.payments)
@@ -1454,25 +1443,21 @@ export class ReservationsService implements OnModuleInit {
             );
           }
 
-          // Process refund and create credit note immediately
-          // If it fails, we'll throw an error so admin knows
           try {
-            // Create refund
             const refund = await this.stripeService.createRefund(
               paymentIntentId,
-              undefined, // Full refund
+              undefined,
               'requested_by_customer',
             );
             this.logger.log(
               `Refund created successfully: ${refund.id} for PaymentIntent ${paymentIntentId}`,
             );
 
-            // Create credit note for accounting purposes
             if (invoice.externalInvoiceId) {
               try {
                 const creditNote = await this.stripeService.createCreditNote(
                   invoice.externalInvoiceId,
-                  undefined, // Full amount
+                  undefined,
                   'order_change',
                   `Credit note for cancelled reservation ${reservationId}`,
                 );
@@ -1480,7 +1465,6 @@ export class ReservationsService implements OnModuleInit {
                   `Credit note created successfully: ${creditNote.id} for invoice ${invoice.externalInvoiceId}`,
                 );
               } catch (creditNoteError) {
-                // Log but don't fail - refund is more important
                 this.logger.warn(
                   `Failed to create credit note for invoice ${invoice.externalInvoiceId}: ${creditNoteError}`,
                 );
@@ -1497,7 +1481,6 @@ export class ReservationsService implements OnModuleInit {
         }
       }
 
-      // Soft-delete reservation rooms to free up availability
       const reservationRooms = await tx
         .select()
         .from(schema.reservationRooms)
@@ -1513,7 +1496,6 @@ export class ReservationsService implements OnModuleInit {
           .where(eq(schema.reservationRooms.id, room.id));
       }
 
-      // Delete room holds for this user
       await tx
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, reservation.userId));
@@ -1525,9 +1507,6 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  /**
-   * Update reservation (admin only)
-   */
   async updateReservation(
     reservationId: string,
     data: UpdateReservationDto,
@@ -1538,7 +1517,6 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', reservationId);
       }
 
-      // Update reservation basic fields
       if (data.specialRequests !== undefined) {
         await tx
           .update(schema.reservations)
@@ -1549,14 +1527,12 @@ export class ReservationsService implements OnModuleInit {
           .where(eq(schema.reservations.id, reservationId));
       }
 
-      // Update reservation rooms if provided
       if (data.rooms && data.rooms.length > 0) {
         const existingRooms = await tx
           .select()
           .from(schema.reservationRooms)
           .where(eq(schema.reservationRooms.reservationId, reservationId));
 
-        // Update each room
         for (let i = 0; i < data.rooms.length && i < existingRooms.length; i++) {
           const roomUpdate = data.rooms[i];
           const existingRoom = existingRooms[i];
@@ -1580,12 +1556,7 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  /**
-   * Check in a reservation (admin only)
-   * Changes status from Confirmed to Checked In (In Progress)
-   */
   async checkInReservation(reservationId: string) {
-    // Get reservation with status
     const [reservation] = await this.db
       .select({
         id: schema.reservations.id,
@@ -1604,7 +1575,6 @@ export class ReservationsService implements OnModuleInit {
       throw new NotFoundException('Reservation', reservationId);
     }
 
-    // Get current status
     const currentStatus = reservation.statusName || '';
     if (currentStatus.toLowerCase() !== 'confirmed') {
       throw new BadRequestException(
@@ -1627,9 +1597,6 @@ export class ReservationsService implements OnModuleInit {
     return this.getReservationById(reservationId);
   }
 
-  /**
-   * Get reservation by customer name and dates (for admin search)
-   */
   async findReservationByCustomerAndDates(
     customerName?: string,
     checkIn?: string,
@@ -1638,7 +1605,6 @@ export class ReservationsService implements OnModuleInit {
     const conditions: any[] = [];
 
     if (customerName) {
-      // Search by first name, last name, or email
       const searchPattern = `%${customerName.toLowerCase()}%`;
       conditions.push(
         or(
@@ -1722,7 +1688,6 @@ export class ReservationsService implements OnModuleInit {
       .orderBy(desc(schema.reservations.createdAt))
       .limit(50);
 
-    // Group by reservation
     const reservationsMap = new Map<string, ReservationWithRooms & { 
       userEmail?: string; 
       userFirstName?: string; 

@@ -66,7 +66,6 @@ export class CreateBookingDto {
   @IsString()
   specialRequests?: string;
 
-  // paymentMethodId removed - using Stripe only
 
   @ApiPropertyOptional({
     description: 'Payment transaction ID',

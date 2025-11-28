@@ -245,7 +245,6 @@ export class LookupsService {
     return this.deleteValue(schema.paymentStatus, id);
   }
 
-  // Payment methods removed - using Stripe only
 
   async addActivity(data: ActivityData) {
     const { images, ...activityData } = data;

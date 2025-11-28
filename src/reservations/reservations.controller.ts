@@ -28,7 +28,6 @@ import { Idempotent } from 'src/decorators';
 export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
 
-  // Admin endpoints
   @Get('admin/all')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

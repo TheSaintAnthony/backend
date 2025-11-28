@@ -21,9 +21,6 @@ export class StripeService {
     });
   }
 
-  /**
-   * Create or retrieve a Stripe customer for a user
-   */
   async getOrCreateCustomer(
     userId: string,
     email: string,
@@ -32,7 +29,6 @@ export class StripeService {
     metadata?: Record<string, string>,
   ): Promise<Stripe.Customer> {
     try {
-      // Try to find existing customer by metadata
       if (metadata?.userId) {
         const existingCustomers = await this.stripe.customers.list({
           email,
@@ -44,7 +40,6 @@ export class StripeService {
         }
       }
 
-      // Create new customer
       const customer = await this.stripe.customers.create({
         email,
         name,
@@ -62,9 +57,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a Stripe product for a room
-   */
   async createProduct(
     name: string,
     description?: string,
@@ -77,7 +69,7 @@ export class StripeService {
         description,
         metadata,
         images,
-        type: 'service', // Rooms are services, not physical products
+        type: 'service',
       });
 
       return product;
@@ -87,12 +79,9 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a Stripe price for a product
-   */
   async createPrice(
     productId: string,
-    amount: number, // in cents
+    amount: number,
     currency: string = 'eur',
     metadata?: Record<string, string>,
   ): Promise<Stripe.Price> {
@@ -111,9 +100,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Update a Stripe product
-   */
   async updateProduct(
     productId: string,
     updates: {
@@ -132,9 +118,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Archive a Stripe product (don't delete to preserve invoice history)
-   */
   async archiveProduct(productId: string): Promise<Stripe.Product> {
     try {
       const product = await this.stripe.products.update(productId, {
@@ -147,9 +130,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a PaymentIntent for a booking
-   */
   async createPaymentIntent(params: {
     amount: string;
     currency: string;
@@ -167,7 +147,7 @@ export class StripeService {
         currency: params.currency.toLowerCase(),
         customer: params.customerId,
         description: params.description,
-        statement_descriptor_suffix: params.statementDescriptor?.substring(0, 22), // Max 22 chars
+        statement_descriptor_suffix: params.statementDescriptor?.substring(0, 22),
         metadata: {
           orderId: params.orderId,
           ...params.metadata,
@@ -180,8 +160,8 @@ export class StripeService {
       return {
         transactionId: paymentIntent.id,
         requiresUserAction: paymentIntent.status === 'requires_action',
-        actionUrl: undefined, // Stripe handles this via client secret
-        expiresAt: undefined, // PaymentIntents don't expire the same way
+        actionUrl: undefined,
+        expiresAt: undefined,
         metadata: {
           clientSecret: paymentIntent.client_secret || '',
           ...params.metadata,
@@ -193,9 +173,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Confirm a PaymentIntent (usually done client-side, but can be done server-side)
-   */
   async confirmPaymentIntent(
     paymentIntentId: string,
     paymentMethodId?: string,
@@ -209,7 +186,6 @@ export class StripeService {
       const mappedStatus = this.mapStripeStatusToPaymentStatus(
         paymentIntent.status,
       );
-      // Ensure we only return allowed statuses for PaymentCaptureResult
       const captureStatus: 'completed' | 'failed' | 'pending' =
         mappedStatus === 'completed'
           ? 'completed'
@@ -238,9 +214,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Get PaymentIntent status
-   */
   async getPaymentIntentStatus(
     paymentIntentId: string,
   ): Promise<PaymentStatusResult> {
@@ -266,9 +239,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a Stripe invoice for a booking
-   */
   async createInvoice(params: {
     customerId: string;
     description?: string;
@@ -278,7 +248,7 @@ export class StripeService {
       priceData?: {
         currency: string;
         product: string;
-        unitAmount: number; // in cents
+        unitAmount: number;
       };
       quantity: number;
       description: string;
@@ -286,15 +256,13 @@ export class StripeService {
     autoAdvance?: boolean;
   }): Promise<Stripe.Invoice> {
     try {
-      // Create invoice
       const invoice = await this.stripe.invoices.create({
         customer: params.customerId,
         description: params.description,
         metadata: params.metadata,
-        auto_advance: params.autoAdvance ?? false, // Don't auto-finalize
+        auto_advance: params.autoAdvance ?? false,
       });
 
-      // Add line items
       for (const item of params.lineItems) {
         if (item.priceId) {
           await this.stripe.invoiceItems.create({
@@ -319,7 +287,6 @@ export class StripeService {
         }
       }
 
-      // Finalize invoice
       const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
         invoice.id,
       );
@@ -331,9 +298,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Get invoice status
-   */
   async getInvoiceStatus(
     invoiceId: string,
   ): Promise<{ status: string; paid: boolean; url?: string }> {
@@ -350,16 +314,10 @@ export class StripeService {
     }
   }
 
-  /**
-   * Pay a Stripe invoice (mark as paid)
-   * Uses paid_out_of_band since payment was already processed via PaymentIntent
-   */
   async payInvoice(
     invoiceId: string,
   ): Promise<Stripe.Invoice> {
     try {
-      // Mark invoice as paid out of band since payment was already processed
-      // This prevents double charging
       const invoice = await this.stripe.invoices.pay(invoiceId, {
         paid_out_of_band: true,
       });
@@ -370,9 +328,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Retrieve invoice and get its URL
-   */
   async getInvoiceUrl(invoiceId: string): Promise<string | null> {
     try {
       const invoice = await this.stripe.invoices.retrieve(invoiceId);
@@ -383,16 +338,12 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a refund for a PaymentIntent
-   */
   async createRefund(
     paymentIntentId: string,
-    amount?: number, // in cents, if not provided, full refund
+    amount?: number,
     reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer',
   ): Promise<Stripe.Refund> {
     try {
-      // First, retrieve the PaymentIntent to get the charge ID
       const paymentIntent = await this.stripe.paymentIntents.retrieve(
         paymentIntentId,
       );
@@ -403,7 +354,6 @@ export class StripeService {
         );
       }
 
-      // Create refund using the charge ID
       const refundParams: Stripe.RefundCreateParams = {
         charge: paymentIntent.latest_charge as string,
         reason: reason || 'requested_by_customer',
@@ -422,24 +372,19 @@ export class StripeService {
     }
   }
 
-  /**
-   * Create a credit note for an invoice (for accounting purposes)
-   */
   async createCreditNote(
     invoiceId: string,
-    amount?: number, // in cents, if not provided, full amount
+    amount?: number,
     reason?: 'duplicate' | 'fraudulent' | 'order_change' | 'product_unsatisfactory',
     memo?: string,
   ): Promise<Stripe.CreditNote> {
     try {
-      // Retrieve the invoice first
       const invoice = await this.stripe.invoices.retrieve(invoiceId);
 
       if (!invoice) {
         throw new Error(`Invoice ${invoiceId} not found`);
       }
 
-      // Create credit note
       const creditNoteParams: Stripe.CreditNoteCreateParams = {
         invoice: invoiceId,
         reason: reason || 'order_change',
@@ -462,9 +407,6 @@ export class StripeService {
     }
   }
 
-  /**
-   * Map Stripe PaymentIntent status to our payment status
-   */
   private mapStripeStatusToPaymentStatus(
     stripeStatus: string,
   ): PaymentStatusResult['status'] {
@@ -482,9 +424,6 @@ export class StripeService {
     return statusMap[stripeStatus] || 'pending';
   }
 
-  /**
-   * Verify webhook signature
-   */
   verifyWebhookSignature(
     payload: string | Buffer,
     signature: string,

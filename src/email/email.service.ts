@@ -246,7 +246,7 @@ The St. Anthony Hotel Team`;
       end: checkOut,
       summary: 'Booking',
       location: 'Hotel Address',
-      url: 'http://brandit.pt/',
+      url: 'http://localhost:4200',
       organizer: { name: 'St. Anthony Hotel', email: 'bookings@stanthony.com' },
       attendees: [{ name: userName, email: userEmail }],
     });

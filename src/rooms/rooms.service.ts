@@ -10,7 +10,7 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
-import { eq, and, lte, gte, or, count, inArray, isNull } from 'drizzle-orm';
+import { eq, and, lte, gte, or, count, inArray, isNull, ne } from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
 import {
@@ -20,6 +20,7 @@ import {
 import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
 export class RoomsService {
@@ -51,9 +52,7 @@ export class RoomsService {
       );
     }
 
-    // Always create Stripe product
     try {
-      // Get room images for Stripe product
       const roomImages = await this.imagesService.getImagesByEntity(
         'room',
         createdRoom.id,
@@ -62,7 +61,6 @@ export class RoomsService {
         .map((img) => img.url)
         .filter((url) => url && url.startsWith('http'));
 
-      // Create Stripe product
       const stripeProduct = await this.stripeService.createProduct(
         createdRoom.name,
         createdRoom.description || undefined,
@@ -74,14 +72,12 @@ export class RoomsService {
         imageUrls.length > 0 ? imageUrls : undefined,
       );
 
-      // Get default price from room_prices if available
       let stripePriceId: string | undefined;
       const roomPrices = await this.roomPricesService.getRoomPricesByRoom(
         createdRoom.id,
       );
 
       if (roomPrices.length > 0) {
-        // Use the first price as default (or you could use the most recent)
         const defaultPrice = roomPrices[0];
         const priceInCents = Math.round(parseFloat(defaultPrice.price) * 100);
 
@@ -98,7 +94,6 @@ export class RoomsService {
         stripePriceId = stripePrice.id;
       }
 
-      // Update room with Stripe IDs
       await this.db
         .update(schema.rooms)
         .set({
@@ -107,7 +102,6 @@ export class RoomsService {
         })
         .where(eq(schema.rooms.id, createdRoom.id));
     } catch (error) {
-      // Log error but don't fail room creation
       console.error('Failed to create Stripe product for room:', error);
     }
 
@@ -233,7 +227,6 @@ export class RoomsService {
           'room',
           room.id,
         );
-        // Only return url and isPrimary
         const simplifiedImages = images.map((img) => ({
           url: img.url,
           isPrimary: img.isPrimary,
@@ -328,7 +321,6 @@ export class RoomsService {
 
     const images = await this.imagesService.getImagesByEntity('room', id);
 
-    // Get Stripe IDs from the first row (they're the same for all rows)
     const firstRow = roomsData[0];
     const result: RoomResponse = {
       ...room,
@@ -341,6 +333,28 @@ export class RoomsService {
 
     await this.cacheService.set(cacheKey, result, 3600);
     return result;
+  }
+
+  async getRoomWithProperty(id: string) {
+    const room = await this.getRoomById(id);
+    
+    if (!room.propertyId) {
+      return { ...room, property: null };
+    }
+
+    const property = await this.db.query.properties.findFirst({
+      where: eq(schema.properties.id, room.propertyId),
+      with: {
+        address: true,
+      },
+    });
+
+    if (property) {
+      const images = await this.imagesService.getImagesByEntity('property', property.id);
+      return { ...room, property: { ...property, images } };
+    }
+
+    return { ...room, property: null };
   }
 
   async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
@@ -471,7 +485,6 @@ export class RoomsService {
           'room',
           room.id,
         );
-        // Only return url and isPrimary
         const simplifiedImages = images.map((img) => ({
           url: img.url,
           isPrimary: img.isPrimary,
@@ -521,7 +534,6 @@ export class RoomsService {
       }
     }
 
-    // Update Stripe product if it exists
     if (room.stripeProductId) {
       try {
         const updatedRoom = { ...room, ...roomData };
@@ -562,7 +574,15 @@ export class RoomsService {
       throw new NotFoundException('Room', id);
     }
 
-    // Archive Stripe product if it exists
+    const result = await this.db
+      .update(schema.rooms)
+      .set({
+        deletedAt: new Date(),
+        available: false,
+      })
+      .where(eq(schema.rooms.id, id))
+      .returning();
+
     if (room.stripeProductId) {
       try {
         await this.stripeService.archiveProduct(room.stripeProductId);
@@ -571,11 +591,6 @@ export class RoomsService {
       }
     }
 
-    const result = await this.db
-      .delete(schema.rooms)
-      .where(eq(schema.rooms.id, id))
-      .returning();
-
     await this.cacheService.del(`room:${id}`);
     return result;
   }
@@ -583,7 +598,6 @@ export class RoomsService {
   async checkAvailability(data: CheckAvailabilityDto) {
     const { roomId, roomIds, checkIn, checkOut } = data;
 
-    // Batch mode: multiple rooms
     if (roomIds && roomIds.length > 0) {
       const availabilityPromises = roomIds.map(async (id) => {
         try {
@@ -613,7 +627,6 @@ export class RoomsService {
       };
     }
 
-    // Single room mode: backward compatible
     if (!roomId) {
       throw new BadRequestException(
         'Either roomId or roomIds must be provided',

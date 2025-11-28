@@ -232,7 +232,6 @@ export class LookupsController {
     return this.lookupsService.deletePaymentStatus(id);
   }
 
-  // Payment methods endpoints removed - using Stripe only
 
   @Post('activities')
   addActivity(@Body() dto: CreateActivityDto) {

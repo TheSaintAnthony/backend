@@ -12,7 +12,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class NestedImageDto {
   @ApiProperty({
     description: 'URL of the image',
-    example: 'https://example.com/images/room-123.jpg',
+    example: 'https://example.com/image.jpg',
   })
   @IsUrl()
   @MaxLength(500)

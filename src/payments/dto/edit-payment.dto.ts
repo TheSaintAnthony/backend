@@ -13,7 +13,6 @@ export class EditPaymentDto {
   @IsNumberString()
   amount?: string;
 
-  // paymentMethodId removed - using Stripe only
 
   @ApiPropertyOptional()
   @IsOptional()

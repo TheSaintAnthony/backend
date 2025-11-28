@@ -37,8 +37,29 @@ export class PropertiesController {
   }
 
   @Public()
+  @Get('slug/:slug')
+  async getPropertyBySlug(@Param('slug') slug: string) {
+    return await this.propertiesService.getPropertyBySlug(slug);
+  }
+
+  @Public()
   @Get(':id')
-  async getPropertyById(@Param('id') id: string) {
+  async getPropertyById(
+    @Param('id') id: string,
+    @Query('includeRooms') includeRooms?: string,
+    @Query('includeActivities') includeActivities?: string,
+  ) {
+    const includeRoomsFlag = includeRooms === 'true';
+    const includeActivitiesFlag = includeActivities === 'true';
+    
+    if (includeRoomsFlag || includeActivitiesFlag) {
+      return await this.propertiesService.getPropertyWithDetails(
+        id,
+        includeRoomsFlag,
+        includeActivitiesFlag,
+      );
+    }
+    
     return await this.propertiesService.getPropertyById(id);
   }
 

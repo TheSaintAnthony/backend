@@ -115,7 +115,6 @@ export class ReportsService {
       .where(and(...revenueConditions))
       .groupBy(schema.roomTypes.id, schema.roomTypes.name);
 
-    // Payment method breakdown removed - using Stripe only
     const revenueByPaymentMethod: any[] = [];
 
     const [pendingInvoiceStatus] = await this.db
@@ -582,6 +581,22 @@ export class ReportsService {
       demographics: {
         byCountry: customersByCountry,
       },
+    };
+  }
+
+  async getAllReports(filters: DateRangeDto) {
+    const [revenue, bookings, occupancy, customers] = await Promise.all([
+      this.getRevenueOverview(filters),
+      this.getBookingTrends(filters),
+      this.getOccupancyAnalytics(filters),
+      this.getCustomerInsights(filters),
+    ]);
+
+    return {
+      revenue,
+      bookings,
+      occupancy,
+      customers,
     };
   }
 }

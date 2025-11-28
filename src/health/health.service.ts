@@ -44,7 +44,6 @@ export class HealthService {
       dependencies.email = 'ERROR';
     }
 
-    // Stripe health check can be added here when StripeService is implemented
     dependencies.stripe = 'OK';
 
     try {

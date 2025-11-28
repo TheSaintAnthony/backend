@@ -31,7 +31,6 @@ export class StripeWebhookService {
     }
 
     return this.db.transaction(async (tx) => {
-      // Find payment by transactionId
       const [payment] = await tx
         .select()
         .from(schema.payments)
@@ -46,7 +45,6 @@ export class StripeWebhookService {
       const completedPaymentStatusId =
         await this.statusLookupService.getPaymentStatusId('completed');
 
-      // Update payment
       await tx
         .update(schema.payments)
         .set({
@@ -55,7 +53,6 @@ export class StripeWebhookService {
         })
         .where(eq(schema.payments.id, payment.id));
 
-      // Get invoice
       const [invoice] = await tx
         .select()
         .from(schema.invoices)
@@ -63,17 +60,14 @@ export class StripeWebhookService {
         .limit(1);
 
       if (invoice) {
-        // Pay Stripe invoice if it exists and update local invoice
         if (invoice.externalInvoiceId) {
           try {
             const paidInvoice = await this.stripeService.payInvoice(
               invoice.externalInvoiceId,
             );
             
-            // Get the invoice URL (it might be available after payment)
             let invoiceUrl = paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
             
-            // If still no URL, try to retrieve it
             if (!invoiceUrl) {
               invoiceUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
             }
@@ -90,7 +84,6 @@ export class StripeWebhookService {
               .where(eq(schema.invoices.id, invoice.id));
           } catch (error) {
             this.logger.error(`Failed to pay Stripe invoice: ${error}`);
-            // Try to get the URL anyway
             let invoiceUrl = invoice.externalInvoiceUrl;
             if (!invoiceUrl && invoice.externalInvoiceId) {
               try {
@@ -99,7 +92,6 @@ export class StripeWebhookService {
                 this.logger.error(`Failed to retrieve invoice URL: ${urlError}`);
               }
             }
-            // Update locally anyway
             await tx
               .update(schema.invoices)
               .set({
@@ -112,7 +104,6 @@ export class StripeWebhookService {
               .where(eq(schema.invoices.id, invoice.id));
           }
         } else {
-          // Update invoice locally if no Stripe invoice
           await tx
             .update(schema.invoices)
             .set({
@@ -124,7 +115,6 @@ export class StripeWebhookService {
             .where(eq(schema.invoices.id, invoice.id));
         }
 
-        // Update reservation
         const [reservation] = await tx
           .select()
           .from(schema.reservations)
@@ -142,7 +132,6 @@ export class StripeWebhookService {
             })
             .where(eq(schema.reservations.id, reservation.id));
 
-          // Delete room holds
           await tx
             .delete(schema.roomHolds)
             .where(eq(schema.roomHolds.userId, reservation.userId));

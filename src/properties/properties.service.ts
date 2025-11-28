@@ -4,7 +4,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreatePropertyDto } from './dto/create-property.dto';
-import { eq, count } from 'drizzle-orm';
+import { eq, count, inArray } from 'drizzle-orm';
 import { EditPropertyDto } from './dto/edit-property.dto';
 import {
   PaginationDto,
@@ -12,6 +12,8 @@ import {
 } from 'src/common/dto/pagination.dto';
 import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
+import { RoomsService } from 'src/rooms/rooms.service';
+import { ActivityPropertyService } from 'src/activity-property/activity-property.service';
 
 @Injectable()
 export class PropertiesService {
@@ -20,6 +22,8 @@ export class PropertiesService {
     private db: NodePgDatabase<typeof schema>,
     private cacheService: CacheService,
     private imagesService: ImagesService,
+    private roomsService: RoomsService,
+    private activityPropertyService: ActivityPropertyService,
   ) {}
 
   async createProperty(data: CreatePropertyDto) {
@@ -103,6 +107,70 @@ export class PropertiesService {
 
     await this.cacheService.set(cacheKey, propertyWithImages, 3600);
     return propertyWithImages;
+  }
+
+  async getPropertyWithDetails(id: string, includeRooms = true, includeActivities = true) {
+    const cacheKey = `property:${id}:details:${includeRooms}:${includeActivities}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    const property = await this.getPropertyById(id);
+
+    const [rooms, activities] = await Promise.all([
+      includeRooms ? this.getPropertyRooms(id) : Promise.resolve([]),
+      includeActivities ? this.getPropertyActivities(id) : Promise.resolve([]),
+    ]);
+
+    const result = {
+      ...property,
+      rooms: includeRooms ? rooms : undefined,
+      activities: includeActivities ? activities : undefined,
+    };
+
+    await this.cacheService.set(cacheKey, result, 1800);
+    return result;
+  }
+
+  async getPropertyBySlug(slug: string) {
+    const allProperties = await this.getProperties({ page: 1, limit: 1000 });
+    const foundProperty = allProperties.data.find(
+      (p) =>
+        p.id === slug || p.name.toLowerCase().replace(/\s+/g, '-') === slug,
+    );
+
+    if (!foundProperty) {
+      throw new NotFoundException('Property', slug);
+    }
+
+    return this.getPropertyWithDetails(foundProperty.id, true, true);
+  }
+
+  async getPropertyRooms(propertyId: string) {
+    const response = await this.roomsService.getRoomsByProperty(propertyId, {
+      page: 1,
+      limit: 100,
+    });
+    return response.data;
+  }
+
+  async getPropertyActivities(propertyId: string) {
+    const activityProperties = await this.activityPropertyService.getActivityPropertiesByProperty(propertyId);
+    
+    if (activityProperties.length === 0) {
+      return [];
+    }
+
+    const activityIds = activityProperties.map(ap => ap.activityId);
+    const activities = await this.db
+      .select()
+      .from(schema.activities)
+      .where(inArray(schema.activities.id, activityIds));
+
+    return activities.map((activity) => ({
+      id: activity.id,
+      name: activity.name || '',
+      description: activity.description || '',
+    }));
   }
 
   async editProperty(id: string, data: EditPropertyDto) {

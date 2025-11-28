@@ -20,7 +20,6 @@ export class RoomPricesService {
       .values({ ...data })
       .returning();
 
-    // Get room to check if it has Stripe product
     const [room] = await this.db
       .select()
       .from(schema.rooms)
@@ -39,7 +38,6 @@ export class RoomPricesService {
           },
         );
 
-        // Update room with Stripe price ID if it's the first price
         if (!room.stripePriceId) {
           await this.db
             .update(schema.rooms)
@@ -94,7 +92,6 @@ export class RoomPricesService {
       .where(eq(schema.roomPrices.id, id))
       .returning();
 
-    // If price changed, update Stripe price (create new one, archive old)
     if (data.price && data.price !== roomPrice.price) {
       const [room] = await this.db
         .select()
@@ -103,7 +100,6 @@ export class RoomPricesService {
 
       if (room && room.stripeProductId) {
         try {
-          // Note: Stripe prices are immutable, so we create a new one
           const priceInCents = Math.round(parseFloat(data.price) * 100);
           const stripePrice = await this.stripeService.createPrice(
             room.stripeProductId,
@@ -115,7 +111,6 @@ export class RoomPricesService {
             },
           );
 
-          // Update room with new Stripe price ID if this was the default price
           if (room.stripePriceId) {
             await this.db
               .update(schema.rooms)
@@ -141,9 +136,6 @@ export class RoomPricesService {
       throw new NotFoundException('Room price', id);
     }
 
-    // Note: Stripe prices are immutable and cannot be deleted
-    // They can only be archived by archiving the product
-    // We just delete from our database
 
     return await this.db
       .delete(schema.roomPrices)

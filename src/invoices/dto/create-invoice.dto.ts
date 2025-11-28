@@ -122,7 +122,6 @@ export class CreateInvoiceDto {
   @IsString()
   notes?: string;
 
-  // providerId removed - using Stripe only
 
   @ApiProperty({
     description: 'Invoice status ID',

@@ -53,7 +53,6 @@ export class StripeController {
       throw error;
     }
 
-    // Handle the event
     switch (event.type) {
       case 'payment_intent.succeeded':
         await this.webhookService.handlePaymentIntentSucceeded(

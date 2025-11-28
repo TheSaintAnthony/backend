@@ -190,10 +190,18 @@ export class UsersService {
         deletedAt: schema.users.deletedAt,
         roleId: schema.roles.id,
         roleName: schema.roles.name,
+        addressStreet: schema.addresses.street,
+        addressCity: schema.addresses.city,
+        addressZipCode: schema.addresses.zipCode,
+        addressCountry: schema.addresses.country,
       })
       .from(schema.users)
       .leftJoin(schema.userRoles, eq(schema.userRoles.userId, schema.users.id))
       .leftJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
+      .leftJoin(
+        schema.addresses,
+        eq(schema.users.addressId, schema.addresses.id),
+      )
       .where(eq(schema.users.id, id));
 
     if (!userRows || userRows.length === 0) {
@@ -208,6 +216,16 @@ export class UsersService {
         name: row.roleName,
       }));
 
+    const address =
+      user.addressId && user.addressStreet
+        ? {
+            street: user.addressStreet,
+            city: user.addressCity,
+            zipCode: user.addressZipCode,
+            country: user.addressCountry,
+          }
+        : undefined;
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -215,6 +233,7 @@ export class UsersService {
       email: user.email,
       phone: user.phone,
       addressId: user.addressId,
+      address,
       nif: user.nif,
       companyName: user.companyName,
       stripeCustomerId: user.stripeCustomerId,

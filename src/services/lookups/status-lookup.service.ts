@@ -80,7 +80,6 @@ export class StatusLookupService implements OnModuleInit {
   async getPaymentStatusId(name: string): Promise<string> {
     const id = this.paymentStatusCache.get(name);
     if (!id) {
-      // Reload cache in case status was added
       await this.loadStatuses();
       const retryId = this.paymentStatusCache.get(name);
       if (!retryId) {

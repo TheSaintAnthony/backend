@@ -124,53 +124,10 @@ export class InvoicesService {
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
 
-    // TODO: Implement Stripe invoice sync when StripeService is ready
     throw new Error('Stripe invoice sync not yet implemented');
 
-    // const strategy = await this.invoiceStrategyFactory.getStrategy(
-    //   invoice.providerId,
-    // );
-    // const invoiceData: InvoiceCreationData = {
-    //   customerName: invoice.customerName,
-    //   customerNif: invoice.customerTaxId || undefined,
-    //   customerEmail: invoice.customerEmail,
-    //   customerPhone: invoice.customerPhone || undefined,
-    //   customerAddress: invoice.customerAddress || undefined,
-    //   invoiceDate: invoice.issuedAt || invoice.createdAt,
-    //   dueDate: invoice.dueDate || undefined,
-    //   invoiceTypeId: invoice.invoiceTypeId,
-    //   currency: invoice.currency,
-    //   notes: invoice.notes || undefined,
-    //   lineItems: lineItems.map((item) => ({
-    //     description: item.description,
-    //     productCode: item.productCode || undefined,
-    //     quantity: item.quantity,
-    //     unitPrice: item.unitPrice,
-    //     discount: item.discount || undefined,
-    //     itemType: item.itemType || undefined,
-    //     startDate: item.startDate || undefined,
-    //     endDate: item.endDate || undefined,
-    //   })),
-    //   internalReferenceId: invoice.reservationId.toString(),
-    //   internalInvoiceNumber: invoice.invoiceNumber || undefined,
-    // };
 
-    // const result = await strategy.createInvoice(invoiceData);
-    // if (result.success) {
-    //   await this.editInvoice(invoiceId, {
-    //     externalInvoiceId: result.externalInvoiceId,
-    //     externalInvoiceNumber: result.externalInvoiceNumber,
-    //     externalInvoiceUrl: result.invoiceUrl,
-    //     syncedAt: new Date().toISOString(),
-    //     syncError: undefined,
-    //   });
-    // } else {
-    //   await this.editInvoice(invoiceId, {
-    //     syncError: result.errorMessage || 'Unknown sync error',
-    //   });
-    // }
 
-    // return result;
   }
 
   async getExternalInvoiceStatus(invoiceId: string) {
@@ -180,13 +137,8 @@ export class InvoicesService {
       throw new Error('Invoice is not synced to any external provider');
     }
 
-    // TODO: Implement Stripe invoice status check when StripeService is ready
     throw new Error('Stripe invoice status check not yet implemented');
 
-    // const strategy = await this.invoiceStrategyFactory.getStrategy(
-    //   invoice.providerId,
-    // );
-    // return await strategy.getInvoiceStatus(invoice.externalInvoiceId);
   }
 
   async cancelExternalInvoice(invoiceId: string) {
@@ -196,28 +148,11 @@ export class InvoicesService {
       throw new Error('Invoice is not synced to any external provider');
     }
 
-    // TODO: Implement Stripe invoice cancellation when StripeService is ready
     throw new Error('Stripe invoice cancellation not yet implemented');
 
-    // const strategy = await this.invoiceStrategyFactory.getStrategy(
-    //   invoice.providerId,
-    // );
-    // const result = await strategy.cancelInvoice(invoice.externalInvoiceId);
 
-    // if (result.success) {
-    //   const [cancelledStatus] = await this.db
-    //     .select()
-    //     .from(schema.invoiceStatus)
-    //     .where(eq(schema.invoiceStatus.name, 'cancelled'));
 
-    //   if (cancelledStatus) {
-    //     await this.editInvoice(invoiceId, {
-    //       statusId: cancelledStatus.id,
-    //     });
-    //   }
-    // }
 
-    //    return result;
   }
 
   async getInvoices(pagination?: PaginationDto) {
