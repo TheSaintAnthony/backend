@@ -45,6 +45,17 @@ export class BookingRoomDto {
   @IsInt()
   @Min(1)
   guestsCount: string;
+
+  @ApiPropertyOptional({
+    description: 'Number of rooms to book (quantity)',
+    example: 1,
+    minimum: 1,
+    default: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  quantity?: number;
 }
 
 export class CreateBookingDto {

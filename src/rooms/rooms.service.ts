@@ -41,7 +41,7 @@ export class RoomsService {
 
     const [createdRoom] = await this.db
       .insert(schema.rooms)
-      .values({ ...roomData })
+      .values({ ...roomData, quantity: roomData.quantity ?? 1 })
       .returning();
 
     if (images && images.length > 0) {
@@ -141,6 +141,7 @@ export class RoomsService {
         description: schema.rooms.description,
         bedCount: schema.rooms.bedCount,
         bathroomCount: schema.rooms.bathroomCount,
+        quantity: schema.rooms.quantity,
         available: schema.rooms.available,
         roomType: schema.roomTypes.name,
         maxCapacity: schema.roomTypes.maxCapacity,
@@ -192,6 +193,7 @@ export class RoomsService {
           description: row.description,
           bedCount: row.bedCount,
           bathroomCount: row.bathroomCount,
+          quantity: row.quantity,
           available: row.available,
           roomType: row.roomType,
           maxCapacity: row.maxCapacity,
@@ -253,6 +255,7 @@ export class RoomsService {
         description: schema.rooms.description,
         bedCount: schema.rooms.bedCount,
         bathroomCount: schema.rooms.bathroomCount,
+        quantity: schema.rooms.quantity,
         available: schema.rooms.available,
         stripeProductId: schema.rooms.stripeProductId,
         stripePriceId: schema.rooms.stripePriceId,
@@ -298,6 +301,7 @@ export class RoomsService {
       description: roomsData[0].description,
       bedCount: roomsData[0].bedCount,
       bathroomCount: roomsData[0].bathroomCount,
+      quantity: roomsData[0].quantity,
       available: roomsData[0].available,
       roomType: roomsData[0].roomType,
       maxCapacity: roomsData[0].maxCapacity,
@@ -331,6 +335,7 @@ export class RoomsService {
       description: room.description,
       bedCount: room.bedCount,
       bathroomCount: room.bathroomCount,
+      quantity: room.quantity,
       available: room.available,
       roomType: room.roomType,
       maxCapacity: room.maxCapacity,
@@ -406,6 +411,7 @@ export class RoomsService {
         description: schema.rooms.description,
         bedCount: schema.rooms.bedCount,
         bathroomCount: schema.rooms.bathroomCount,
+        quantity: schema.rooms.quantity,
         available: schema.rooms.available,
         roomType: schema.roomTypes.name,
         maxCapacity: schema.roomTypes.maxCapacity,
@@ -456,6 +462,7 @@ export class RoomsService {
           description: row.description,
           bedCount: row.bedCount,
           bathroomCount: row.bathroomCount,
+          quantity: row.quantity,
           available: row.available,
           roomType: row.roomType,
           maxCapacity: row.maxCapacity,
@@ -678,7 +685,7 @@ export class RoomsService {
     let allAvailable = true;
 
     for (const roomRequest of rooms) {
-      const { roomId, checkIn, checkOut, guestsCount = 1 } = roomRequest;
+      const { roomId, checkIn, checkOut, guestsCount = 1, quantity = 1 } = roomRequest;
 
       const room = await this.getRoomById(roomId);
       if (!room) {
@@ -689,6 +696,8 @@ export class RoomsService {
         roomId,
         checkIn,
         checkOut,
+        undefined,
+        quantity,
       );
 
       if (!isAvailable) {
@@ -708,14 +717,15 @@ export class RoomsService {
 
       if (isAvailable) {
         try {
-          roomPrice = await this.calculateTotalPrice(roomId, checkIn, checkOut);
-          avgPricePerNight = roomPrice / nights;
+          const singleRoomPrice = await this.calculateTotalPrice(roomId, checkIn, checkOut);
+          roomPrice = singleRoomPrice * quantity;
+          avgPricePerNight = singleRoomPrice / nights;
           totalBasePrice += roomPrice;
 
           if (room.propertyId) {
             const property = await this.propertiesService.getPropertyById(room.propertyId);
             const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
-            tourismFee = tourismFeePerPersonPerNight * guestsCount * nights;
+            tourismFee = tourismFeePerPersonPerNight * guestsCount * nights * quantity;
             totalTourismFee += tourismFee;
           }
         } catch (error: unknown) {
@@ -770,13 +780,38 @@ export class RoomsService {
     checkIn: string,
     checkOut: string,
     excludeUserId?: string,
+    requestedQuantity: number = 1,
   ): Promise<boolean> {
+    // Get room quantity
+    const [room] = await this.db
+      .select({ quantity: schema.rooms.quantity })
+      .from(schema.rooms)
+      .where(eq(schema.rooms.id, roomId));
+
+    if (!room) {
+      return false;
+    }
+
+    const totalQuantity = room.quantity || 1;
+
+    // Count overlapping reservations (excluding cancelled and soft-deleted ones)
+    // We join with reservations to exclude cancelled status
     const overlappingReservations = await this.db
-      .select()
+      .select({ count: count() })
       .from(schema.reservationRooms)
+      .innerJoin(
+        schema.reservations,
+        eq(schema.reservationRooms.reservationId, schema.reservations.id),
+      )
+      .innerJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
       .where(
         and(
           eq(schema.reservationRooms.roomId, roomId),
+          isNull(schema.reservationRooms.deletedAt),
+          ne(schema.reservationStatus.name, 'Cancelled'),
           or(
             and(
               lte(schema.reservationRooms.checkIn, checkIn),
@@ -794,7 +829,10 @@ export class RoomsService {
         ),
       );
 
-    if (overlappingReservations.length > 0) {
+    const bookedCount = Number(overlappingReservations[0]?.count || 0);
+    const availableCount = totalQuantity - bookedCount;
+
+    if (availableCount < requestedQuantity) {
       return false;
     }
 

@@ -20,6 +20,7 @@ export const rooms = pgTable('rooms', {
   description: text('description'),
   bedCount: integer('bed_count'),
   bathroomCount: integer('bathroom_count'),
+  quantity: integer('quantity').default(1).notNull(),
   available: boolean('available').default(true).notNull(),
   stripeProductId: varchar('stripe_product_id', { length: 255 }),
   stripePriceId: varchar('stripe_price_id', { length: 255 }),

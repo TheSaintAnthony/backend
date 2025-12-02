@@ -109,6 +109,7 @@ export class ReservationsService implements OnModuleInit {
     const roomRecords = await tx
       .select({
         id: schema.rooms.id,
+        quantity: schema.rooms.quantity,
         maxCapacity: schema.roomTypes.maxCapacity,
       })
       .from(schema.rooms)
@@ -130,7 +131,7 @@ export class ReservationsService implements OnModuleInit {
     expiresAt.setMinutes(expiresAt.getMinutes() + this.HOLD_DURATION_MINUTES);
 
     for (const roomBooking of rooms) {
-      const { roomId, checkIn, checkOut, guestsCount } = roomBooking;
+      const { roomId, checkIn, checkOut, guestsCount, quantity = 1 } = roomBooking;
 
       const room = roomsMap.get(roomId);
       if (!room) {
@@ -140,6 +141,21 @@ export class ReservationsService implements OnModuleInit {
       if (room.maxCapacity && Number(guestsCount) > room.maxCapacity) {
         throw new BadRequestException(
           `Room ${roomId}: Guest count exceeds capacity`,
+        );
+      }
+
+      // Check availability for the requested quantity
+      const isAvailable = await this.roomsService.checkRoomAvailability(
+        roomId,
+        checkIn,
+        checkOut,
+        userId,
+        quantity,
+      );
+
+      if (!isAvailable) {
+        throw new BadRequestException(
+          `Room ${roomId}: Not enough rooms available. Requested: ${quantity}`,
         );
       }
 
@@ -179,8 +195,9 @@ export class ReservationsService implements OnModuleInit {
           .where(inArray(schema.reservations.id, pendingReservationIds));
       }
 
-      const overlappingReservations = await tx
-        .select()
+      // Count overlapping reservations to check if enough rooms are available
+      const [overlappingCount] = await tx
+        .select({ count: count() })
         .from(schema.reservationRooms)
         .innerJoin(
           schema.reservations,
@@ -199,9 +216,13 @@ export class ReservationsService implements OnModuleInit {
           ),
         );
 
-      if (overlappingReservations.length > 0) {
+      const roomQuantity = room.quantity || 1;
+      const bookedCount = Number(overlappingCount?.count || 0);
+      const availableCount = roomQuantity - bookedCount;
+
+      if (availableCount < quantity) {
         throw new BadRequestException(
-          `Room ${roomId} is not available for selected dates`,
+          `Room ${roomId} is not available for selected dates. Available: ${availableCount}, Requested: ${quantity}`,
         );
       }
 
@@ -224,26 +245,31 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      const roomPrice = await this.roomsService.calculateTotalPrice(
+      const singleRoomPrice = await this.roomsService.calculateTotalPrice(
         roomId,
         checkIn,
         checkOut,
       );
+      const roomPrice = singleRoomPrice * quantity;
       totalPrice += roomPrice;
 
-      await tx.insert(schema.roomHolds).values({
-        userId,
-        roomId,
-        checkIn,
-        checkOut,
-        expiresAt,
-      });
+      // Create room holds for each room (quantity)
+      for (let i = 0; i < quantity; i++) {
+        await tx.insert(schema.roomHolds).values({
+          userId,
+          roomId,
+          checkIn,
+          checkOut,
+          expiresAt,
+        });
+      }
 
       validatedRooms.push({
         roomId,
         checkIn,
         checkOut,
         guestsCount,
+        quantity,
         price: String(roomPrice),
       });
     }
@@ -293,20 +319,24 @@ export class ReservationsService implements OnModuleInit {
       })
       .returning();
 
-    const roomsWithAccessCodes = await Promise.all(
-      validatedRooms.map(async (room) => ({
-        reservationId: reservation.id,
-        roomId: room.roomId,
-        checkIn: room.checkIn,
-        checkOut: room.checkOut,
-        guestsCount: parseInt(room.guestsCount),
-        accessCode: await this.generateUniqueAccessCode(
-          room.checkIn,
-          room.checkOut,
-        ),
-        deletedAt: null,
-      })),
-    );
+    const roomsWithAccessCodes = [];
+    for (const room of validatedRooms) {
+      const quantity = room.quantity || 1;
+      for (let i = 0; i < quantity; i++) {
+        roomsWithAccessCodes.push({
+          reservationId: reservation.id,
+          roomId: room.roomId,
+          checkIn: room.checkIn,
+          checkOut: room.checkOut,
+          guestsCount: parseInt(room.guestsCount),
+          accessCode: await this.generateUniqueAccessCode(
+            room.checkIn,
+            room.checkOut,
+          ),
+          deletedAt: null,
+        });
+      }
+    }
 
     await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
 

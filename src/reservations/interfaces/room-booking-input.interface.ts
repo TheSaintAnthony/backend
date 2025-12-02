@@ -3,4 +3,5 @@ export interface RoomBookingInput {
   checkIn: string;
   checkOut: string;
   guestsCount: string;
+  quantity?: number;
 }

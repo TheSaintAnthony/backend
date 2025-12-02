@@ -66,6 +66,17 @@ export class CreateRoomDto {
   bathroomCount?: number;
 
   @ApiPropertyOptional({
+    description: 'Number of identical rooms available (quantity)',
+    example: 1,
+    minimum: 1,
+    default: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional({
     description: 'Whether the room is available for booking',
     example: true,
     default: true,

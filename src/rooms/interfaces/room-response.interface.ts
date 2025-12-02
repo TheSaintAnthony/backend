@@ -7,6 +7,7 @@ export interface RoomResponse {
   description: string | null;
   bedCount: number | null;
   bathroomCount: number | null;
+  quantity: number | null;
   available: boolean | null;
   roomType: string | null;
   maxCapacity: number | null;
