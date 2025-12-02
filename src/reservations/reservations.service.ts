@@ -159,10 +159,10 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      const cancelledStatusId = this.statusLookupService.getReservationStatusId(
+      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.CANCELLED,
       );
-      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.PENDING,
       );
 
@@ -908,7 +908,7 @@ export class ReservationsService implements OnModuleInit {
       const reservation = await this.createReservationWithRooms(
         tx,
         userId,
-        this.statusLookupService.getReservationStatusId(
+        await this.statusLookupService.getReservationStatusId(
           RESERVATION_STATUS_NAMES.PENDING,
         ),
         this.pendingPaymentStatusId,
@@ -1151,7 +1151,7 @@ export class ReservationsService implements OnModuleInit {
       await tx
         .update(schema.reservations)
         .set({
-          statusId: this.statusLookupService.getReservationStatusId(
+          statusId: await this.statusLookupService.getReservationStatusId(
             RESERVATION_STATUS_NAMES.CONFIRMED,
           ),
           paymentStatusId: this.completedPaymentStatusId,
@@ -1187,7 +1187,7 @@ export class ReservationsService implements OnModuleInit {
         success: true,
         reservation: {
           ...reservation,
-          statusId: this.statusLookupService.getReservationStatusId(
+          statusId: await this.statusLookupService.getReservationStatusId(
             RESERVATION_STATUS_NAMES.CONFIRMED,
           ),
           paymentStatusId: this.completedPaymentStatusId,
@@ -1214,7 +1214,7 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.PENDING,
       );
 
@@ -1224,7 +1224,7 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      const cancelledStatusId = this.statusLookupService.getReservationStatusId(
+      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.CANCELLED,
       );
 
@@ -1283,7 +1283,7 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      const pendingStatusId = this.statusLookupService.getReservationStatusId(
+      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.PENDING,
       );
 
@@ -1366,7 +1366,7 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async getPendingReservations(userId: string) {
-    const pendingStatusId = this.statusLookupService.getReservationStatusId(
+    const pendingStatusId = await this.statusLookupService.getReservationStatusId(
       RESERVATION_STATUS_NAMES.PENDING,
     );
 
@@ -1396,7 +1396,7 @@ export class ReservationsService implements OnModuleInit {
     
     if (statusFilter) {
       try {
-        const statusId = this.statusLookupService.getReservationStatusId(statusFilter);
+        const statusId = await this.statusLookupService.getReservationStatusId(statusFilter);
         if (statusId) {
           whereConditions.push(eq(schema.reservations.statusId, statusId));
         }
@@ -1556,7 +1556,7 @@ export class ReservationsService implements OnModuleInit {
       throw new NotFoundException('Reservation', reservationId);
     }
 
-    const statusId = this.statusLookupService.getReservationStatusId(statusName);
+    const statusId = await this.statusLookupService.getReservationStatusId(statusName);
     if (!statusId) {
       throw new BadRequestException(`Invalid status: ${statusName}`);
     }
@@ -1587,7 +1587,7 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', reservationId);
       }
 
-      const cancelledStatusId = this.statusLookupService.getReservationStatusId(
+      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
         RESERVATION_STATUS_NAMES.CANCELLED,
       );
 
@@ -1778,7 +1778,7 @@ export class ReservationsService implements OnModuleInit {
       );
     }
 
-    const checkedInStatusId = this.statusLookupService.getReservationStatusId(
+    const checkedInStatusId = await this.statusLookupService.getReservationStatusId(
       RESERVATION_STATUS_NAMES.CHECKED_IN,
     );
 

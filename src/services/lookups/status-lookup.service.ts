@@ -51,10 +51,15 @@ export class StatusLookupService implements OnModuleInit {
     }
   }
 
-  getReservationStatusId(name: string): string {
+  async getReservationStatusId(name: string): Promise<string> {
     const id = this.reservationStatusCache.get(name);
     if (!id) {
-      throw new Error(`Reservation status '${name}' not found`);
+      await this.loadStatuses();
+      const retryId = this.reservationStatusCache.get(name);
+      if (!retryId) {
+        throw new Error(`Reservation status '${name}' not found`);
+      }
+      return retryId;
     }
     return id;
   }

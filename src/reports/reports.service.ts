@@ -287,7 +287,7 @@ export class ReportsService {
     const bookedNights = await this.db
       .select({
         roomId: schema.reservationRooms.roomId,
-        totalNights: sql<number>`SUM(EXTRACT(DAY FROM (${schema.reservationRooms.checkOut}::date - ${schema.reservationRooms.checkIn}::date)))`,
+        totalNights: sql<number>`COALESCE(SUM((${schema.reservationRooms.checkOut} - ${schema.reservationRooms.checkIn})), 0)`,
       })
       .from(schema.reservationRooms)
       .innerJoin(
@@ -422,7 +422,7 @@ export class ReportsService {
 
     const avgLengthOfStay = await this.db
       .select({
-        averageNights: sql<number>`AVG(EXTRACT(DAY FROM (${schema.reservationRooms.checkOut}::date - ${schema.reservationRooms.checkIn}::date)))`,
+        averageNights: sql<number>`COALESCE(AVG((${schema.reservationRooms.checkOut} - ${schema.reservationRooms.checkIn})), 0)`,
       })
       .from(schema.reservationRooms)
       .innerJoin(

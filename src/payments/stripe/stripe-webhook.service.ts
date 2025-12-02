@@ -122,12 +122,13 @@ export class StripeWebhookService {
           .limit(1);
 
         if (reservation) {
+          const confirmedStatusId = await this.statusLookupService.getReservationStatusId(
+            RESERVATION_STATUS_NAMES.CONFIRMED,
+          );
           await tx
             .update(schema.reservations)
             .set({
-              statusId: this.statusLookupService.getReservationStatusId(
-                RESERVATION_STATUS_NAMES.CONFIRMED,
-              ),
+              statusId: confirmedStatusId,
               paymentStatusId: completedPaymentStatusId,
             })
             .where(eq(schema.reservations.id, reservation.id));
