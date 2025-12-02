@@ -714,13 +714,16 @@ export class RoomsService {
       let roomPrice = 0;
       let avgPricePerNight = 0;
       let tourismFee = 0;
+      let nightlyBreakdown: { price: string; nights: number }[] = [];
 
       if (isAvailable) {
         try {
-          const singleRoomPrice = await this.calculateTotalPrice(roomId, checkIn, checkOut);
+          const { totalPrice, breakdown } = await this.calculateTotalPriceWithBreakdown(roomId, checkIn, checkOut);
+          const singleRoomPrice = totalPrice;
           roomPrice = singleRoomPrice * quantity;
           avgPricePerNight = singleRoomPrice / nights;
           totalBasePrice += roomPrice;
+          nightlyBreakdown = breakdown;
 
           if (room.propertyId) {
             const property = await this.propertiesService.getPropertyById(room.propertyId);
@@ -750,6 +753,7 @@ export class RoomsService {
         nights: String(nights),
         avgPricePerNight: avgPricePerNight.toFixed(2),
         roomTotal: roomPrice.toFixed(2),
+        nightlyBreakdown: nightlyBreakdown.length > 0 ? nightlyBreakdown : undefined,
         available: isAvailable,
       });
     }
@@ -846,11 +850,11 @@ export class RoomsService {
     return !hasConflictingHolds;
   }
 
-  async calculateTotalPrice(
+  async calculateTotalPriceWithBreakdown(
     roomId: string,
     checkInStr: string,
     checkOutStr: string,
-  ): Promise<number> {
+  ): Promise<{ totalPrice: number; breakdown: { price: string; nights: number }[] }> {
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
 
@@ -870,26 +874,100 @@ export class RoomsService {
 
     let totalPrice = 0;
     const currentDate = new Date(checkIn);
+    const nightlyPrices: { date: Date; price: number }[] = [];
 
     for (let i = 0; i < nights; i++) {
-      const applicablePrice = roomPrices.find((price) => {
+      // Find all prices that match the current date
+      // Note: endDate is exclusive - a price ending on March 3 should NOT apply to the night starting March 3
+      const applicablePrices = roomPrices.filter((price) => {
         const priceStart = new Date(price.startDate);
         const priceEnd = new Date(price.endDate);
-        return currentDate >= priceStart && currentDate <= priceEnd;
+        // Get date strings in YYYY-MM-DD format for comparison (timezone-independent)
+        const currentDateStr = currentDate.toISOString().split('T')[0];
+        const priceStartStr = priceStart.toISOString().split('T')[0];
+        const priceEndStr = priceEnd.toISOString().split('T')[0];
+        // Compare as strings: startDate is inclusive, endDate is exclusive
+        return currentDateStr >= priceStartStr && currentDateStr < priceEndStr;
       });
 
-      if (!applicablePrice) {
+      if (applicablePrices.length === 0) {
         const dateStr = currentDate.toISOString().split('T')[0];
         throw new BadRequestException(
           `No pricing available for date: ${dateStr}`,
         );
       }
 
-      totalPrice += parseFloat(applicablePrice.price);
+      // Sort by specificity (shorter date ranges first) and then by creation date (newer first)
+      applicablePrices.sort((a, b) => {
+        const aStart = new Date(a.startDate);
+        const aEnd = new Date(a.endDate);
+        const bStart = new Date(b.startDate);
+        const bEnd = new Date(b.endDate);
+        
+        const aRangeLength = aEnd.getTime() - aStart.getTime();
+        const bRangeLength = bEnd.getTime() - bStart.getTime();
+        
+        if (aRangeLength !== bRangeLength) {
+          return aRangeLength - bRangeLength;
+        }
+        
+        const aCreated = new Date(a.createdAt);
+        const bCreated = new Date(b.createdAt);
+        return bCreated.getTime() - aCreated.getTime();
+      });
+
+      const applicablePrice = applicablePrices[0];
+      // Normalize price to 2 decimal places to ensure consistency
+      const price = Math.round(parseFloat(applicablePrice.price) * 100) / 100;
+      totalPrice += price;
+      nightlyPrices.push({ date: new Date(currentDate), price });
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    // Group all nights with the same price together (not just consecutive)
+    const breakdown: { price: string; nights: number }[] = [];
+    if (nightlyPrices.length > 0) {
+      // Normalize all prices to 2 decimal places first
+      const normalizedPrices = nightlyPrices.map(item => 
+        Math.round(item.price * 100) / 100
+      );
+      
+      // Convert prices to cents (integers) for exact comparison
+      const priceToCents = (price: number) => Math.round(price * 100);
+      
+      // Count occurrences of each price using cents as key
+      const priceCountMap = new Map<number, { price: number; count: number }>();
+      
+      for (const price of normalizedPrices) {
+        const priceCents = priceToCents(price);
+        const existing = priceCountMap.get(priceCents);
+        if (existing) {
+          existing.count++;
+        } else {
+          priceCountMap.set(priceCents, { price, count: 1 });
+        }
+      }
+      
+      // Convert map to array and sort by price (ascending) for consistent ordering
+      breakdown.push(...Array.from(priceCountMap.values())
+        .sort((a, b) => a.price - b.price)
+        .map(item => ({
+          price: item.price.toFixed(2),
+          nights: item.count,
+        }))
+      );
+    }
+
+    return { totalPrice, breakdown };
+  }
+
+  async calculateTotalPrice(
+    roomId: string,
+    checkInStr: string,
+    checkOutStr: string,
+  ): Promise<number> {
+    const { totalPrice } = await this.calculateTotalPriceWithBreakdown(roomId, checkInStr, checkOutStr);
     return totalPrice;
   }
 }
