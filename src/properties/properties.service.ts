@@ -4,7 +4,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreatePropertyDto } from './dto/create-property.dto';
-import { eq, count, inArray } from 'drizzle-orm';
+import { eq, count, inArray, sql, or } from 'drizzle-orm';
 import { EditPropertyDto } from './dto/edit-property.dto';
 import {
   PaginationDto,
@@ -58,7 +58,7 @@ export class PropertiesService {
 
   async getProperties(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -74,15 +74,28 @@ export class PropertiesService {
       },
     });
 
-    const propertiesWithImages = await Promise.all(
-      data.map(async (property) => {
-        const images = await this.imagesService.getImagesByEntity(
+    // Batch fetch all images for all properties in a single query
+    const propertyIds = data.map((property) => property.id);
+    const allImages = propertyIds.length > 0
+      ? await this.imagesService.getImagesByMultipleEntities(
           'property',
-          property.id,
-        );
-        return { ...property, images };
-      }),
-    );
+          propertyIds,
+        )
+      : [];
+
+    // Group images by property ID
+    const imagesByPropertyId = new Map<string, typeof allImages>();
+    for (const image of allImages) {
+      const existing = imagesByPropertyId.get(image.entityId) || [];
+      existing.push(image);
+      imagesByPropertyId.set(image.entityId, existing);
+    }
+
+    // Map properties with their images
+    const propertiesWithImages = data.map((property) => ({
+      ...property,
+      images: imagesByPropertyId.get(property.id) || [],
+    }));
 
     return createPaginatedResponse(propertiesWithImages, total, page, limit);
   }
@@ -110,7 +123,11 @@ export class PropertiesService {
     return propertyWithImages;
   }
 
-  async getPropertyWithDetails(id: string, includeRooms = true, includeActivities = true) {
+  async getPropertyWithDetails(
+    id: string,
+    includeRooms = true,
+    includeActivities = true,
+  ) {
     const cacheKey = `property:${id}:details:${includeRooms}:${includeActivities}`;
     const cached = await this.cacheService.get(cacheKey);
     if (cached) return cached;
@@ -133,17 +150,40 @@ export class PropertiesService {
   }
 
   async getPropertyBySlug(slug: string) {
-    const allProperties = await this.getProperties({ page: 1, limit: 1000 });
-    const foundProperty = allProperties.data.find(
-      (p) =>
-        p.id === slug || p.name.toLowerCase().replace(/\s+/g, '-') === slug,
-    );
+    // First try to find by ID (in case slug is actually an ID)
+    let property = await this.db.query.properties.findFirst({
+      where: eq(schema.properties.id, slug),
+      with: {
+        address: true,
+      },
+    });
 
-    if (!foundProperty) {
+    // If not found by ID, search by name (slug is generated from name)
+    if (!property) {
+      // Query using SQL to match slug pattern: lowercase name with spaces replaced by hyphens
+      const properties = await this.db
+        .select()
+        .from(schema.properties)
+        .where(
+          sql`LOWER(REPLACE(${schema.properties.name}, ' ', '-')) = ${slug.toLowerCase()}`,
+        )
+        .limit(1);
+
+      if (properties.length > 0) {
+        property = await this.db.query.properties.findFirst({
+          where: eq(schema.properties.id, properties[0].id),
+          with: {
+            address: true,
+          },
+        });
+      }
+    }
+
+    if (!property) {
       throw new NotFoundException('Property', slug);
     }
 
-    return this.getPropertyWithDetails(foundProperty.id, true, true);
+    return this.getPropertyWithDetails(property.id, true, true);
   }
 
   async getPropertyRooms(propertyId: string) {
@@ -155,13 +195,16 @@ export class PropertiesService {
   }
 
   async getPropertyActivities(propertyId: string) {
-    const activityProperties = await this.activityPropertyService.getActivityPropertiesByProperty(propertyId);
-    
+    const activityProperties =
+      await this.activityPropertyService.getActivityPropertiesByProperty(
+        propertyId,
+      );
+
     if (activityProperties.length === 0) {
       return [];
     }
 
-    const activityIds = activityProperties.map(ap => ap.activityId);
+    const activityIds = activityProperties.map((ap) => ap.activityId);
     const activities = await this.db
       .select()
       .from(schema.activities)

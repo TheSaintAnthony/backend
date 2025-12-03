@@ -13,14 +13,14 @@ export class UserRolesService {
   ) {}
 
   async createUserRole(data: CreateUserRoleDto) {
-    return await this.db
+    return this.db
       .insert(schema.userRoles)
       .values({ ...data })
       .returning();
   }
 
   async getUserRoles() {
-    return await this.db.select().from(schema.userRoles);
+    return this.db.select().from(schema.userRoles);
   }
 
   async getUserRoleById(id: string) {
@@ -37,7 +37,7 @@ export class UserRolesService {
   }
 
   async getUserRolesByUser(userId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.userRoles)
       .where(eq(schema.userRoles.userId, userId));
@@ -53,7 +53,7 @@ export class UserRolesService {
       throw new NotFoundException('User role', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.userRoles)
       .where(eq(schema.userRoles.id, id))
       .returning();
@@ -74,7 +74,7 @@ export class UserRolesService {
       throw new NotFoundException('User role', `${userId}-${roleId}`);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.userRoles)
       .where(eq(schema.userRoles.id, userRole.id))
       .returning();

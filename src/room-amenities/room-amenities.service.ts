@@ -13,14 +13,14 @@ export class RoomAmenitiesService {
   ) {}
 
   async createRoomAmenity(data: CreateRoomAmenityDto) {
-    return await this.db
+    return this.db
       .insert(schema.roomAmenities)
       .values({ ...data })
       .returning();
   }
 
   async getRoomAmenities() {
-    return await this.db.select().from(schema.roomAmenities);
+    return this.db.select().from(schema.roomAmenities);
   }
 
   async getRoomAmenityById(id: string) {
@@ -37,7 +37,7 @@ export class RoomAmenitiesService {
   }
 
   async getRoomAmenitiesByRoom(roomId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.roomId, roomId));
@@ -53,7 +53,7 @@ export class RoomAmenitiesService {
       throw new NotFoundException('Room amenity', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id))
       .returning();
@@ -74,7 +74,7 @@ export class RoomAmenitiesService {
       throw new NotFoundException('Room amenity', `${roomId}-${amenityId}`);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, roomAmenity.id))
       .returning();

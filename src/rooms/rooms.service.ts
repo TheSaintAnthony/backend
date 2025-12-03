@@ -112,7 +112,7 @@ export class RoomsService {
 
   async getRooms(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -121,16 +121,18 @@ export class RoomsService {
       .where(isNull(schema.rooms.deletedAt));
     const total = totalResult.count;
 
-    const roomIds = await this.db
+    const roomIdRows = await this.db
       .select({ id: schema.rooms.id })
       .from(schema.rooms)
       .where(isNull(schema.rooms.deletedAt))
       .limit(limit)
       .offset(offset);
 
-    if (roomIds.length === 0) {
+    if (roomIdRows.length === 0) {
       return createPaginatedResponse([], total, page, limit);
     }
+
+    const roomIds = roomIdRows.map((r) => r.id);
 
     const roomsData = await this.db
       .select({
@@ -173,10 +175,7 @@ export class RoomsService {
       )
       .where(
         and(
-        inArray(
-          schema.rooms.id,
-          roomIds.map((r) => r.id),
-          ),
+          inArray(schema.rooms.id, roomIds),
           isNull(schema.rooms.deletedAt),
         ),
       );
@@ -225,19 +224,29 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
 
-    const roomsWithImages = await Promise.all(
-      data.map(async (room) => {
-        const images = await this.imagesService.getImagesByEntity(
-          'room',
-          room.id,
-        );
-        const simplifiedImages = images.map((img) => ({
-          url: img.url,
-          isPrimary: img.isPrimary,
-        }));
-        return { ...room, images: simplifiedImages };
-      }),
-    );
+    // Batch fetch all images for all rooms in a single query
+    const roomIdStrings = data.map((room) => room.id);
+    const allImages = roomIdStrings.length > 0
+      ? await this.imagesService.getImagesByMultipleEntities('room', roomIdStrings)
+      : [];
+
+    // Group images by room ID
+    const imagesByRoomId = new Map<string, typeof allImages>();
+    for (const image of allImages) {
+      const existing = imagesByRoomId.get(image.entityId) || [];
+      existing.push(image);
+      imagesByRoomId.set(image.entityId, existing);
+    }
+
+    // Map rooms with their images
+    const roomsWithImages = data.map((room) => {
+      const images = imagesByRoomId.get(room.id) || [];
+      const simplifiedImages = images.map((img) => ({
+        url: img.url,
+        isPrimary: img.isPrimary,
+      }));
+      return { ...room, images: simplifiedImages };
+    });
 
     return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
@@ -352,7 +361,7 @@ export class RoomsService {
 
   async getRoomWithProperty(id: string) {
     const room = await this.getRoomById(id);
-    
+
     if (!room.propertyId) {
       return { ...room, property: null };
     }
@@ -365,7 +374,10 @@ export class RoomsService {
     });
 
     if (property) {
-      const images = await this.imagesService.getImagesByEntity('property', property.id);
+      const images = await this.imagesService.getImagesByEntity(
+        'property',
+        property.id,
+      );
       return { ...room, property: { ...property, images } };
     }
 
@@ -374,7 +386,7 @@ export class RoomsService {
 
   async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -444,9 +456,9 @@ export class RoomsService {
       )
       .where(
         and(
-        inArray(
-          schema.rooms.id,
-          roomIds.map((r) => r.id),
+          inArray(
+            schema.rooms.id,
+            roomIds.map((r) => r.id),
           ),
           isNull(schema.rooms.deletedAt),
         ),
@@ -685,7 +697,13 @@ export class RoomsService {
     let allAvailable = true;
 
     for (const roomRequest of rooms) {
-      const { roomId, checkIn, checkOut, guestsCount = 1, quantity = 1 } = roomRequest;
+      const {
+        roomId,
+        checkIn,
+        checkOut,
+        guestsCount = 1,
+        quantity = 1,
+      } = roomRequest;
 
       const room = await this.getRoomById(roomId);
       if (!room) {
@@ -718,7 +736,12 @@ export class RoomsService {
 
       if (isAvailable) {
         try {
-          const { totalPrice, breakdown } = await this.calculateTotalPriceWithBreakdown(roomId, checkIn, checkOut);
+          const { totalPrice, breakdown } =
+            await this.calculateTotalPriceWithBreakdown(
+              roomId,
+              checkIn,
+              checkOut,
+            );
           const singleRoomPrice = totalPrice;
           roomPrice = singleRoomPrice * quantity;
           avgPricePerNight = singleRoomPrice / nights;
@@ -726,9 +749,15 @@ export class RoomsService {
           nightlyBreakdown = breakdown;
 
           if (room.propertyId) {
-            const property = await this.propertiesService.getPropertyById(room.propertyId);
-            const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
-            tourismFee = tourismFeePerPersonPerNight * guestsCount * nights * quantity;
+            const property = await this.propertiesService.getPropertyById(
+              room.propertyId,
+            );
+            const propertyWithFee = property as { tourismFee?: string | null };
+            const tourismFeePerPersonPerNight = parseFloat(
+              (propertyWithFee.tourismFee as string) || '0',
+            );
+            tourismFee =
+              tourismFeePerPersonPerNight * guestsCount * nights * quantity;
             totalTourismFee += tourismFee;
           }
         } catch (error: unknown) {
@@ -753,7 +782,8 @@ export class RoomsService {
         nights: String(nights),
         avgPricePerNight: avgPricePerNight.toFixed(2),
         roomTotal: roomPrice.toFixed(2),
-        nightlyBreakdown: nightlyBreakdown.length > 0 ? nightlyBreakdown : undefined,
+        nightlyBreakdown:
+          nightlyBreakdown.length > 0 ? nightlyBreakdown : undefined,
         available: isAvailable,
       });
     }
@@ -854,7 +884,10 @@ export class RoomsService {
     roomId: string,
     checkInStr: string,
     checkOutStr: string,
-  ): Promise<{ totalPrice: number; breakdown: { price: string; nights: number }[] }> {
+  ): Promise<{
+    totalPrice: number;
+    breakdown: { price: string; nights: number }[];
+  }> {
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
 
@@ -903,14 +936,14 @@ export class RoomsService {
         const aEnd = new Date(a.endDate);
         const bStart = new Date(b.startDate);
         const bEnd = new Date(b.endDate);
-        
+
         const aRangeLength = aEnd.getTime() - aStart.getTime();
         const bRangeLength = bEnd.getTime() - bStart.getTime();
-        
+
         if (aRangeLength !== bRangeLength) {
           return aRangeLength - bRangeLength;
         }
-        
+
         const aCreated = new Date(a.createdAt);
         const bCreated = new Date(b.createdAt);
         return bCreated.getTime() - aCreated.getTime();
@@ -929,16 +962,16 @@ export class RoomsService {
     const breakdown: { price: string; nights: number }[] = [];
     if (nightlyPrices.length > 0) {
       // Normalize all prices to 2 decimal places first
-      const normalizedPrices = nightlyPrices.map(item => 
-        Math.round(item.price * 100) / 100
+      const normalizedPrices = nightlyPrices.map(
+        (item) => Math.round(item.price * 100) / 100,
       );
-      
+
       // Convert prices to cents (integers) for exact comparison
       const priceToCents = (price: number) => Math.round(price * 100);
-      
+
       // Count occurrences of each price using cents as key
       const priceCountMap = new Map<number, { price: number; count: number }>();
-      
+
       for (const price of normalizedPrices) {
         const priceCents = priceToCents(price);
         const existing = priceCountMap.get(priceCents);
@@ -948,14 +981,15 @@ export class RoomsService {
           priceCountMap.set(priceCents, { price, count: 1 });
         }
       }
-      
+
       // Convert map to array and sort by price (ascending) for consistent ordering
-      breakdown.push(...Array.from(priceCountMap.values())
-        .sort((a, b) => a.price - b.price)
-        .map(item => ({
-          price: item.price.toFixed(2),
-          nights: item.count,
-        }))
+      breakdown.push(
+        ...Array.from(priceCountMap.values())
+          .sort((a, b) => a.price - b.price)
+          .map((item) => ({
+            price: item.price.toFixed(2),
+            nights: item.count,
+          })),
       );
     }
 
@@ -967,7 +1001,11 @@ export class RoomsService {
     checkInStr: string,
     checkOutStr: string,
   ): Promise<number> {
-    const { totalPrice } = await this.calculateTotalPriceWithBreakdown(roomId, checkInStr, checkOutStr);
+    const { totalPrice } = await this.calculateTotalPriceWithBreakdown(
+      roomId,
+      checkInStr,
+      checkOutStr,
+    );
     return totalPrice;
   }
 }

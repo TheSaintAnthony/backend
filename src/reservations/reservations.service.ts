@@ -9,7 +9,19 @@ import {
   RoomBookingInput,
   ReservationWithRooms,
 } from './interfaces';
-import { eq, inArray, count, and, ne, gt, sql, or, desc, isNull } from 'drizzle-orm';
+import {
+  eq,
+  inArray,
+  count,
+  and,
+  ne,
+  gt,
+  sql,
+  or,
+  desc,
+  isNull,
+  SQL,
+} from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
 import { PropertiesService } from 'src/properties/properties.service';
@@ -49,7 +61,7 @@ export class ReservationsService implements OnModuleInit {
     private statusLookupService: StatusLookupService,
     private invoicesService: InvoicesService,
     private stripeService: StripeService,
-    private paymentsService: PaymentsService,
+    private _paymentsService: PaymentsService,
   ) {}
 
   async onModuleInit() {
@@ -131,7 +143,13 @@ export class ReservationsService implements OnModuleInit {
     expiresAt.setMinutes(expiresAt.getMinutes() + this.HOLD_DURATION_MINUTES);
 
     for (const roomBooking of rooms) {
-      const { roomId, checkIn, checkOut, guestsCount, quantity = 1 } = roomBooking;
+      const {
+        roomId,
+        checkIn,
+        checkOut,
+        guestsCount,
+        quantity = 1,
+      } = roomBooking;
 
       const room = roomsMap.get(roomId);
       if (!room) {
@@ -159,12 +177,14 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.CANCELLED,
-      );
-      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.PENDING,
-      );
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
 
       const existingPendingReservations = await tx
         .select({
@@ -253,15 +273,16 @@ export class ReservationsService implements OnModuleInit {
       const roomPrice = singleRoomPrice * quantity;
       totalPrice += roomPrice;
 
-      // Create room holds for each room (quantity)
-      for (let i = 0; i < quantity; i++) {
-        await tx.insert(schema.roomHolds).values({
+      // Create room holds for each room (quantity) - batch insert
+      if (quantity > 0) {
+        const holdValues = Array.from({ length: quantity }, () => ({
           userId,
           roomId,
           checkIn,
           checkOut,
           expiresAt,
-        });
+        }));
+        await tx.insert(schema.roomHolds).values(holdValues);
       }
 
       validatedRooms.push({
@@ -413,14 +434,30 @@ export class ReservationsService implements OnModuleInit {
     let customerCompanyName: string | undefined;
 
     if (customInvoiceData) {
-      const hasCustomName = customInvoiceData.customerName && customInvoiceData.customerName.trim() !== '';
-      const hasCustomEmail = customInvoiceData.customerEmail && customInvoiceData.customerEmail.trim() !== '';
-      const hasCustomPhone = customInvoiceData.customerPhone && customInvoiceData.customerPhone.trim() !== '';
-      const hasCustomTaxId = customInvoiceData.customerTaxId && customInvoiceData.customerTaxId.trim() !== '';
-      const hasCustomCompany = customInvoiceData.customerCompanyName && customInvoiceData.customerCompanyName.trim() !== '';
-      const hasCustomAddress = customInvoiceData.customerAddress && customInvoiceData.customerAddress.trim() !== '';
-      const hasCustomCity = customInvoiceData.customerCity && customInvoiceData.customerCity.trim() !== '';
-      const hasCustomCountry = customInvoiceData.customerCountry && customInvoiceData.customerCountry.trim() !== '';
+      const hasCustomName =
+        customInvoiceData.customerName &&
+        customInvoiceData.customerName.trim() !== '';
+      const hasCustomEmail =
+        customInvoiceData.customerEmail &&
+        customInvoiceData.customerEmail.trim() !== '';
+      const hasCustomPhone =
+        customInvoiceData.customerPhone &&
+        customInvoiceData.customerPhone.trim() !== '';
+      const hasCustomTaxId =
+        customInvoiceData.customerTaxId &&
+        customInvoiceData.customerTaxId.trim() !== '';
+      const hasCustomCompany =
+        customInvoiceData.customerCompanyName &&
+        customInvoiceData.customerCompanyName.trim() !== '';
+      const hasCustomAddress =
+        customInvoiceData.customerAddress &&
+        customInvoiceData.customerAddress.trim() !== '';
+      const hasCustomCity =
+        customInvoiceData.customerCity &&
+        customInvoiceData.customerCity.trim() !== '';
+      const hasCustomCountry =
+        customInvoiceData.customerCountry &&
+        customInvoiceData.customerCountry.trim() !== '';
 
       customerName = hasCustomName
         ? customInvoiceData.customerName!
@@ -493,7 +530,6 @@ export class ReservationsService implements OnModuleInit {
       }),
     );
 
-    let totalTourismFee = 0;
     const tourismFeeLineItems = await Promise.all(
       validatedRooms.map(async (roomValidation) => {
         const room = await this.roomsService.getRoomById(roomValidation.roomId);
@@ -501,14 +537,18 @@ export class ReservationsService implements OnModuleInit {
           return null;
         }
 
-        const property = await this.propertiesService.getPropertyById(room.propertyId);
+        const property = await this.propertiesService.getPropertyById(
+          room.propertyId,
+        );
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
         const nights = this.calculateNights(checkIn, checkOut);
         const guestsCount = parseInt(roomValidation.guestsCount);
-        const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
-        const tourismFeeTotal = tourismFeePerPersonPerNight * guestsCount * nights;
-        totalTourismFee += tourismFeeTotal;
+        const tourismFeePerPersonPerNight = parseFloat(
+          ((property as { tourismFee?: string | null }).tourismFee as string) || '0',
+        );
+        const tourismFeeTotal =
+          tourismFeePerPersonPerNight * guestsCount * nights;
 
         return {
           description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
@@ -523,7 +563,9 @@ export class ReservationsService implements OnModuleInit {
       }),
     );
 
-    const validTourismFeeLineItems = tourismFeeLineItems.filter((item) => item !== null);
+    const validTourismFeeLineItems = tourismFeeLineItems.filter(
+      (item) => item !== null,
+    );
     lineItems.push(...validTourismFeeLineItems);
 
     const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
@@ -572,7 +614,7 @@ export class ReservationsService implements OnModuleInit {
     });
 
     const stripeCustomerIdToUse = stripeCustomerId || user.stripeCustomerId;
-    
+
     if (stripeCustomerIdToUse) {
       try {
         const stripeLineItems = await Promise.all(
@@ -604,7 +646,7 @@ export class ReservationsService implements OnModuleInit {
                 priceId: undefined,
                 priceData: {
                   currency: 'eur',
-                  product: room.stripeProductId as string,
+                  product: room.stripeProductId,
                   unitAmount: Math.round(priceWithVAT * 100),
                 },
                 quantity: nights,
@@ -620,17 +662,26 @@ export class ReservationsService implements OnModuleInit {
 
         const tourismFeeStripeItems = await Promise.all(
           validatedRooms.map(async (roomValidation) => {
-            const room = await this.roomsService.getRoomById(roomValidation.roomId);
+            const room = await this.roomsService.getRoomById(
+              roomValidation.roomId,
+            );
             if (!room.propertyId) {
               return null;
             }
 
-            const property = await this.propertiesService.getPropertyById(room.propertyId);
+            const property = await this.propertiesService.getPropertyById(
+              room.propertyId,
+            );
             const checkIn = new Date(roomValidation.checkIn);
             const checkOut = new Date(roomValidation.checkOut);
             const nights = this.calculateNights(checkIn, checkOut);
             const guestsCount = parseInt(roomValidation.guestsCount);
-            const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+            const propertyWithFee = property as { tourismFee?: string | null };
+            const tourismFeeValue: string =
+              typeof propertyWithFee.tourismFee === 'string'
+                ? propertyWithFee.tourismFee
+                : String(propertyWithFee.tourismFee ?? '0');
+            const tourismFeePerPersonPerNight = parseFloat(tourismFeeValue);
 
             if (tourismFeePerPersonPerNight <= 0) {
               return null;
@@ -644,7 +695,7 @@ export class ReservationsService implements OnModuleInit {
               priceId: undefined,
               priceData: {
                 currency: 'eur',
-                product: room.stripeProductId as string,
+                product: room.stripeProductId,
                 unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
               },
               quantity: guestsCount * nights,
@@ -653,7 +704,9 @@ export class ReservationsService implements OnModuleInit {
           }),
         );
 
-        const validTourismFeeItems = tourismFeeStripeItems.filter((item) => item !== null);
+        const validTourismFeeItems = tourismFeeStripeItems.filter(
+          (item) => item !== null,
+        );
         stripeLineItems.push(...validTourismFeeItems);
 
         const stripeInvoice = await this.stripeService.createInvoice({
@@ -704,7 +757,7 @@ export class ReservationsService implements OnModuleInit {
 
   async getReservationsByUser(userId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -813,9 +866,7 @@ export class ReservationsService implements OnModuleInit {
       if (row.roomId !== null) {
         const reservation = reservationsMap.get(reservationId);
         if (reservation) {
-          const roomExists = reservation.rooms.some(
-            (r) => r.id === row.roomId,
-          );
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
           if (!roomExists) {
             reservation.rooms.push({
               id: row.roomId,
@@ -850,43 +901,56 @@ export class ReservationsService implements OnModuleInit {
         const room = await this.roomsService.getRoomById(roomValidation.roomId);
         if (!room.propertyId) continue;
 
-        const property = await this.propertiesService.getPropertyById(room.propertyId);
+        const property = await this.propertiesService.getPropertyById(
+          room.propertyId,
+        );
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
         const nights = Math.ceil(
           (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
         );
         const guestsCount = parseInt(roomValidation.guestsCount);
-        const tourismFeePerPersonPerNight = parseFloat((property as any).tourismFee || '0');
+        const propertyWithFee = property as { tourismFee?: string | null };
+        const tourismFeePerPersonPerNight = parseFloat(
+          (propertyWithFee.tourismFee as string) || '0',
+        );
         totalTourismFee += tourismFeePerPersonPerNight * guestsCount * nights;
       }
 
       const totalPriceStr = totalPrice.toString();
       const vatAmount = totalPrice * 0.23;
-      const totalPriceWithVAT = (totalPrice + totalTourismFee + vatAmount).toFixed(2);
+      const totalPriceWithVAT = (
+        totalPrice +
+        totalTourismFee +
+        vatAmount
+      ).toFixed(2);
 
       const user = await this.usersService.getUserById(userId);
 
-      const invoiceCustomerEmail = invoiceData?.customerEmail && invoiceData.customerEmail.trim() !== ''
-        ? invoiceData.customerEmail
-        : user.email;
-      const invoiceCustomerName = invoiceData?.customerName && invoiceData.customerName.trim() !== ''
-        ? invoiceData.customerName
-        : `${user.firstName} ${user.lastName}`;
-      const invoiceCustomerPhone = invoiceData?.customerPhone && invoiceData.customerPhone.trim() !== ''
-        ? invoiceData.customerPhone
-        : user.phone || undefined;
+      const invoiceCustomerEmail =
+        invoiceData?.customerEmail && invoiceData.customerEmail.trim() !== ''
+          ? invoiceData.customerEmail
+          : user.email;
+      const invoiceCustomerName =
+        invoiceData?.customerName && invoiceData.customerName.trim() !== ''
+          ? invoiceData.customerName
+          : `${user.firstName} ${user.lastName}`;
+      const invoiceCustomerPhone =
+        invoiceData?.customerPhone && invoiceData.customerPhone.trim() !== ''
+          ? invoiceData.customerPhone
+          : user.phone || undefined;
 
-      const invoiceStripeCustomer = await this.stripeService.getOrCreateCustomer(
-        userId,
-        invoiceCustomerEmail,
-        invoiceCustomerName,
-        invoiceCustomerPhone,
-        {
+      const invoiceStripeCustomer =
+        await this.stripeService.getOrCreateCustomer(
           userId,
-          invoiceCustomer: 'true',
-        },
-      );
+          invoiceCustomerEmail,
+          invoiceCustomerName,
+          invoiceCustomerPhone,
+          {
+            userId,
+            invoiceCustomer: 'true',
+          },
+        );
 
       const userStripeCustomer = await this.stripeService.getOrCreateCustomer(
         userId,
@@ -1001,26 +1065,23 @@ export class ReservationsService implements OnModuleInit {
         .limit(1);
 
       if (!existingPayment) {
+        let paymentStatus;
         try {
-          const paymentStatus = await this.stripeService.getPaymentIntentStatus(
+          paymentStatus =
+            await this.stripeService.getPaymentIntentStatus(transactionId);
+        } catch {
+          throw new NotFoundException('Payment', transactionId);
+        }
+
+        if (paymentStatus.status === 'completed') {
+          throw new NotFoundException(
+            'Payment record not found in database. Please contact support.',
             transactionId,
           );
-
-          if (paymentStatus.status === 'completed') {
-            throw new NotFoundException(
-              'Payment record not found in database. Please contact support.',
-              transactionId,
-            );
-          } else {
-            throw new BadRequestException(
-              `Payment is not completed. Current status: ${paymentStatus.status}`,
-            );
-          }
-        } catch (error) {
-          if (error instanceof NotFoundException || error instanceof BadRequestException) {
-            throw error;
-          }
-        throw new NotFoundException('Payment', transactionId);
+        } else {
+          throw new BadRequestException(
+            `Payment is not completed. Current status: ${paymentStatus.status}`,
+          );
         }
       }
 
@@ -1048,9 +1109,8 @@ export class ReservationsService implements OnModuleInit {
         }
       }
 
-      const paymentStatus = await this.stripeService.getPaymentIntentStatus(
-        transactionId,
-      );
+      const paymentStatus =
+        await this.stripeService.getPaymentIntentStatus(transactionId);
 
       if (paymentStatus.status !== 'completed') {
         throw new BadRequestException(
@@ -1084,14 +1144,17 @@ export class ReservationsService implements OnModuleInit {
           const paidInvoice = await this.stripeService.payInvoice(
             invoice.externalInvoiceId,
           );
-          
-          const invoiceUrl = paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
-          
+
+          const invoiceUrl =
+            paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
+
           let finalUrl = invoiceUrl;
           if (!finalUrl) {
-            finalUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
+            finalUrl = await this.stripeService.getInvoiceUrl(
+              invoice.externalInvoiceId,
+            );
           }
-          
+
           await tx
             .update(schema.invoices)
             .set({
@@ -1107,7 +1170,9 @@ export class ReservationsService implements OnModuleInit {
           let invoiceUrl = invoice.externalInvoiceUrl;
           if (!invoiceUrl && invoice.externalInvoiceId) {
             try {
-              invoiceUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
+              invoiceUrl = await this.stripeService.getInvoiceUrl(
+                invoice.externalInvoiceId,
+              );
             } catch (urlError) {
               console.error('Failed to retrieve invoice URL:', urlError);
             }
@@ -1214,9 +1279,10 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.PENDING,
-      );
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
 
       if (reservation.statusId !== pendingStatusId) {
         throw new BadRequestException(
@@ -1224,9 +1290,10 @@ export class ReservationsService implements OnModuleInit {
         );
       }
 
-      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.CANCELLED,
-      );
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
 
       await tx
         .update(schema.reservations)
@@ -1283,9 +1350,10 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', String(reservationId));
       }
 
-      const pendingStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.PENDING,
-      );
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
 
       if (reservation.statusId !== pendingStatusId) {
         throw new BadRequestException(
@@ -1366,9 +1434,10 @@ export class ReservationsService implements OnModuleInit {
   }
 
   async getPendingReservations(userId: string) {
-    const pendingStatusId = await this.statusLookupService.getReservationStatusId(
-      RESERVATION_STATUS_NAMES.PENDING,
-    );
+    const pendingStatusId =
+      await this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.PENDING,
+      );
 
     const reservations = await this.db
       .select()
@@ -1384,29 +1453,28 @@ export class ReservationsService implements OnModuleInit {
     return reservations;
   }
 
-  async getAllReservations(
-    pagination?: PaginationDto,
-    statusFilter?: string,
-  ) {
+  async getAllReservations(pagination?: PaginationDto, statusFilter?: string) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
-    const whereConditions: any[] = [];
-    
+    const whereConditions: SQL[] = [];
+
     if (statusFilter) {
       try {
-        const statusId = await this.statusLookupService.getReservationStatusId(statusFilter);
+        const statusId =
+          await this.statusLookupService.getReservationStatusId(statusFilter);
         if (statusId) {
           whereConditions.push(eq(schema.reservations.statusId, statusId));
         }
-      } catch (error) {
+      } catch {
         this.logger.warn(`Invalid status filter: ${statusFilter}`);
         return createPaginatedResponse([], 0, page, limit);
       }
     }
 
-    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
     const [totalResult] = await this.db
       .select({ count: count() })
@@ -1481,10 +1549,7 @@ export class ReservationsService implements OnModuleInit {
         schema.invoices,
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
-      .leftJoin(
-        schema.users,
-        eq(schema.reservations.userId, schema.users.id),
-      )
+      .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
       .where(
         inArray(
           schema.reservations.id,
@@ -1493,7 +1558,14 @@ export class ReservationsService implements OnModuleInit {
       )
       .orderBy(desc(schema.reservations.createdAt));
 
-    const reservationsMap = new Map<string, ReservationWithRooms & { userEmail?: string; userFirstName?: string; userLastName?: string }>();
+    const reservationsMap = new Map<
+      string,
+      ReservationWithRooms & {
+        userEmail?: string;
+        userFirstName?: string;
+        userLastName?: string;
+      }
+    >();
 
     for (const row of results) {
       const reservationId = row.reservationId;
@@ -1522,9 +1594,7 @@ export class ReservationsService implements OnModuleInit {
       if (row.roomId !== null) {
         const reservation = reservationsMap.get(reservationId);
         if (reservation) {
-          const roomExists = reservation.rooms.some(
-            (r) => r.id === row.roomId,
-          );
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
           if (!roomExists) {
             reservation.rooms.push({
               id: row.roomId,
@@ -1547,16 +1617,14 @@ export class ReservationsService implements OnModuleInit {
     return createPaginatedResponse(data, total, page, limit);
   }
 
-  async updateReservationStatus(
-    reservationId: string,
-    statusName: string,
-  ) {
+  async updateReservationStatus(reservationId: string, statusName: string) {
     const reservation = await this.getReservationById(reservationId);
     if (!reservation) {
       throw new NotFoundException('Reservation', reservationId);
     }
 
-    const statusId = await this.statusLookupService.getReservationStatusId(statusName);
+    const statusId =
+      await this.statusLookupService.getReservationStatusId(statusName);
     if (!statusId) {
       throw new BadRequestException(`Invalid status: ${statusName}`);
     }
@@ -1587,9 +1655,10 @@ export class ReservationsService implements OnModuleInit {
         throw new NotFoundException('Reservation', reservationId);
       }
 
-      const cancelledStatusId = await this.statusLookupService.getReservationStatusId(
-        RESERVATION_STATUS_NAMES.CANCELLED,
-      );
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
 
       await tx
         .update(schema.reservations)
@@ -1703,10 +1772,7 @@ export class ReservationsService implements OnModuleInit {
     });
   }
 
-  async updateReservation(
-    reservationId: string,
-    data: UpdateReservationDto,
-  ) {
+  async updateReservation(reservationId: string, data: UpdateReservationDto) {
     return this.db.transaction(async (tx) => {
       const reservation = await this.getReservationById(reservationId);
       if (!reservation) {
@@ -1729,20 +1795,36 @@ export class ReservationsService implements OnModuleInit {
           .from(schema.reservationRooms)
           .where(eq(schema.reservationRooms.reservationId, reservationId));
 
-        for (let i = 0; i < data.rooms.length && i < existingRooms.length; i++) {
+        for (
+          let i = 0;
+          i < data.rooms.length && i < existingRooms.length;
+          i++
+        ) {
           const roomUpdate = data.rooms[i];
           const existingRoom = existingRooms[i];
 
-          const updateData: any = {};
-          if (roomUpdate.checkIn) updateData.checkIn = new Date(roomUpdate.checkIn);
-          if (roomUpdate.checkOut) updateData.checkOut = new Date(roomUpdate.checkOut);
-          if (roomUpdate.guestsCount !== undefined) updateData.guestsCount = roomUpdate.guestsCount;
+          const updateData: {
+            checkIn?: Date;
+            checkOut?: Date;
+            guestsCount?: number;
+            updatedAt?: Date;
+          } = {};
+          if (roomUpdate.checkIn)
+            updateData.checkIn = new Date(roomUpdate.checkIn);
+          if (roomUpdate.checkOut)
+            updateData.checkOut = new Date(roomUpdate.checkOut);
+          if (roomUpdate.guestsCount !== undefined)
+            updateData.guestsCount = roomUpdate.guestsCount;
 
           if (Object.keys(updateData).length > 0) {
             updateData.updatedAt = new Date();
             await tx
               .update(schema.reservationRooms)
-              .set(updateData)
+              .set(
+                updateData as Partial<
+                  typeof schema.reservationRooms.$inferInsert
+                >,
+              )
               .where(eq(schema.reservationRooms.id, existingRoom.id));
           }
         }
@@ -1778,9 +1860,10 @@ export class ReservationsService implements OnModuleInit {
       );
     }
 
-    const checkedInStatusId = await this.statusLookupService.getReservationStatusId(
-      RESERVATION_STATUS_NAMES.CHECKED_IN,
-    );
+    const checkedInStatusId =
+      await this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.CHECKED_IN,
+      );
 
     await this.db
       .update(schema.reservations)
@@ -1798,17 +1881,18 @@ export class ReservationsService implements OnModuleInit {
     checkIn?: string,
     checkOut?: string,
   ) {
-    const conditions: any[] = [];
+    const conditions: SQL[] = [];
 
     if (customerName) {
       const searchPattern = `%${customerName.toLowerCase()}%`;
-      conditions.push(
-        or(
-          sql`LOWER(${schema.users.firstName}) LIKE ${searchPattern}`,
-          sql`LOWER(${schema.users.lastName}) LIKE ${searchPattern}`,
-          sql`LOWER(${schema.users.email}) LIKE ${searchPattern}`,
-        ),
+      const nameCondition = or(
+        sql`LOWER(${schema.users.firstName}) LIKE ${searchPattern}`,
+        sql`LOWER(${schema.users.lastName}) LIKE ${searchPattern}`,
+        sql`LOWER(${schema.users.email}) LIKE ${searchPattern}`,
       );
+      if (nameCondition) {
+        conditions.push(nameCondition);
+      }
     }
 
     if (checkIn) {
@@ -1876,20 +1960,20 @@ export class ReservationsService implements OnModuleInit {
         schema.invoices,
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
-      .leftJoin(
-        schema.users,
-        eq(schema.reservations.userId, schema.users.id),
-      )
+      .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
       .where(whereClause)
       .orderBy(desc(schema.reservations.createdAt))
       .limit(50);
 
-    const reservationsMap = new Map<string, ReservationWithRooms & { 
-      userEmail?: string; 
-      userFirstName?: string; 
-      userLastName?: string;
-      userPhone?: string;
-    }>();
+    const reservationsMap = new Map<
+      string,
+      ReservationWithRooms & {
+        userEmail?: string;
+        userFirstName?: string;
+        userLastName?: string;
+        userPhone?: string;
+      }
+    >();
 
     for (const row of results) {
       const reservationId = row.reservationId;
@@ -1919,9 +2003,7 @@ export class ReservationsService implements OnModuleInit {
       if (row.roomId !== null) {
         const reservation = reservationsMap.get(reservationId);
         if (reservation) {
-          const roomExists = reservation.rooms.some(
-            (r) => r.id === row.roomId,
-          );
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
           if (!roomExists) {
             reservation.rooms.push({
               id: row.roomId,

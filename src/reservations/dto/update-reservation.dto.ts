@@ -9,7 +9,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingRoomDto } from './create-booking.dto';
 
 export class UpdateReservationRoomDto {
   @ApiPropertyOptional({
@@ -58,4 +57,3 @@ export class UpdateReservationDto {
   @Type(() => UpdateReservationRoomDto)
   rooms?: UpdateReservationRoomDto[];
 }
-

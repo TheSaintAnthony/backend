@@ -14,14 +14,14 @@ export class AddressesService {
   ) {}
 
   async createAddress(data: CreateAddressDto) {
-    return await this.db
+    return this.db
       .insert(schema.addresses)
       .values({ ...data })
       .returning();
   }
 
   async getAddresses() {
-    return await this.db.select().from(schema.addresses);
+    return this.db.select().from(schema.addresses);
   }
 
   async getAddressById(id: string) {
@@ -65,8 +65,6 @@ export class AddressesService {
       throw new NotFoundException('Address', id);
     }
 
-    return await this.db
-      .delete(schema.addresses)
-      .where(eq(schema.addresses.id, id));
+    return this.db.delete(schema.addresses).where(eq(schema.addresses.id, id));
   }
 }

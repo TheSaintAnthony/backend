@@ -13,7 +13,6 @@ export class EditPaymentDto {
   @IsNumberString()
   amount?: string;
 
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()

@@ -25,32 +25,32 @@ export class ActivityPropertyController {
     @Query('activityId') activityId?: string,
   ) {
     if (propertyId) {
-      return await this.activityPropertyService.getActivityPropertiesByProperty(
+      return this.activityPropertyService.getActivityPropertiesByProperty(
         propertyId,
       );
     }
     if (activityId) {
-      return await this.activityPropertyService.getActivityPropertiesByActivity(
+      return this.activityPropertyService.getActivityPropertiesByActivity(
         activityId,
       );
     }
-    return await this.activityPropertyService.getActivityProperties();
+    return this.activityPropertyService.getActivityProperties();
   }
 
   @Get(':id')
   async getActivityPropertyById(@Param('id') id: string) {
-    return await this.activityPropertyService.getActivityPropertyById(id);
+    return this.activityPropertyService.getActivityPropertyById(id);
   }
 
   @Roles(UserRole.ADMIN)
   @Post()
   async createActivityProperty(@Body() body: CreateActivityPropertyDto) {
-    return await this.activityPropertyService.createActivityProperty(body);
+    return this.activityPropertyService.createActivityProperty(body);
   }
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteActivityProperty(@Param('id') id: string) {
-    return await this.activityPropertyService.deleteActivityProperty(id);
+    return this.activityPropertyService.deleteActivityProperty(id);
   }
 }

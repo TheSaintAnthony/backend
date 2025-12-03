@@ -6,7 +6,11 @@ import { RoomsModule } from 'src/rooms/rooms.module';
 import { ActivityPropertyModule } from 'src/activity-property/activity-property.module';
 
 @Module({
-  imports: [ImagesModule, forwardRef(() => RoomsModule), ActivityPropertyModule],
+  imports: [
+    ImagesModule,
+    forwardRef(() => RoomsModule),
+    ActivityPropertyModule,
+  ],
   providers: [PropertiesService],
   controllers: [PropertiesController],
   exports: [PropertiesService],

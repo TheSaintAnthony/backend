@@ -12,7 +12,6 @@ import {
   UploadedFiles,
   UseInterceptors,
   Res,
-  Req,
 } from '@nestjs/common';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -38,7 +37,7 @@ import { FileStorageService } from 'src/services/file-storage.service';
 export class ImagesController {
   constructor(
     private imagesService: ImagesService,
-    private fileStorageService: FileStorageService,
+    private _fileStorageService: FileStorageService,
   ) {}
 
   @ApiOperation({ summary: 'Upload a single image file' })
@@ -150,7 +149,7 @@ export class ImagesController {
   @ApiOperation({ summary: 'Serve image file' })
   @Public()
   @Get('serve/images/:entityType/:filename')
-  async serveImage(
+  serveImage(
     @Param('entityType') entityType: string,
     @Param('filename') filename: string,
     @Res() res: express.Response,

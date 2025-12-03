@@ -14,7 +14,7 @@ export class StatusLookupService implements OnModuleInit {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
+    private _cacheService: CacheService,
   ) {}
 
   async onModuleInit() {
@@ -22,32 +22,32 @@ export class StatusLookupService implements OnModuleInit {
   }
 
   private async loadStatuses() {
-    try {
-      const [reservationStatuses, invoiceStatuses, invoiceTypes, paymentStatuses] =
-        await Promise.all([
-          this.db.select().from(schema.reservationStatus),
-          this.db.select().from(schema.invoiceStatus),
-          this.db.select().from(schema.invoiceTypes),
-          this.db.select().from(schema.paymentStatus),
-        ]);
+    const [
+      reservationStatuses,
+      invoiceStatuses,
+      invoiceTypes,
+      paymentStatuses,
+    ] = await Promise.all([
+      this.db.select().from(schema.reservationStatus),
+      this.db.select().from(schema.invoiceStatus),
+      this.db.select().from(schema.invoiceTypes),
+      this.db.select().from(schema.paymentStatus),
+    ]);
 
-      for (const status of reservationStatuses) {
-        this.reservationStatusCache.set(status.name, status.id);
-      }
+    for (const status of reservationStatuses) {
+      this.reservationStatusCache.set(status.name, status.id);
+    }
 
-      for (const status of invoiceStatuses) {
-        this.invoiceStatusCache.set(status.name, status.id);
-      }
+    for (const status of invoiceStatuses) {
+      this.invoiceStatusCache.set(status.name, status.id);
+    }
 
-      for (const type of invoiceTypes) {
-        this.invoiceTypeCache.set(type.name, type.id);
-      }
+    for (const type of invoiceTypes) {
+      this.invoiceTypeCache.set(type.name, type.id);
+    }
 
-      for (const status of paymentStatuses) {
-        this.paymentStatusCache.set(status.name, status.id);
-      }
-    } catch (error) {
-      throw error;
+    for (const status of paymentStatuses) {
+      this.paymentStatusCache.set(status.name, status.id);
     }
   }
 

@@ -19,26 +19,26 @@ export class AddressesController {
 
   @Get()
   async getAddresses() {
-    return await this.addressesService.getAddresses();
+    return this.addressesService.getAddresses();
   }
 
   @Get(':id')
   async getAddressesById(@Param('id') id: string) {
-    return await this.addressesService.getAddressById(id);
+    return this.addressesService.getAddressById(id);
   }
 
   @Post()
   async createAddress(@Body() body: CreateAddressDto) {
-    return await this.addressesService.createAddress(body);
+    return this.addressesService.createAddress(body);
   }
 
   @Patch(':id')
   async editAddress(@Param('id') id: string, @Body() body: EditAddressDto) {
-    return await this.addressesService.editAddress(id, body);
+    return this.addressesService.editAddress(id, body);
   }
 
   @Delete(':id')
   async deleteAddress(@Param('id') id: string) {
-    return await this.addressesService.deleteAddress(id);
+    return this.addressesService.deleteAddress(id);
   }
 }

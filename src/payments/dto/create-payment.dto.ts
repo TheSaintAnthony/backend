@@ -16,7 +16,6 @@ export class CreatePaymentDto {
   @IsNumberString()
   amount: string;
 
-
   @ApiProperty()
   @IsUUID()
   paymentStatusId: string;

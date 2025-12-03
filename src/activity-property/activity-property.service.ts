@@ -13,14 +13,14 @@ export class ActivityPropertyService {
   ) {}
 
   async createActivityProperty(data: CreateActivityPropertyDto) {
-    return await this.db
+    return this.db
       .insert(schema.activityProperty)
       .values({ ...data })
       .returning();
   }
 
   async getActivityProperties() {
-    return await this.db.select().from(schema.activityProperty);
+    return this.db.select().from(schema.activityProperty);
   }
 
   async getActivityPropertyById(id: string) {
@@ -37,14 +37,14 @@ export class ActivityPropertyService {
   }
 
   async getActivityPropertiesByProperty(propertyId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.propertyId, propertyId));
   }
 
   async getActivityPropertiesByActivity(activityId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.activityId, activityId));
@@ -60,7 +60,7 @@ export class ActivityPropertyService {
       throw new NotFoundException('Activity property', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id))
       .returning();
@@ -87,7 +87,7 @@ export class ActivityPropertyService {
       );
     }
 
-    return await this.db
+    return this.db
       .delete(schema.activityProperty)
       .where(eq(schema.activityProperty.id, activityProperty.id))
       .returning();

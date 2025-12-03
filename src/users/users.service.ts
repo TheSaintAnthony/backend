@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { NotFoundException, UnauthorizedException } from 'src/filters';
-import { eq, count } from 'drizzle-orm';
+import { eq, count, isNull, and } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -21,12 +21,13 @@ export class UsersService {
 
   async getUsers(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
       .select({ count: count() })
-      .from(schema.users);
+      .from(schema.users)
+      .where(isNull(schema.users.deletedAt));
     const total = totalResult.count;
 
     const usersRows = await this.db
@@ -49,6 +50,7 @@ export class UsersService {
       .from(schema.users)
       .leftJoin(schema.userRoles, eq(schema.userRoles.userId, schema.users.id))
       .leftJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
+      .where(isNull(schema.users.deletedAt))
       .limit(limit)
       .offset(offset);
 
@@ -292,7 +294,7 @@ export class UsersService {
 
     const { userId } = result;
 
-    return await this.db
+    return this.db
       .update(schema.users)
       .set({
         passwordHash: newPasswordHash,
@@ -319,7 +321,7 @@ export class UsersService {
       .set({ ...address })
       .where(eq(schema.addresses.id, addressId));
 
-    return await this.db
+    return this.db
       .update(schema.users)
       .set({ ...userData })
       .where(eq(schema.users.id, id));
@@ -335,11 +337,11 @@ export class UsersService {
       throw new NotFoundException('User', id);
     }
 
-    return await this.db.delete(schema.users).where(eq(schema.users.id, id));
+    return this.db.delete(schema.users).where(eq(schema.users.id, id));
   }
 
   async verifyUser(id: string) {
-    return await this.db
+    return this.db
       .update(schema.users)
       .set({ verifiedAt: new Date() })
       .where(eq(schema.users.id, id));

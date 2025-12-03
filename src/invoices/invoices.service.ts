@@ -14,18 +14,17 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { InvoiceStrategyFactory } from './invoice-strategy.factory';
-import { InvoiceCreationData } from './interfaces';
 
 @Injectable()
 export class InvoicesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private invoiceStrategyFactory: InvoiceStrategyFactory,
+    private _invoiceStrategyFactory: InvoiceStrategyFactory,
   ) {}
 
   async generateInvoiceNumber(prefix: string = 'INV'): Promise<string> {
-    return await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const currentYear = new Date().getFullYear();
 
       const [sequenceRecord] = await tx
@@ -68,7 +67,7 @@ export class InvoicesService {
   }
 
   async createInvoice(data: CreateInvoiceDto) {
-    return await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const invoiceNumber =
         data.invoiceNumber || (await this.generateInvoiceNumber());
 
@@ -116,18 +115,15 @@ export class InvoicesService {
     });
   }
 
-  async syncInvoiceToProvider(invoiceId: string) {
-    const invoice = await this.getInvoiceById(invoiceId);
+  syncInvoiceToProvider(invoiceId: string) {
+    void this.getInvoiceById(invoiceId);
 
-    const lineItems = await this.db
+    void this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
 
     throw new Error('Stripe invoice sync not yet implemented');
-
-
-
   }
 
   async getExternalInvoiceStatus(invoiceId: string) {
@@ -138,7 +134,6 @@ export class InvoicesService {
     }
 
     throw new Error('Stripe invoice status check not yet implemented');
-
   }
 
   async cancelExternalInvoice(invoiceId: string) {
@@ -149,15 +144,11 @@ export class InvoicesService {
     }
 
     throw new Error('Stripe invoice cancellation not yet implemented');
-
-
-
-
   }
 
   async getInvoices(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -192,7 +183,7 @@ export class InvoicesService {
     pagination?: PaginationDto,
   ) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -260,7 +251,7 @@ export class InvoicesService {
 
     updateData.updatedAt = new Date();
 
-    return await this.db
+    return this.db
       .update(schema.invoices)
       .set(updateData)
       .where(eq(schema.invoices.id, id))
@@ -277,14 +268,14 @@ export class InvoicesService {
       throw new NotFoundException('Invoice', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.invoices)
       .where(eq(schema.invoices.id, id))
       .returning();
   }
 
   async createLineItem(data: StandaloneCreateInvoiceLineItemDto) {
-    return await this.db
+    return this.db
       .insert(schema.invoiceLineItems)
       .values({
         invoiceId: data.invoiceId,
@@ -303,7 +294,7 @@ export class InvoicesService {
   }
 
   async getLineItemsByInvoice(invoiceId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
@@ -337,7 +328,7 @@ export class InvoicesService {
       updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
 
-    return await this.db
+    return this.db
       .update(schema.invoiceLineItems)
       .set(updateData)
       .where(eq(schema.invoiceLineItems.id, id))
@@ -354,7 +345,7 @@ export class InvoicesService {
       throw new NotFoundException('Invoice line item', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id))
       .returning();

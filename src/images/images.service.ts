@@ -1,15 +1,15 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateImageDto, UpdateImageDto, GetImagesQueryDto } from './dto';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
 import { FileStorageService } from 'src/services/file-storage.service';
 
 @Injectable()
 export class ImagesService {
-  private readonly logger = new Logger(ImagesService.name);
+  private entityTypeCache = new Map<string, { id: string; code: string }>();
 
   constructor(
     @Inject(DB_PROVIDER)
@@ -71,7 +71,30 @@ export class ImagesService {
     return uploadedImages;
   }
 
+  private async getEntityType(entityTypeCode: string) {
+    const cached = this.entityTypeCache.get(entityTypeCode);
+    if (cached) {
+      return cached;
+    }
+
+    const entityType = await this.db.query.entityTypes.findFirst({
+      where: eq(schema.entityTypes.code, entityTypeCode),
+    });
+
+    if (!entityType) {
+      throw new BadRequestException(
+        `Entity type '${entityTypeCode}' not found`,
+      );
+    }
+
+    const entityTypeData = { id: entityType.id, code: entityType.code };
+    this.entityTypeCache.set(entityTypeCode, entityTypeData);
+    return entityTypeData;
+  }
+
   async createImage(data: CreateImageDto) {
+    const entityTypeData = await this.getEntityType(data.entityTypeCode);
+    // Need to check if entity type is active, so fetch full entity type
     const entityType = await this.db.query.entityTypes.findFirst({
       where: eq(schema.entityTypes.code, data.entityTypeCode),
     });
@@ -102,7 +125,16 @@ export class ImagesService {
         );
     }
 
-    const insertValues: any = {
+    const insertValues: {
+      id: ReturnType<typeof sql>;
+      entityTypeId: string;
+      entityId: string;
+      url: string;
+      altText: string | null;
+      caption: string | null;
+      displayOrder: number;
+      isPrimary: boolean;
+    } = {
       id: sql`gen_random_uuid()`,
       entityTypeId: entityType.id,
       entityId: data.entityId,
@@ -160,17 +192,8 @@ export class ImagesService {
     const whereConditions = [isNull(schema.images.deletedAt)];
 
     if (query.entityTypeCode) {
-      const entityType = await this.db.query.entityTypes.findFirst({
-        where: eq(schema.entityTypes.code, query.entityTypeCode),
-      });
-
-      if (!entityType) {
-        throw new BadRequestException(
-          `Entity type '${query.entityTypeCode}' not found`,
-        );
-      }
-
-      whereConditions.push(eq(schema.images.entityTypeId, entityType.id));
+      const entityTypeData = await this.getEntityType(query.entityTypeCode);
+      whereConditions.push(eq(schema.images.entityTypeId, entityTypeData.id));
     }
 
     if (query.entityId) {
@@ -195,6 +218,32 @@ export class ImagesService {
 
   async getImagesByEntity(entityTypeCode: string, entityId: string) {
     return this.getImages({ entityTypeCode, entityId });
+  }
+
+  async getImagesByMultipleEntities(
+    entityTypeCode: string,
+    entityIds: string[],
+  ) {
+    if (entityIds.length === 0) {
+      return [];
+    }
+
+    const entityTypeData = await this.getEntityType(entityTypeCode);
+
+    const images = await this.db.query.images.findMany({
+      where: and(
+        eq(schema.images.entityTypeId, entityTypeData.id),
+        inArray(schema.images.entityId, entityIds),
+        isNull(schema.images.deletedAt),
+      ),
+      with: {
+        entityType: true,
+        metadata: true,
+      },
+      orderBy: [schema.images.displayOrder, desc(schema.images.createdAt)],
+    });
+
+    return images;
   }
 
   async getPrimaryImage(entityTypeCode: string, entityId: string) {
@@ -305,19 +354,11 @@ export class ImagesService {
     entityId: string,
     imageIds: string[],
   ) {
-    const entityType = await this.db.query.entityTypes.findFirst({
-      where: eq(schema.entityTypes.code, entityTypeCode),
-    });
-
-    if (!entityType) {
-      throw new BadRequestException(
-        `Entity type '${entityTypeCode}' not found`,
-      );
-    }
+    const entityTypeData = await this.getEntityType(entityTypeCode);
 
     const images = await this.db.query.images.findMany({
       where: and(
-        eq(schema.images.entityTypeId, entityType.id),
+        eq(schema.images.entityTypeId, entityTypeData.id),
         eq(schema.images.entityId, entityId),
         isNull(schema.images.deletedAt),
       ),

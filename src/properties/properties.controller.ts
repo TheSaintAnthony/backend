@@ -25,14 +25,7 @@ export class PropertiesController {
 
   @Public()
   @Get()
-  async getProperties(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    const pagination: PaginationDto = {
-      page: page || 1,
-      limit: limit || 10,
-    };
+  async getProperties(@Query() pagination: PaginationDto) {
     return this.propertiesService.getProperties(pagination);
   }
 
@@ -51,7 +44,7 @@ export class PropertiesController {
   ) {
     const includeRoomsFlag = includeRooms === 'true';
     const includeActivitiesFlag = includeActivities === 'true';
-    
+
     if (includeRoomsFlag || includeActivitiesFlag) {
       return await this.propertiesService.getPropertyWithDetails(
         id,
@@ -59,7 +52,7 @@ export class PropertiesController {
         includeActivitiesFlag,
       );
     }
-    
+
     return await this.propertiesService.getPropertyById(id);
   }
 

@@ -45,7 +45,7 @@ import { ReportsModule } from './reports/reports.module';
       throttlers: [
         {
           ttl: 60,
-          limit: 15,
+          limit: 100,
         },
       ],
     }),

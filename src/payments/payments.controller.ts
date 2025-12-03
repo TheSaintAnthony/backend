@@ -24,14 +24,8 @@ export class PaymentsController {
   async getPayments(
     @Query('invoiceId', new ParseUUIDPipe({ optional: true }))
     invoiceId: string | undefined,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query() pagination: PaginationDto,
   ) {
-    const pagination: PaginationDto = {
-      page: page || 1,
-      limit: limit || 10,
-    };
-
     if (invoiceId !== undefined) {
       return await this.paymentsService.getPaymentsByInvoice(
         invoiceId,

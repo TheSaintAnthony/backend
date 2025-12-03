@@ -53,7 +53,7 @@ export class RoomPricesService {
   }
 
   async getRoomPrices() {
-    return await this.db.select().from(schema.roomPrices);
+    return this.db.select().from(schema.roomPrices);
   }
 
   async getRoomPriceById(id: string) {
@@ -70,7 +70,7 @@ export class RoomPricesService {
   }
 
   async getRoomPricesByRoom(roomId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.roomPrices)
       .where(eq(schema.roomPrices.roomId, roomId));
@@ -136,8 +136,7 @@ export class RoomPricesService {
       throw new NotFoundException('Room price', id);
     }
 
-
-    return await this.db
+    return this.db
       .delete(schema.roomPrices)
       .where(eq(schema.roomPrices.id, id))
       .returning();

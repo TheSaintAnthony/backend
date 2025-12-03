@@ -47,7 +47,7 @@ export class IdempotencyService {
 
   async cleanup() {
     const now = new Date();
-    return await this.db
+    return this.db
       .delete(schema.idempotencyKeys)
       .where(lt(schema.idempotencyKeys.expiresAt, now));
   }

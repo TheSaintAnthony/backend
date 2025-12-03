@@ -142,12 +142,15 @@ export class StripeService {
     try {
       const amountInCents = Math.round(parseFloat(params.amount) * 100);
 
-    const paymentIntent = await this.stripe.paymentIntents.create({
+      const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
         currency: params.currency.toLowerCase(),
         customer: params.customerId,
         description: params.description,
-        statement_descriptor_suffix: params.statementDescriptor?.substring(0, 22),
+        statement_descriptor_suffix: params.statementDescriptor?.substring(
+          0,
+          22,
+        ),
         metadata: {
           orderId: params.orderId,
           ...params.metadata,
@@ -200,8 +203,7 @@ export class StripeService {
         amountCaptured: paymentIntent.amount_received
           ? (paymentIntent.amount_received / 100).toString()
           : undefined,
-        errorMessage:
-          paymentIntent.last_payment_error?.message || undefined,
+        errorMessage: paymentIntent.last_payment_error?.message || undefined,
       };
     } catch (error) {
       this.logger.error(`Failed to confirm PaymentIntent: ${error}`);
@@ -218,9 +220,8 @@ export class StripeService {
     paymentIntentId: string,
   ): Promise<PaymentStatusResult> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(
-        paymentIntentId,
-      );
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
       return {
         transactionId: paymentIntent.id,
@@ -264,7 +265,11 @@ export class StripeService {
       });
 
       for (const item of params.lineItems) {
-        if (item.priceId && typeof item.priceId === 'string' && item.priceId.trim() !== '' && item.priceId.startsWith('price_')) {
+        if (
+          item.priceId &&
+          item.priceId.trim() !== '' &&
+          item.priceId.startsWith('price_')
+        ) {
           await this.stripe.invoiceItems.create({
             customer: params.customerId,
             invoice: invoice.id,
@@ -285,7 +290,9 @@ export class StripeService {
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
         } else {
-          this.logger.warn(`Skipping invoice item with invalid price configuration: ${item.description}`);
+          this.logger.warn(
+            `Skipping invoice item with invalid price configuration: ${item.description}`,
+          );
         }
       }
 
@@ -316,9 +323,7 @@ export class StripeService {
     }
   }
 
-  async payInvoice(
-    invoiceId: string,
-  ): Promise<Stripe.Invoice> {
+  async payInvoice(invoiceId: string): Promise<Stripe.Invoice> {
     try {
       const invoice = await this.stripe.invoices.pay(invoiceId, {
         paid_out_of_band: true,
@@ -345,17 +350,24 @@ export class StripeService {
     amount?: number,
     reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer',
   ): Promise<Stripe.Refund> {
+    let paymentIntent: Stripe.PaymentIntent;
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(
-        paymentIntentId,
+      paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    } catch (error) {
+      this.logger.error(`Failed to retrieve payment intent: ${error}`);
+      throw error;
+    }
+
+    if (!paymentIntent.latest_charge) {
+      const error = new Error(
+        `PaymentIntent ${paymentIntentId} has no charge to refund`,
       );
+      this.logger.error(error.message);
+      throw error;
+    }
 
-      if (!paymentIntent.latest_charge) {
-        throw new Error(
-          `PaymentIntent ${paymentIntentId} has no charge to refund`,
-        );
-      }
-
+    try {
       const refundParams: Stripe.RefundCreateParams = {
         charge: paymentIntent.latest_charge as string,
         reason: reason || 'requested_by_customer',
@@ -366,7 +378,9 @@ export class StripeService {
       }
 
       const refund = await this.stripe.refunds.create(refundParams);
-      this.logger.log(`Refund created: ${refund.id} for PaymentIntent ${paymentIntentId}`);
+      this.logger.log(
+        `Refund created: ${refund.id} for PaymentIntent ${paymentIntentId}`,
+      );
       return refund;
     } catch (error) {
       this.logger.error(`Failed to create refund: ${error}`);
@@ -377,16 +391,14 @@ export class StripeService {
   async createCreditNote(
     invoiceId: string,
     amount?: number,
-    reason?: 'duplicate' | 'fraudulent' | 'order_change' | 'product_unsatisfactory',
+    reason?:
+      | 'duplicate'
+      | 'fraudulent'
+      | 'order_change'
+      | 'product_unsatisfactory',
     memo?: string,
   ): Promise<Stripe.CreditNote> {
     try {
-      const invoice = await this.stripe.invoices.retrieve(invoiceId);
-
-      if (!invoice) {
-        throw new Error(`Invoice ${invoiceId} not found`);
-      }
-
       const creditNoteParams: Stripe.CreditNoteCreateParams = {
         invoice: invoiceId,
         reason: reason || 'order_change',
@@ -401,7 +413,9 @@ export class StripeService {
       }
 
       const creditNote = await this.stripe.creditNotes.create(creditNoteParams);
-      this.logger.log(`Credit note created: ${creditNote.id} for invoice ${invoiceId}`);
+      this.logger.log(
+        `Credit note created: ${creditNote.id} for invoice ${invoiceId}`,
+      );
       return creditNote;
     } catch (error) {
       this.logger.error(`Failed to create credit note: ${error}`);
@@ -432,11 +446,7 @@ export class StripeService {
     secret: string,
   ): Stripe.Event {
     try {
-      return this.stripe.webhooks.constructEvent(
-        payload,
-        signature,
-        secret,
-      );
+      return this.stripe.webhooks.constructEvent(payload, signature, secret);
     } catch (error) {
       this.logger.error(`Webhook signature verification failed: ${error}`);
       throw error;

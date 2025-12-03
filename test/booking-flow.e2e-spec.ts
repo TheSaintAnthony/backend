@@ -5,8 +5,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from './../src/app.module';
-import { UsersService } from './../src/users/users.service';
+import { AppModule } from './../src/app';
+import { UsersService } from './../src/users/users';
 
 describe('Booking Flow (e2e)', () => {
   let app: INestApplication;

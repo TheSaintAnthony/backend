@@ -232,7 +232,6 @@ export class LookupsController {
     return this.lookupsService.deletePaymentStatus(id);
   }
 
-
   @Post('activities')
   addActivity(@Body() dto: CreateActivityDto) {
     return this.lookupsService.addActivity(dto);

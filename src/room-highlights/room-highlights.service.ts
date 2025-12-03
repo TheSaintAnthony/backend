@@ -13,14 +13,14 @@ export class RoomHighlightsService {
   ) {}
 
   async createRoomHighlight(data: CreateRoomHighlightDto) {
-    return await this.db
+    return this.db
       .insert(schema.roomHighlights)
       .values({ ...data })
       .returning();
   }
 
   async getRoomHighlights() {
-    return await this.db.select().from(schema.roomHighlights);
+    return this.db.select().from(schema.roomHighlights);
   }
 
   async getRoomHighlightById(id: string) {
@@ -37,7 +37,7 @@ export class RoomHighlightsService {
   }
 
   async getRoomHighlightsByRoom(roomId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.roomId, roomId));
@@ -53,7 +53,7 @@ export class RoomHighlightsService {
       throw new NotFoundException('Room highlight', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id))
       .returning();
@@ -77,7 +77,7 @@ export class RoomHighlightsService {
       throw new NotFoundException('Room highlight', `${roomId}-${highlightId}`);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, roomHighlight.id))
       .returning();

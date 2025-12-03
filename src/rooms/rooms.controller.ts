@@ -33,14 +33,8 @@ export class RoomsController {
   async getRooms(
     @Query('propertyId', new ParseUUIDPipe({ optional: true }))
     propertyId: string | undefined,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query() pagination: PaginationDto,
   ) {
-    const pagination: PaginationDto = {
-      page: page || 1,
-      limit: limit || 10,
-    };
-
     if (propertyId !== undefined) {
       return await this.roomsService.getRoomsByProperty(propertyId, pagination);
     }

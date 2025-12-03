@@ -22,25 +22,25 @@ export class RoomHighlightsController {
   @Get()
   async getRoomHighlights(@Query('roomId') roomId?: string) {
     if (roomId) {
-      return await this.roomHighlightsService.getRoomHighlightsByRoom(roomId);
+      return this.roomHighlightsService.getRoomHighlightsByRoom(roomId);
     }
-    return await this.roomHighlightsService.getRoomHighlights();
+    return this.roomHighlightsService.getRoomHighlights();
   }
 
   @Get(':id')
   async getRoomHighlightById(@Param('id') id: string) {
-    return await this.roomHighlightsService.getRoomHighlightById(id);
+    return this.roomHighlightsService.getRoomHighlightById(id);
   }
 
   @Roles(UserRole.ADMIN)
   @Post()
   async createRoomHighlight(@Body() body: CreateRoomHighlightDto) {
-    return await this.roomHighlightsService.createRoomHighlight(body);
+    return this.roomHighlightsService.createRoomHighlight(body);
   }
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoomHighlight(@Param('id') id: string) {
-    return await this.roomHighlightsService.deleteRoomHighlight(id);
+    return this.roomHighlightsService.deleteRoomHighlight(id);
   }
 }

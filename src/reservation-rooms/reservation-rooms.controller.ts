@@ -24,26 +24,24 @@ export class ReservationRoomsController {
     @Query('roomId') roomId?: string,
   ) {
     if (reservationId) {
-      return await this.reservationRoomsService.getReservationRoomsByReservation(
+      return this.reservationRoomsService.getReservationRoomsByReservation(
         reservationId,
       );
     }
     if (roomId) {
-      return await this.reservationRoomsService.getReservationRoomsByRoom(
-        roomId,
-      );
+      return this.reservationRoomsService.getReservationRoomsByRoom(roomId);
     }
-    return await this.reservationRoomsService.getReservationRooms();
+    return this.reservationRoomsService.getReservationRooms();
   }
 
   @Get(':id')
   async getReservationRoomById(@Param('id') id: string) {
-    return await this.reservationRoomsService.getReservationRoomById(id);
+    return this.reservationRoomsService.getReservationRoomById(id);
   }
 
   @Post()
   async createReservationRoom(@Body() body: CreateReservationRoomDto) {
-    return await this.reservationRoomsService.createReservationRoom(body);
+    return this.reservationRoomsService.createReservationRoom(body);
   }
 
   @Patch(':id')
@@ -51,11 +49,11 @@ export class ReservationRoomsController {
     @Param('id') id: string,
     @Body() body: EditReservationRoomDto,
   ) {
-    return await this.reservationRoomsService.editReservationRoom(id, body);
+    return this.reservationRoomsService.editReservationRoom(id, body);
   }
 
   @Delete(':id')
   async deleteReservationRoom(@Param('id') id: string) {
-    return await this.reservationRoomsService.deleteReservationRoom(id);
+    return this.reservationRoomsService.deleteReservationRoom(id);
   }
 }

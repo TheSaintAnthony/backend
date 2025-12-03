@@ -32,14 +32,9 @@ export class ReservationsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   async getAllReservations(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query() pagination: PaginationDto,
     @Query('status') status?: string,
   ) {
-    const pagination: PaginationDto = {
-      page: page || 1,
-      limit: limit || 10,
-    };
     return this.reservationsService.getAllReservations(pagination, status);
   }
 
@@ -101,13 +96,8 @@ export class ReservationsController {
   @Get()
   async getReservations(
     @Request() req: AuthenticatedRequest,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query() pagination: PaginationDto,
   ) {
-    const pagination: PaginationDto = {
-      page: page || 1,
-      limit: limit || 10,
-    };
     return this.reservationsService.getReservationsByUser(
       req.user.sub,
       pagination,
@@ -135,12 +125,8 @@ export class ReservationsController {
 
   @Post('bookings/complete')
   @Idempotent()
-  async completeBooking(
-    @Body() body: { transactionId: string },
-  ) {
-    return this.reservationsService.completeBooking(
-      body.transactionId,
-    );
+  async completeBooking(@Body() body: { transactionId: string }) {
+    return this.reservationsService.completeBooking(body.transactionId);
   }
 
   @Delete(':id/cancel')
@@ -157,9 +143,6 @@ export class ReservationsController {
     @Param('id') id: string,
     @Request() req: AuthenticatedRequest,
   ) {
-    return this.reservationsService.retryPayment(
-      id,
-      req.user.sub,
-    );
+    return this.reservationsService.retryPayment(id, req.user.sub);
   }
 }

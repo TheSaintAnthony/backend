@@ -22,25 +22,25 @@ export class RoomAmenitiesController {
   @Get()
   async getRoomAmenities(@Query('roomId') roomId?: string) {
     if (roomId) {
-      return await this.roomAmenitiesService.getRoomAmenitiesByRoom(roomId);
+      return this.roomAmenitiesService.getRoomAmenitiesByRoom(roomId);
     }
-    return await this.roomAmenitiesService.getRoomAmenities();
+    return this.roomAmenitiesService.getRoomAmenities();
   }
 
   @Get(':id')
   async getRoomAmenityById(@Param('id') id: string) {
-    return await this.roomAmenitiesService.getRoomAmenityById(id);
+    return this.roomAmenitiesService.getRoomAmenityById(id);
   }
 
   @Roles(UserRole.ADMIN)
   @Post()
   async createRoomAmenity(@Body() body: CreateRoomAmenityDto) {
-    return await this.roomAmenitiesService.createRoomAmenity(body);
+    return this.roomAmenitiesService.createRoomAmenity(body);
   }
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoomAmenity(@Param('id') id: string) {
-    return await this.roomAmenitiesService.deleteRoomAmenity(id);
+    return this.roomAmenitiesService.deleteRoomAmenity(id);
   }
 }

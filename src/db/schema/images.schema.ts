@@ -9,7 +9,6 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { and, eq, isNull } from 'drizzle-orm';
 import { entityTypes } from './entity-types.schema';
 
 export const images = pgTable(
@@ -51,7 +50,9 @@ export const images = pgTable(
       table.displayOrder,
     ),
 
-    uniquePrimaryPerEntity: uniqueIndex('idx_one_primary_per_entity')
-      .on(table.entityTypeId, table.entityId),
+    uniquePrimaryPerEntity: uniqueIndex('idx_one_primary_per_entity').on(
+      table.entityTypeId,
+      table.entityId,
+    ),
   }),
 );

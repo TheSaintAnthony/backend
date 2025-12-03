@@ -64,6 +64,7 @@ async function bootstrap() {
       crossOriginEmbedderPolicy: false,
     }),
   );
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen(process.env.PORT ?? 3000);
 }

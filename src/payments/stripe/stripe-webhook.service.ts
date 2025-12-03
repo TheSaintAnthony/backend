@@ -38,7 +38,9 @@ export class StripeWebhookService {
         .limit(1);
 
       if (!payment) {
-        this.logger.warn(`Payment not found for PaymentIntent ${paymentIntent.id}`);
+        this.logger.warn(
+          `Payment not found for PaymentIntent ${paymentIntent.id}`,
+        );
         return;
       }
 
@@ -65,13 +67,16 @@ export class StripeWebhookService {
             const paidInvoice = await this.stripeService.payInvoice(
               invoice.externalInvoiceId,
             );
-            
-            let invoiceUrl = paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
-            
+
+            let invoiceUrl =
+              paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
+
             if (!invoiceUrl) {
-              invoiceUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
+              invoiceUrl = await this.stripeService.getInvoiceUrl(
+                invoice.externalInvoiceId,
+              );
             }
-            
+
             await tx
               .update(schema.invoices)
               .set({
@@ -87,9 +92,13 @@ export class StripeWebhookService {
             let invoiceUrl = invoice.externalInvoiceUrl;
             if (!invoiceUrl && invoice.externalInvoiceId) {
               try {
-                invoiceUrl = await this.stripeService.getInvoiceUrl(invoice.externalInvoiceId);
+                invoiceUrl = await this.stripeService.getInvoiceUrl(
+                  invoice.externalInvoiceId,
+                );
               } catch (urlError) {
-                this.logger.error(`Failed to retrieve invoice URL: ${urlError}`);
+                this.logger.error(
+                  `Failed to retrieve invoice URL: ${urlError}`,
+                );
               }
             }
             await tx
@@ -122,9 +131,10 @@ export class StripeWebhookService {
           .limit(1);
 
         if (reservation) {
-          const confirmedStatusId = await this.statusLookupService.getReservationStatusId(
-            RESERVATION_STATUS_NAMES.CONFIRMED,
-          );
+          const confirmedStatusId =
+            await this.statusLookupService.getReservationStatusId(
+              RESERVATION_STATUS_NAMES.CONFIRMED,
+            );
           await tx
             .update(schema.reservations)
             .set({
@@ -189,4 +199,3 @@ export class StripeWebhookService {
     }
   }
 }
-

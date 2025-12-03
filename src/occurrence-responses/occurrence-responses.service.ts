@@ -12,19 +12,35 @@ export class OccurrenceResponsesService {
     private db: NodePgDatabase<typeof schema>,
   ) {}
 
-  async createResponse(data: CreateOccurrenceResponseDto) {
+  async createResponse(
+    createData: CreateOccurrenceResponseDto,
+  ): Promise<unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const occurrenceId: string = createData.occurrenceId;
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
-      .where(eq(schema.occurrences.id, data.occurrenceId));
+      .where(eq(schema.occurrences.id, occurrenceId));
 
     if (!occurrence) {
-      throw new NotFoundException('Occurrence', data.occurrenceId);
+      throw new NotFoundException('Occurrence', occurrenceId);
     }
 
-    return await this.db
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const insertValues = {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      occurrenceId: createData.occurrenceId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      userId: createData.userId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      message: createData.message,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      isAdmin: createData.isAdmin,
+    };
+
+    return this.db
       .insert(schema.occurrenceResponses)
-      .values({ ...data })
+      .values(insertValues)
       .returning();
   }
 
@@ -38,7 +54,7 @@ export class OccurrenceResponsesService {
       throw new NotFoundException('Occurrence', occurrenceId);
     }
 
-    return await this.db
+    return this.db
       .select({
         id: schema.occurrenceResponses.id,
         occurrenceId: schema.occurrenceResponses.occurrenceId,

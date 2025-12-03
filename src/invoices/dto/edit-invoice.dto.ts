@@ -111,7 +111,6 @@ export class EditInvoiceDto {
   @IsString()
   notes?: string;
 
-
   @ApiPropertyOptional({
     description: 'External invoice ID from provider',
     example: 'CEGID-123456',

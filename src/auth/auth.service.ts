@@ -133,51 +133,43 @@ export class AuthService {
   }
 
   private async decodeResetPasswordTokenToEmail(token: string) {
+    let payload: PasswordResetTokenPayload;
     try {
-      const payload: PasswordResetTokenPayload = await this.jwtService.verify(
-        token,
-        {
-          secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
-        },
-      );
-
-      if (
-        typeof payload === 'object' &&
-        'email' in payload &&
-        'iat' in payload
-      ) {
-        return {
-          email: payload.email,
-          tokenIssuedAt: payload.iat as string,
-        };
-      }
-      throw new BadRequestException('Invalid token payload');
+      payload = await this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
+      });
     } catch (error) {
       if (error instanceof Error && error.name === 'TokenExpiredError') {
         throw new BadRequestException('Password reset token expired');
       }
       throw new BadRequestException('Invalid or malformed confirmation token');
     }
+
+    if (typeof payload === 'object' && 'email' in payload && 'iat' in payload) {
+      return {
+        email: payload.email,
+        tokenIssuedAt: payload.iat as string,
+      };
+    }
+    throw new BadRequestException('Invalid token payload');
   }
 
   private async decodeVerifyUserTokenToId(token: string) {
+    let payload: UserVerifyTokenPayload;
     try {
-      const payload: UserVerifyTokenPayload = await this.jwtService.verify(
-        token,
-        {
-          secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
-        },
-      );
-
-      if (typeof payload === 'object' && 'subb' in payload) {
-        return payload.subb;
-      }
-      throw new BadRequestException('Invalid token payload');
+      payload = await this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
+      });
     } catch (error) {
       if (error instanceof Error && error.name === 'TokenExpiredError') {
         throw new BadRequestException('User verification token expired');
       }
       throw new BadRequestException('Invalid or malformed confirmation token');
     }
+
+    if (typeof payload === 'object' && 'subb' in payload) {
+      return payload.subb;
+    }
+    throw new BadRequestException('Invalid token payload');
   }
 }

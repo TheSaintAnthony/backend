@@ -8,7 +8,13 @@ import { StripeModule } from 'src/payments/stripe/stripe.module';
 import { PropertiesModule } from 'src/properties/properties.module';
 
 @Module({
-  imports: [RoomPricesModule, RoomHoldsModule, ImagesModule, StripeModule, forwardRef(() => PropertiesModule)],
+  imports: [
+    RoomPricesModule,
+    RoomHoldsModule,
+    ImagesModule,
+    StripeModule,
+    forwardRef(() => PropertiesModule),
+  ],
   providers: [RoomsService],
   controllers: [RoomsController],
   exports: [RoomsService],

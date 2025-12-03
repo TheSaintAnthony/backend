@@ -48,13 +48,16 @@ export function createPaginatedResponse<T>(
   page: number,
   limit: number,
 ): PaginatedResponse<T> {
-  const totalPages = Math.ceil(total / limit);
+  // Safety clamp: ensure limit doesn't exceed maximum (defense in depth)
+  const MAX_LIMIT = 100;
+  const clampedLimit = Math.min(limit, MAX_LIMIT);
+  const totalPages = Math.ceil(total / clampedLimit);
 
   return {
     data,
     meta: {
       page,
-      limit,
+      limit: clampedLimit,
       total,
       totalPages,
       hasNextPage: page < totalPages,

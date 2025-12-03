@@ -56,7 +56,9 @@ export class FileStorageService {
       if (fs.existsSync(filePath)) {
         await fs.promises.unlink(filePath);
       }
-    } catch (error) {}
+    } catch {
+      // Ignore file deletion errors
+    }
   }
 
   getFullPath(relativePath: string): string {

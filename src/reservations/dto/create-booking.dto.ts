@@ -77,7 +77,6 @@ export class CreateBookingDto {
   @IsString()
   specialRequests?: string;
 
-
   @ApiPropertyOptional({
     description: 'Payment transaction ID',
     example: 'txn_123456',

@@ -22,7 +22,7 @@ export class PaymentsService {
   ) {}
 
   async createPayment(data: CreatePaymentDto) {
-    return await this.db
+    return this.db
       .insert(schema.payments)
       .values({ ...data })
       .returning();
@@ -30,7 +30,7 @@ export class PaymentsService {
 
   async getPayments(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -62,7 +62,7 @@ export class PaymentsService {
 
   async getPaymentsByInvoice(invoiceId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = pagination?.limit || 10;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
 
     const [totalResult] = await this.db
@@ -91,7 +91,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment', id);
     }
 
-    return await this.db
+    return this.db
       .update(schema.payments)
       .set({ ...data })
       .where(eq(schema.payments.id, id))
@@ -108,7 +108,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.payments)
       .where(eq(schema.payments.id, id))
       .returning();
@@ -137,7 +137,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment', id);
     }
 
-    return await this.db
+    return this.db
       .update(schema.payments)
       .set({ ...data })
       .where(eq(schema.payments.id, id))

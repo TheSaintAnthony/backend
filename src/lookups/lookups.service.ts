@@ -55,6 +55,7 @@ export class LookupsService {
       await this.ensureNotExists(table, value.name);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.db.insert(table).values(value as any);
   }
 
@@ -73,11 +74,13 @@ export class LookupsService {
   ): Promise<unknown> {
     await this.ensureExistsById(table, id);
 
-    return this.db
-      .update(table)
-
-      .set(value as any)
-      .where(eq(table.id, id));
+    return (
+      this.db
+        .update(table)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        .set(value as any)
+        .where(eq(table.id, id))
+    );
   }
 
   async deleteValue(table: LookupTable, id: string) {
@@ -245,7 +248,6 @@ export class LookupsService {
     return this.deleteValue(schema.paymentStatus, id);
   }
 
-
   async addActivity(data: ActivityData) {
     const { images, ...activityData } = data;
 
@@ -272,15 +274,28 @@ export class LookupsService {
   async getActivities() {
     const activities = await this.db.query.activities.findMany();
 
-    const activitiesWithImages = await Promise.all(
-      activities.map(async (activity) => {
-        const images = await this.imagesService.getImagesByEntity(
+    // Batch fetch all images for all activities in a single query
+    const activityIds = activities.map((activity) => activity.id);
+    const allImages = activityIds.length > 0
+      ? await this.imagesService.getImagesByMultipleEntities(
           'activity',
-          activity.id,
-        );
-        return { ...activity, images };
-      }),
-    );
+          activityIds,
+        )
+      : [];
+
+    // Group images by activity ID
+    const imagesByActivityId = new Map<string, typeof allImages>();
+    for (const image of allImages) {
+      const existing = imagesByActivityId.get(image.entityId) || [];
+      existing.push(image);
+      imagesByActivityId.set(image.entityId, existing);
+    }
+
+    // Map activities with their images
+    const activitiesWithImages = activities.map((activity) => ({
+      ...activity,
+      images: imagesByActivityId.get(activity.id) || [],
+    }));
 
     return activitiesWithImages;
   }

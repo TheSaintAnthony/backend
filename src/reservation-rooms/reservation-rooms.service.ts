@@ -48,14 +48,14 @@ export class ReservationRoomsService {
       data.checkOut,
     );
 
-    return await this.db
+    return this.db
       .insert(schema.reservationRooms)
       .values({ ...data, accessCode })
       .returning();
   }
 
   async getReservationRooms() {
-    return await this.db.select().from(schema.reservationRooms);
+    return this.db.select().from(schema.reservationRooms);
   }
 
   async getReservationRoomById(id: string) {
@@ -72,14 +72,14 @@ export class ReservationRoomsService {
   }
 
   async getReservationRoomsByReservation(reservationId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.reservationId, reservationId));
   }
 
   async getReservationRoomsByRoom(roomId: string) {
-    return await this.db
+    return this.db
       .select()
       .from(schema.reservationRooms)
       .where(eq(schema.reservationRooms.roomId, roomId));
@@ -95,7 +95,7 @@ export class ReservationRoomsService {
       throw new NotFoundException('Reservation room', id);
     }
 
-    return await this.db
+    return this.db
       .update(schema.reservationRooms)
       .set({ ...data })
       .where(eq(schema.reservationRooms.id, id))
@@ -112,7 +112,7 @@ export class ReservationRoomsService {
       throw new NotFoundException('Reservation room', id);
     }
 
-    return await this.db
+    return this.db
       .delete(schema.reservationRooms)
       .where(eq(schema.reservationRooms.id, id))
       .returning();

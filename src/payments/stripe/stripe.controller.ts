@@ -12,6 +12,7 @@ import { StripeService } from './stripe.service';
 import { StripeWebhookService } from './stripe-webhook.service';
 import { Public } from 'src/decorators';
 import type { Request } from 'express';
+import Stripe from 'stripe';
 
 @Public()
 @Controller('stripe')
@@ -41,7 +42,7 @@ export class StripeController {
       throw new Error('Raw body is required for webhook verification');
     }
 
-    let event;
+    let event: Stripe.Event;
     try {
       event = this.stripeService.verifyWebhookSignature(
         req.rawBody,
@@ -56,17 +57,15 @@ export class StripeController {
     switch (event.type) {
       case 'payment_intent.succeeded':
         await this.webhookService.handlePaymentIntentSucceeded(
-          event.data.object as any,
+          event.data.object,
         );
         break;
       case 'payment_intent.payment_failed':
-        await this.webhookService.handlePaymentIntentFailed(
-          event.data.object as any,
-        );
+        await this.webhookService.handlePaymentIntentFailed(event.data.object);
         break;
       case 'payment_intent.canceled':
         await this.webhookService.handlePaymentIntentCanceled(
-          event.data.object as any,
+          event.data.object,
         );
         break;
       default:
