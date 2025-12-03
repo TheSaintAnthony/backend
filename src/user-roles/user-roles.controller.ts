@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Request,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -22,15 +23,12 @@ export class UserRolesController {
 
   @Roles(UserRole.ADMIN)
   @Get()
-  async getUserRoles(@Request() req: AuthenticatedRequest) {
-    const userId = req.user.sub;
-    return await this.userRolesService.getUserRolesByUser(userId);
-  }
-
-  @Roles(UserRole.ADMIN)
-  @Get('user/:userId')
-  async getUserRolesByUserId(@Param('userId') userId: string) {
-    return await this.userRolesService.getUserRolesByUser(userId);
+  async getUserRoles(
+    @Request() req: AuthenticatedRequest,
+    @Query('userId') userId?: string,
+  ) {
+    const targetUserId = userId || req.user.sub;
+    return await this.userRolesService.getUserRolesByUser(targetUserId);
   }
 
   @Roles(UserRole.ADMIN)

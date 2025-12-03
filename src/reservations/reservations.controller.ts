@@ -71,7 +71,7 @@ export class ReservationsController {
     return this.reservationsService.updateReservation(id, body);
   }
 
-  @Post('admin/:id/check-in')
+  @Post('admin/:id/checkin')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   async checkInReservation(@Param('id') id: string) {
@@ -137,7 +137,7 @@ export class ReservationsController {
     return this.reservationsService.cancelReservation(id, req.user.sub);
   }
 
-  @Post(':id/retry-payment')
+  @Post(':id/retrypayment')
   @Idempotent()
   async retryPayment(
     @Param('id') id: string,

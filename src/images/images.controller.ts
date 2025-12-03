@@ -148,7 +148,7 @@ export class ImagesController {
 
   @ApiOperation({ summary: 'Serve image file' })
   @Public()
-  @Get('serve/images/:entityType/:filename')
+  @Get('serve/:entityType/:filename')
   serveImage(
     @Param('entityType') entityType: string,
     @Param('filename') filename: string,
