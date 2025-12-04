@@ -4,17 +4,14 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { DateRangeDto, GroupByPeriod } from './dto';
 import { sql, and, gte, lte, eq, count, sum, desc } from 'drizzle-orm';
-
 @Injectable()
 export class ReportsService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async getRevenueOverview(filters: DateRangeDto) {
     const { startDate, endDate, propertyId } = filters;
-
     const dateConditions = [];
     if (startDate) {
       dateConditions.push(
@@ -26,21 +23,17 @@ export class ReportsService {
         lte(schema.reservations.createdAt, new Date(endDate)),
       );
     }
-
     const [confirmedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, 'confirmed'));
-
     const [completedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, 'completed'));
-
     const validStatusIds = [confirmedStatus?.id, completedStatus?.id].filter(
       Boolean,
     );
-
     const revenueConditions = [
       ...dateConditions,
       validStatusIds.length > 0
@@ -50,7 +43,6 @@ export class ReportsService {
           )})`
         : undefined,
     ].filter(Boolean);
-
     const totalRevenueResult = await this.db
       .select({
         totalRevenue: sum(schema.reservations.totalPrice),
@@ -61,9 +53,7 @@ export class ReportsService {
       .where(
         revenueConditions.length > 0 ? and(...revenueConditions) : undefined,
       );
-
     const totalRevenue = totalRevenueResult[0];
-
     const revenueByProperty = await this.db
       .select({
         propertyId: schema.properties.id,
@@ -91,7 +81,6 @@ export class ReportsService {
         ),
       )
       .groupBy(schema.properties.id, schema.properties.name);
-
     const revenueByRoomType = await this.db
       .select({
         roomTypeId: schema.roomTypes.id,
@@ -114,14 +103,11 @@ export class ReportsService {
       )
       .where(and(...revenueConditions))
       .groupBy(schema.roomTypes.id, schema.roomTypes.name);
-
     const revenueByPaymentMethod: any[] = [];
-
     const [pendingInvoiceStatus] = await this.db
       .select()
       .from(schema.invoiceStatus)
       .where(eq(schema.invoiceStatus.name, 'pending'));
-
     const outstandingResult = await this.db
       .select({
         outstandingAmount: sum(schema.invoices.totalAmount),
@@ -133,7 +119,6 @@ export class ReportsService {
           ? eq(schema.invoices.statusId, pendingInvoiceStatus.id)
           : undefined,
       );
-
     return {
       overview: {
         totalRevenue: totalRevenue.totalRevenue || '0',
@@ -147,10 +132,8 @@ export class ReportsService {
       byPaymentMethod: revenueByPaymentMethod,
     };
   }
-
   async getBookingTrends(filters: DateRangeDto) {
     const { startDate, endDate, groupBy = 'day' } = filters;
-
     const dateConditions = [];
     if (startDate) {
       dateConditions.push(
@@ -162,7 +145,6 @@ export class ReportsService {
         lte(schema.reservations.createdAt, new Date(endDate)),
       );
     }
-
     const bookingsByStatus = await this.db
       .select({
         statusId: schema.reservationStatus.id,
@@ -177,7 +159,6 @@ export class ReportsService {
       )
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
       .groupBy(schema.reservationStatus.id, schema.reservationStatus.name);
-
     let dateGroupExpression;
     switch (groupBy) {
       case GroupByPeriod.DAY:
@@ -195,7 +176,6 @@ export class ReportsService {
       default:
         dateGroupExpression = sql<string>`DATE(${schema.reservations.createdAt})`;
     }
-
     const bookingsOverTime = await this.db
       .select({
         period: dateGroupExpression,
@@ -206,12 +186,10 @@ export class ReportsService {
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
       .groupBy(dateGroupExpression)
       .orderBy(dateGroupExpression);
-
     const [cancelledStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, 'cancelled'));
-
     const totalBookings = bookingsByStatus.reduce(
       (acc, curr) => acc + curr.count,
       0,
@@ -221,7 +199,6 @@ export class ReportsService {
       0;
     const cancellationRate =
       totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0;
-
     const leadTimeResult = await this.db
       .select({
         averageLeadTime: sql<number>`AVG(EXTRACT(DAY FROM (${schema.reservationRooms.checkIn}::timestamp - ${schema.reservations.createdAt}::timestamp)))`,
@@ -232,7 +209,6 @@ export class ReportsService {
         eq(schema.reservations.id, schema.reservationRooms.reservationId),
       )
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
-
     return {
       summary: {
         totalBookings,
@@ -244,21 +220,17 @@ export class ReportsService {
       trends: bookingsOverTime,
     };
   }
-
   async getOccupancyAnalytics(filters: DateRangeDto) {
     const { startDate, endDate, propertyId } = filters;
-
     const start = startDate
       ? new Date(startDate)
       : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = endDate
       ? new Date(endDate)
       : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
-
     const daysDiff = Math.ceil(
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     );
-
     const roomsQuery = this.db
       .select({
         id: schema.rooms.id,
@@ -278,12 +250,9 @@ export class ReportsService {
         eq(schema.rooms.roomTypeId, schema.roomTypes.id),
       )
       .where(propertyId ? eq(schema.properties.id, propertyId) : undefined);
-
     const rooms = await roomsQuery;
-
     const startDateStr = start.toISOString().split('T')[0];
     const endDateStr = end.toISOString().split('T')[0];
-
     const bookedNights = await this.db
       .select({
         roomId: schema.reservationRooms.roomId,
@@ -302,17 +271,14 @@ export class ReportsService {
         ),
       )
       .groupBy(schema.reservationRooms.roomId);
-
     const bookedNightsMap = new Map(
       bookedNights.map((b) => [b.roomId, b.totalNights || 0]),
     );
-
     const roomOccupancy = rooms.map((room) => {
       const nights = bookedNightsMap.get(room.id) || 0;
       const availableNights = daysDiff;
       const occupancyRate =
         availableNights > 0 ? (nights / availableNights) * 100 : 0;
-
       return {
         roomId: room.id,
         roomName: room.name,
@@ -325,12 +291,10 @@ export class ReportsService {
         occupancyRate: occupancyRate.toFixed(2),
       };
     });
-
     const propertyOccupancy = rooms.reduce(
       (acc, room) => {
         const nights = bookedNightsMap.get(room.id) || 0;
         const key = room.propertyId;
-
         if (!acc[key]) {
           acc[key] = {
             propertyId: room.propertyId,
@@ -340,11 +304,9 @@ export class ReportsService {
             roomCount: 0,
           };
         }
-
         acc[key].totalBookedNights += nights;
         acc[key].totalAvailableNights += daysDiff;
         acc[key].roomCount += 1;
-
         return acc;
       },
       {} as Record<
@@ -358,7 +320,6 @@ export class ReportsService {
         }
       >,
     );
-
     const propertyOccupancyArray = Object.values(propertyOccupancy).map(
       (prop) => ({
         ...prop,
@@ -371,14 +332,11 @@ export class ReportsService {
             : '0.00',
       }),
     );
-
     const roomTypeOccupancy = rooms.reduce(
       (acc, room) => {
         if (!room.roomTypeId) return acc;
-
         const nights = bookedNightsMap.get(room.id) || 0;
         const key = room.roomTypeId;
-
         if (!acc[key]) {
           acc[key] = {
             roomTypeId: room.roomTypeId,
@@ -388,11 +346,9 @@ export class ReportsService {
             roomCount: 0,
           };
         }
-
         acc[key].totalBookedNights += nights;
         acc[key].totalAvailableNights += daysDiff;
         acc[key].roomCount += 1;
-
         return acc;
       },
       {} as Record<
@@ -406,7 +362,6 @@ export class ReportsService {
         }
       >,
     );
-
     const roomTypeOccupancyArray = Object.values(roomTypeOccupancy).map(
       (type) => ({
         ...type,
@@ -419,7 +374,6 @@ export class ReportsService {
             : '0.00',
       }),
     );
-
     const avgLengthOfStay = await this.db
       .select({
         averageNights: sql<number>`COALESCE(AVG((${schema.reservationRooms.checkOut} - ${schema.reservationRooms.checkIn})), 0)`,
@@ -435,7 +389,6 @@ export class ReportsService {
           lte(schema.reservationRooms.checkOut, endDateStr),
         ),
       );
-
     return {
       dateRange: {
         startDate: start.toISOString(),
@@ -451,10 +404,8 @@ export class ReportsService {
       byRoomType: roomTypeOccupancyArray,
     };
   }
-
   async getCustomerInsights(filters: DateRangeDto) {
     const { startDate, endDate } = filters;
-
     const dateConditions = [];
     if (startDate) {
       dateConditions.push(gte(schema.users.createdAt, new Date(startDate)));
@@ -462,14 +413,12 @@ export class ReportsService {
     if (endDate) {
       dateConditions.push(lte(schema.users.createdAt, new Date(endDate)));
     }
-
     const [totalCustomersResult] = await this.db
       .select({
         totalCustomers: count(schema.users.id),
       })
       .from(schema.users)
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
-
     const customerAcquisition = await this.db
       .select({
         month: sql<string>`DATE_TRUNC('month', ${schema.users.createdAt})`,
@@ -479,7 +428,6 @@ export class ReportsService {
       .where(dateConditions.length > 0 ? and(...dateConditions) : undefined)
       .groupBy(sql`DATE_TRUNC('month', ${schema.users.createdAt})`)
       .orderBy(sql`DATE_TRUNC('month', ${schema.users.createdAt})`);
-
     const topCustomers = await this.db
       .select({
         userId: schema.users.id,
@@ -503,7 +451,6 @@ export class ReportsService {
       )
       .orderBy(desc(sum(schema.reservations.totalPrice)))
       .limit(20);
-
     const allCustomersWithBookings = await this.db
       .select({
         userId: schema.users.id,
@@ -515,7 +462,6 @@ export class ReportsService {
         eq(schema.users.id, schema.reservations.userId),
       )
       .groupBy(schema.users.id);
-
     const customersWithNoBookings = allCustomersWithBookings.filter(
       (c) => c.bookingCount === 0,
     ).length;
@@ -525,7 +471,6 @@ export class ReportsService {
     const returningCustomers = allCustomersWithBookings.filter(
       (c) => c.bookingCount > 1,
     ).length;
-
     const customerBookingCounts = [
       {
         segment: 'No Bookings',
@@ -540,7 +485,6 @@ export class ReportsService {
         customerCount: returningCustomers,
       },
     ];
-
     const customersByCountry = await this.db
       .select({
         country: schema.addresses.country,
@@ -555,7 +499,6 @@ export class ReportsService {
       .groupBy(schema.addresses.country)
       .orderBy(desc(count(sql`DISTINCT ${schema.users.id}`)))
       .limit(10);
-
     const totalBookingsCount = allCustomersWithBookings.reduce(
       (sum, c) => sum + c.bookingCount,
       0,
@@ -564,7 +507,6 @@ export class ReportsService {
       allCustomersWithBookings.length > 0
         ? totalBookingsCount / allCustomersWithBookings.length
         : 0;
-
     return {
       summary: {
         totalCustomers: totalCustomersResult.totalCustomers || 0,
@@ -583,7 +525,6 @@ export class ReportsService {
       },
     };
   }
-
   async getAllReports(filters: DateRangeDto) {
     const [revenue, bookings, occupancy, customers] = await Promise.all([
       this.getRevenueOverview(filters),
@@ -591,7 +532,6 @@ export class ReportsService {
       this.getOccupancyAnalytics(filters),
       this.getCustomerInsights(filters),
     ]);
-
     return {
       revenue,
       bookings,

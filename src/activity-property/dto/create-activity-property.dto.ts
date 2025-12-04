@@ -1,6 +1,5 @@
 import { IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-
 export class CreateActivityPropertyDto {
   @ApiProperty({
     description: 'Activity ID',
@@ -8,7 +7,6 @@ export class CreateActivityPropertyDto {
   })
   @IsUUID()
   activityId: string;
-
   @ApiProperty({
     description: 'Property ID',
     example: '123e4567-e89b-12d3-a456-426614174000',

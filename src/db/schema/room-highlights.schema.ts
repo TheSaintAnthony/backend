@@ -1,7 +1,6 @@
 import { pgTable, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { rooms } from './rooms.schema';
 import { highlights } from './lookup-tables.schema';
-
 export const roomHighlights = pgTable(
   'room_highlights',
   {

@@ -21,5 +21,10 @@ export * from './entity-types.schema';
 export * from './images.schema';
 export * from './image-metadata.schema';
 export * from './idempotency-keys.schema';
-
+export * from './residences.schema';
+export * from './residence-units.schema';
+export * from './residence-contacts.schema';
+export * from './restaurants.schema';
+export * from './restaurant-menus.schema';
+export * from './restaurant-menu-items.schema';
 export * from './relations.schema';

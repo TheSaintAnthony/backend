@@ -11,25 +11,21 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-
 @Injectable()
 export class UsersService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async getUsers(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
-
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.users)
       .where(isNull(schema.users.deletedAt));
     const total = totalResult.count;
-
     const usersRows = await this.db
       .select({
         id: schema.users.id,
@@ -53,7 +49,6 @@ export class UsersService {
       .where(isNull(schema.users.deletedAt))
       .limit(limit)
       .offset(offset);
-
     const usersMap = new Map<
       string,
       {
@@ -72,7 +67,6 @@ export class UsersService {
         roles: Array<{ id: string; name: string }>;
       }
     >();
-
     for (const row of usersRows) {
       if (!usersMap.has(row.id)) {
         usersMap.set(row.id, {
@@ -91,7 +85,6 @@ export class UsersService {
           roles: [],
         });
       }
-
       const user = usersMap.get(row.id)!;
       if (row.roleId && row.roleName) {
         user.roles.push({
@@ -100,81 +93,67 @@ export class UsersService {
         });
       }
     }
-
     const data = Array.from(usersMap.values());
     return createPaginatedResponse(data, total, page, limit);
   }
-
   async findOneByEmail(email: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.email, email));
-
     if (!user) {
       throw new UnauthorizedException(
         'Login failed. Incorrect login credentials.',
       );
     }
-
     const roles = await this.db
       .select({ name: schema.roles.name })
       .from(schema.roles)
       .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
       .where(eq(schema.userRoles.userId, user.id));
-
     return {
       ...user,
       roles,
     };
   }
-
   async findByEmail(email: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.email, email));
-
     if (!user) {
       throw new NotFoundException('User', email);
     }
-
     const roles = await this.db
       .select({ name: schema.roles.name })
       .from(schema.roles)
       .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
       .where(eq(schema.userRoles.userId, user.id));
-
     const { passwordHash: _, ...safeUser } = user;
     return {
       ...safeUser,
       roles,
     };
   }
-
   async findByEmailOrNull(email: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.email, email));
-
     if (!user) {
       return null;
     }
-
     const roles = await this.db
       .select({ name: schema.roles.name })
       .from(schema.roles)
       .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
       .where(eq(schema.userRoles.userId, user.id));
-
     const { passwordHash: _, ...safeUser } = user;
     return {
       ...safeUser,
       roles,
     };
   }
-
   async getUserById(id: string) {
     const userRows = await this.db
       .select({
@@ -205,11 +184,9 @@ export class UsersService {
         eq(schema.users.addressId, schema.addresses.id),
       )
       .where(eq(schema.users.id, id));
-
     if (!userRows || userRows.length === 0) {
       throw new NotFoundException('User', id);
     }
-
     const user = userRows[0];
     const roles = userRows
       .filter((row) => row.roleId && row.roleName)
@@ -217,7 +194,6 @@ export class UsersService {
         id: row.roleId,
         name: row.roleName,
       }));
-
     const address =
       user.addressId && user.addressStreet
         ? {
@@ -227,7 +203,6 @@ export class UsersService {
             country: user.addressCountry,
           }
         : undefined;
-
     return {
       id: user.id,
       firstName: user.firstName,
@@ -245,10 +220,8 @@ export class UsersService {
       roles,
     };
   }
-
   async createUser(data: Omit<SignUpDto, 'password'> & { password: string }) {
     const { address, password, ...userData } = data;
-
     const [createdAddress] = await this.db
       .insert(schema.addresses)
       .values({
@@ -258,7 +231,6 @@ export class UsersService {
         country: address.country,
       })
       .returning({ id: schema.addresses.id });
-
     const [createdUser] = await this.db
       .insert(schema.users)
       .values({
@@ -267,19 +239,15 @@ export class UsersService {
         addressId: createdAddress.id,
       })
       .returning();
-
     const [role] = await this.db
       .select({ id: schema.roles.id })
       .from(schema.roles)
       .where(eq(schema.roles.name, UserRole.USER));
-
     await this.db
       .insert(schema.userRoles)
       .values({ userId: createdUser.id, roleId: role.id });
-
     return createdUser;
   }
-
   async resetPassword(email: string, newPasswordHash: string) {
     const [result] = await this.db
       .select({
@@ -287,13 +255,10 @@ export class UsersService {
       })
       .from(schema.users)
       .where(eq(schema.users.email, email));
-
     if (!result) {
       throw new NotFoundException('User', email);
     }
-
     const { userId } = result;
-
     return this.db
       .update(schema.users)
       .set({
@@ -302,44 +267,35 @@ export class UsersService {
       })
       .where(eq(schema.users.id, userId));
   }
-
   async editUser(id: string, data: EditUserDto) {
     const { address, ...userData } = data;
-
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.id, id));
-
     if (!user) {
       throw new NotFoundException('User', id);
     }
-
     const addressId: string = user.addressId!;
     await this.db
       .update(schema.addresses)
       .set({ ...address })
       .where(eq(schema.addresses.id, addressId));
-
     return this.db
       .update(schema.users)
       .set({ ...userData })
       .where(eq(schema.users.id, id));
   }
-
   async deleteUser(id: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
       .where(eq(schema.users.id, id));
-
     if (!user) {
       throw new NotFoundException('User', id);
     }
-
     return this.db.delete(schema.users).where(eq(schema.users.id, id));
   }
-
   async verifyUser(id: string) {
     return this.db
       .update(schema.users)

@@ -10,7 +10,6 @@ import {
 import { rooms } from './rooms.schema';
 import { reservations } from './reservations.schema';
 import { sql } from 'drizzle-orm';
-
 export const reservationRooms = pgTable(
   'reservation_rooms',
   {

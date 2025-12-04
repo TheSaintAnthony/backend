@@ -7,43 +7,35 @@ import {
   UnauthorizedException as NestUnauthorizedException,
   ForbiddenException as NestForbiddenException,
 } from '@nestjs/common';
-
 type ExceptionDetails = Record<string, unknown>;
-
 export class BadRequestException extends NestBadRequestException {
   constructor(message: string | string[], details?: ExceptionDetails) {
     super(details ? { message, error: 'Bad Request', details } : message);
   }
 }
-
 export class NotFoundException extends NestNotFoundException {
   constructor(resource: string, identifier?: string) {
     const message = identifier
       ? `${resource} with identifier '${identifier}' not found`
       : `${resource} not found`;
-
     super(message);
   }
 }
-
 export class ConflictException extends NestConflictException {
   constructor(message: string, details?: ExceptionDetails) {
     super(details ? { message, error: 'Conflict', details } : message);
   }
 }
-
 export class UnauthorizedException extends NestUnauthorizedException {
   constructor(message: string = 'Unauthorized access') {
     super(message, 'Unauthorized');
   }
 }
-
 export class ForbiddenException extends NestForbiddenException {
   constructor(message: string = 'Access forbidden') {
     super(message, 'Forbidden');
   }
 }
-
 export class ValidationException extends HttpException {
   constructor(errors: ExceptionDetails) {
     super(
@@ -57,7 +49,6 @@ export class ValidationException extends HttpException {
     );
   }
 }
-
 export class DatabaseException extends HttpException {
   constructor(
     message: string = 'Database operation failed',
@@ -74,7 +65,6 @@ export class DatabaseException extends HttpException {
     );
   }
 }
-
 export class BusinessLogicException extends HttpException {
   constructor(
     message: string,

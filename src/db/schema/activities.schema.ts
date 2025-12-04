@@ -2,7 +2,6 @@ import { uuid } from 'drizzle-orm/pg-core';
 import { varchar, text, numeric, integer } from 'drizzle-orm/pg-core';
 import { pgTable } from 'drizzle-orm/pg-core';
 import { activityCategories } from './lookup-tables.schema';
-
 export const activities = pgTable('activities', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 100 }).notNull().unique(),

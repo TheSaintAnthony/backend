@@ -1,7 +1,6 @@
 import { pgTable, uuid, date, timestamp } from 'drizzle-orm/pg-core';
 import { rooms } from './rooms.schema';
 import { users } from './users.schema';
-
 export const roomHolds = pgTable('room_holds', {
   id: uuid('id').primaryKey().defaultRandom(),
   roomId: uuid('room_id')

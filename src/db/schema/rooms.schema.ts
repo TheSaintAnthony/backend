@@ -9,7 +9,6 @@ import {
 import { properties } from './properties.schema';
 import { roomTypes } from './lookup-tables.schema';
 import { boolean } from 'drizzle-orm/pg-core';
-
 export const rooms = pgTable('rooms', {
   id: uuid('id').primaryKey().defaultRandom(),
   propertyId: uuid('property_id')

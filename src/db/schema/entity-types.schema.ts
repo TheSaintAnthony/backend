@@ -5,7 +5,6 @@ import {
   boolean,
   timestamp,
 } from 'drizzle-orm/pg-core';
-
 export const entityTypes = pgTable('entity_types', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: varchar('code', { length: 50 }).notNull().unique(),

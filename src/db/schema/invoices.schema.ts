@@ -11,7 +11,6 @@ import { sql } from 'drizzle-orm';
 import { reservations } from './reservations.schema';
 import { users } from './users.schema';
 import { invoiceStatus, invoiceTypes } from './lookup-tables.schema';
-
 export const invoices = pgTable(
   'invoices',
   {
@@ -60,7 +59,6 @@ export const invoices = pgTable(
     ),
   }),
 );
-
 export const invoiceLineItems = pgTable(
   'invoice_line_items',
   {

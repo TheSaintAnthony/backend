@@ -4,16 +4,13 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from 'src/db/schema';
 import { eq, and, gt, lt } from 'drizzle-orm';
 import { IdempotencyRecord } from './interfaces/idempotency.interfaces';
-
 @Injectable()
 export class IdempotencyService {
   private readonly EXPIRY_HOURS = 24;
-
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async findByKey(key: string) {
     const now = new Date();
     const [record] = await this.db
@@ -26,14 +23,11 @@ export class IdempotencyService {
         ),
       )
       .limit(1);
-
     return record || null;
   }
-
   async store(record: IdempotencyRecord) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + this.EXPIRY_HOURS);
-
     await this.db.insert(schema.idempotencyKeys).values({
       key: record.key,
       userId: record.userId,
@@ -44,7 +38,6 @@ export class IdempotencyService {
       expiresAt,
     });
   }
-
   async cleanup() {
     const now = new Date();
     return this.db

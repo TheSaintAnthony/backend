@@ -8,7 +8,6 @@ import {
   IsUUID,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-
 export class EditInvoiceDto {
   @ApiPropertyOptional({
     description: 'Total invoice amount',
@@ -17,18 +16,15 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsNumberString()
   totalAmount?: string;
-
   @ApiPropertyOptional({ description: 'Currency code', example: 'EUR' })
   @IsOptional()
   @IsString()
   @Length(3, 3)
   currency?: string;
-
   @ApiPropertyOptional({ description: 'Customer name', example: 'João Silva' })
   @IsOptional()
   @IsString()
   customerName?: string;
-
   @ApiPropertyOptional({
     description: 'Customer company name (for B2B invoices)',
     example: 'Silva Tourism Lda',
@@ -36,7 +32,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   customerCompanyName?: string;
-
   @ApiPropertyOptional({
     description:
       'Customer Tax ID (NIF for PT, VAT for EU, etc.) - Optional for individual consumers',
@@ -45,7 +40,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   customerTaxId?: string;
-
   @ApiPropertyOptional({
     description: 'Customer email',
     example: 'joao.silva@example.com',
@@ -53,7 +47,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsEmail()
   customerEmail?: string;
-
   @ApiPropertyOptional({
     description: 'Customer phone',
     example: '+351912345678',
@@ -61,7 +54,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   customerPhone?: string;
-
   @ApiPropertyOptional({
     description: 'Customer billing address',
     example: 'Rua Example, 123, 1000-001 Lisboa, Portugal',
@@ -69,7 +61,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   customerAddress?: string;
-
   @ApiPropertyOptional({
     description: 'Customer country (ISO 2-letter code)',
     example: 'PT',
@@ -78,7 +69,6 @@ export class EditInvoiceDto {
   @IsString()
   @Length(2, 2)
   customerCountry?: string;
-
   @ApiPropertyOptional({
     description: 'Internal invoice number',
     example: 'INV-2024-001',
@@ -86,7 +76,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   invoiceNumber?: string;
-
   @ApiPropertyOptional({
     description: 'Invoice type ID',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -94,7 +83,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsUUID()
   invoiceTypeId?: string;
-
   @ApiPropertyOptional({
     description: 'Invoice due date',
     example: '2024-02-15T23:59:59Z',
@@ -102,7 +90,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
-
   @ApiPropertyOptional({
     description: 'Additional notes for the invoice',
     example: 'Payment terms: 30 days',
@@ -110,7 +97,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
   @ApiPropertyOptional({
     description: 'External invoice ID from provider',
     example: 'CEGID-123456',
@@ -118,7 +104,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   externalInvoiceId?: string;
-
   @ApiPropertyOptional({
     description: 'External invoice number from provider',
     example: 'FT 2024/00123',
@@ -126,7 +111,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   externalInvoiceNumber?: string;
-
   @ApiPropertyOptional({
     description: 'URL to view invoice in external system',
     example: 'https://example.com/invoice/123',
@@ -134,7 +118,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   externalInvoiceUrl?: string;
-
   @ApiPropertyOptional({
     description: 'Path to downloaded PDF',
     example: '/invoices/2024/invoice-123.pdf',
@@ -142,7 +125,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   externalInvoicePdfPath?: string;
-
   @ApiPropertyOptional({
     description: 'Timestamp when synced with external system',
     example: '2024-01-15T10:30:00Z',
@@ -150,7 +132,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsDateString()
   syncedAt?: string;
-
   @ApiPropertyOptional({
     description: 'Error message if sync failed',
     example: 'Connection timeout',
@@ -158,7 +139,6 @@ export class EditInvoiceDto {
   @IsOptional()
   @IsString()
   syncError?: string;
-
   @ApiPropertyOptional({
     description: 'Invoice status ID',
     example: '123e4567-e89b-12d3-a456-426614174000',

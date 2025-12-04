@@ -1,6 +1,5 @@
 import { IsDateString, IsUUID, IsArray, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class CheckAvailabilityDto {
   @ApiPropertyOptional({
     description: 'Room ID to check (for single room check)',
@@ -9,7 +8,6 @@ export class CheckAvailabilityDto {
   @ValidateIf((o: CheckAvailabilityDto) => !o.roomIds || o.roomIds.length === 0)
   @IsUUID()
   roomId?: string;
-
   @ApiPropertyOptional({
     description: 'Array of room IDs to check (for batch check)',
     example: [
@@ -22,14 +20,12 @@ export class CheckAvailabilityDto {
   @IsArray()
   @IsUUID(undefined, { each: true })
   roomIds?: string[];
-
   @ApiProperty({
     description: 'Check-in date (ISO 8601 format)',
     example: '2025-12-20',
   })
   @IsDateString()
   checkIn: string;
-
   @ApiProperty({
     description: 'Check-out date (ISO 8601 format)',
     example: '2025-12-25',

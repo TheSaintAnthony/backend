@@ -4,14 +4,12 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: new ConsoleLogger({
       prefix: 'St. Anthony',
     }),
   });
-
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -19,7 +17,6 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-
   const config = new DocumentBuilder()
     .setTitle('St. Anthony API')
     .setVersion('1.0.0')
@@ -35,7 +32,6 @@ async function bootstrap() {
       'access-token',
     )
     .build();
-
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
@@ -45,7 +41,6 @@ async function bootstrap() {
     },
     customSiteTitle: 'St. Anthony API Documentation',
   });
-
   app.enableCors({
     origin: [
       process.env.FRONTEND_URL || 'http://localhost:4200',
@@ -57,14 +52,12 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
     exposedHeaders: ['Content-Type'],
   });
-
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       crossOriginEmbedderPolicy: false,
     }),
   );
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen(process.env.PORT ?? 3000);
 }

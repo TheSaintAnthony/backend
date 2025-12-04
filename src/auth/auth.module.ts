@@ -8,7 +8,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailModule } from 'src/email/email.module';
 import { AuthGuard } from './auth.guard';
 import { QueuesModule } from 'src/queues/queues.module';
-
 @Module({
   imports: [
     UsersModule,

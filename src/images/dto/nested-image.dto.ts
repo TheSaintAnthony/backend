@@ -8,7 +8,6 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class NestedImageDto {
   @ApiProperty({
     description: 'URL of the image',
@@ -17,7 +16,6 @@ export class NestedImageDto {
   @IsUrl()
   @MaxLength(500)
   url: string;
-
   @ApiPropertyOptional({
     description: 'Alt text for accessibility and SEO',
     example: 'Spacious ocean view room with king size bed',
@@ -26,7 +24,6 @@ export class NestedImageDto {
   @IsString()
   @MaxLength(255)
   altText?: string;
-
   @ApiPropertyOptional({
     description: 'Caption or description of the image',
     example: 'Main bedroom with panoramic ocean views',
@@ -34,7 +31,6 @@ export class NestedImageDto {
   @IsOptional()
   @IsString()
   caption?: string;
-
   @ApiPropertyOptional({
     description: 'Display order (lower number = displayed first)',
     example: 0,
@@ -44,7 +40,6 @@ export class NestedImageDto {
   @IsInt()
   @Min(0)
   displayOrder?: number;
-
   @ApiPropertyOptional({
     description: 'Whether this is the primary/featured image',
     example: true,
@@ -53,7 +48,6 @@ export class NestedImageDto {
   @IsOptional()
   @IsBoolean()
   isPrimary?: boolean;
-
   @ApiPropertyOptional({
     description: 'Image width in pixels',
     example: 1920,
@@ -62,7 +56,6 @@ export class NestedImageDto {
   @IsInt()
   @Min(0)
   width?: number;
-
   @ApiPropertyOptional({
     description: 'Image height in pixels',
     example: 1080,
@@ -71,7 +64,6 @@ export class NestedImageDto {
   @IsInt()
   @Min(0)
   height?: number;
-
   @ApiPropertyOptional({
     description: 'File size in bytes',
     example: 524288,
@@ -80,7 +72,6 @@ export class NestedImageDto {
   @IsInt()
   @Min(0)
   fileSize?: number;
-
   @ApiPropertyOptional({
     description: 'MIME type of the image',
     example: 'image/jpeg',
@@ -89,7 +80,6 @@ export class NestedImageDto {
   @IsString()
   @MaxLength(50)
   mimeType?: string;
-
   @ApiPropertyOptional({
     description: 'Original filename',
     example: 'ocean-view-room.jpg',
@@ -98,7 +88,6 @@ export class NestedImageDto {
   @IsString()
   @MaxLength(255)
   originalFilename?: string;
-
   @ApiPropertyOptional({
     description: 'Storage provider (s3, cloudinary, etc.)',
     example: 's3',

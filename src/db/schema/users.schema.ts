@@ -1,6 +1,5 @@
 import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
 import { addresses } from './addresses.schema';
-
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   firstName: varchar('first_name', { length: 100 }).notNull(),

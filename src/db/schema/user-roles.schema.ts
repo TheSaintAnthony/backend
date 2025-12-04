@@ -1,7 +1,6 @@
 import { pgTable, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 import { roles } from './lookup-tables.schema';
-
 export const userRoles = pgTable(
   'user_roles',
   {

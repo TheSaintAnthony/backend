@@ -14,7 +14,6 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { InvoiceStrategyFactory } from './invoice-strategy.factory';
-
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -22,11 +21,9 @@ export class InvoicesService {
     private db: NodePgDatabase<typeof schema>,
     private _invoiceStrategyFactory: InvoiceStrategyFactory,
   ) {}
-
   async generateInvoiceNumber(prefix: string = 'INV'): Promise<string> {
     return this.db.transaction(async (tx) => {
       const currentYear = new Date().getFullYear();
-
       const [sequenceRecord] = await tx
         .select()
         .from(schema.invoiceSequences)
@@ -37,9 +34,7 @@ export class InvoicesService {
           ),
         )
         .for('update');
-
       let nextSequence: number;
-
       if (!sequenceRecord) {
         const [newRecord] = await tx
           .insert(schema.invoiceSequences)
@@ -60,17 +55,14 @@ export class InvoicesService {
           .returning();
         nextSequence = updated.sequence;
       }
-
       const paddedSequence = nextSequence.toString().padStart(5, '0');
       return `${prefix}-${currentYear}-${paddedSequence}`;
     });
   }
-
   async createInvoice(data: CreateInvoiceDto) {
     return this.db.transaction(async (tx) => {
       const invoiceNumber =
         data.invoiceNumber || (await this.generateInvoiceNumber());
-
       const [invoice] = await tx
         .insert(schema.invoices)
         .values({
@@ -92,7 +84,6 @@ export class InvoicesService {
           statusId: data.statusId,
         })
         .returning();
-
       if (data.lineItems && data.lineItems.length > 0) {
         await tx.insert(schema.invoiceLineItems).values(
           data.lineItems.map((item) => ({
@@ -110,74 +101,56 @@ export class InvoicesService {
           })),
         );
       }
-
       return invoice;
     });
   }
-
   syncInvoiceToProvider(invoiceId: string) {
     void this.getInvoiceById(invoiceId);
-
     void this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
-
     throw new Error('Stripe invoice sync not yet implemented');
   }
-
   async getExternalInvoiceStatus(invoiceId: string) {
     const invoice = await this.getInvoiceById(invoiceId);
-
     if (!invoice.externalInvoiceId) {
       throw new Error('Invoice is not synced to any external provider');
     }
-
     throw new Error('Stripe invoice status check not yet implemented');
   }
-
   async cancelExternalInvoice(invoiceId: string) {
     const invoice = await this.getInvoiceById(invoiceId);
-
     if (!invoice.externalInvoiceId) {
       throw new Error('Invoice is not synced to any external provider');
     }
-
     throw new Error('Stripe invoice cancellation not yet implemented');
   }
-
   async getInvoices(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
-
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.invoices);
     const total = totalResult.count;
-
     const data = await this.db
       .select()
       .from(schema.invoices)
       .limit(limit)
       .offset(offset);
-
     return createPaginatedResponse(data, total, page, limit);
   }
-
   async getInvoiceById(id: string) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
-
     if (!invoice) {
       throw new NotFoundException('Invoice', id);
     }
-
     return invoice;
   }
-
   async getInvoicesByReservation(
     reservationId: string,
     pagination?: PaginationDto,
@@ -185,33 +158,27 @@ export class InvoicesService {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
-
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.invoices)
       .where(eq(schema.invoices.reservationId, reservationId));
     const total = totalResult.count;
-
     const data = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.reservationId, reservationId))
       .limit(limit)
       .offset(offset);
-
     return createPaginatedResponse(data, total, page, limit);
   }
-
   async editInvoice(id: string, data: EditInvoiceDto) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
-
     if (!invoice) {
       throw new NotFoundException('Invoice', id);
     }
-
     const updateData: Record<string, unknown> = {};
     if (data.totalAmount !== undefined)
       updateData.totalAmount = data.totalAmount;
@@ -248,32 +215,26 @@ export class InvoicesService {
       updateData.syncedAt = new Date(data.syncedAt);
     if (data.syncError !== undefined) updateData.syncError = data.syncError;
     if (data.statusId !== undefined) updateData.statusId = data.statusId;
-
     updateData.updatedAt = new Date();
-
     return this.db
       .update(schema.invoices)
       .set(updateData)
       .where(eq(schema.invoices.id, id))
       .returning();
   }
-
   async deleteInvoice(id: string) {
     const [invoice] = await this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.id, id));
-
     if (!invoice) {
       throw new NotFoundException('Invoice', id);
     }
-
     return this.db
       .delete(schema.invoices)
       .where(eq(schema.invoices.id, id))
       .returning();
   }
-
   async createLineItem(data: StandaloneCreateInvoiceLineItemDto) {
     return this.db
       .insert(schema.invoiceLineItems)
@@ -292,26 +253,21 @@ export class InvoicesService {
       })
       .returning();
   }
-
   async getLineItemsByInvoice(invoiceId: string) {
     return this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.invoiceId, invoiceId));
   }
-
   async editLineItem(id: string, data: EditInvoiceLineItemDto) {
     const [lineItem] = await this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id));
-
     if (!lineItem) {
       throw new NotFoundException('Invoice line item', id);
     }
-
     const updateData: Record<string, unknown> = {};
-
     if (data.description !== undefined)
       updateData.description = data.description;
     if (data.productCode !== undefined)
@@ -327,24 +283,20 @@ export class InvoicesService {
     if (data.startDate !== undefined)
       updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
-
     return this.db
       .update(schema.invoiceLineItems)
       .set(updateData)
       .where(eq(schema.invoiceLineItems.id, id))
       .returning();
   }
-
   async deleteLineItem(id: string) {
     const [lineItem] = await this.db
       .select()
       .from(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id));
-
     if (!lineItem) {
       throw new NotFoundException('Invoice line item', id);
     }
-
     return this.db
       .delete(schema.invoiceLineItems)
       .where(eq(schema.invoiceLineItems.id, id))

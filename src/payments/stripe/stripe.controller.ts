@@ -13,17 +13,14 @@ import { StripeWebhookService } from './stripe-webhook.service';
 import { Public } from 'src/decorators';
 import type { Request } from 'express';
 import Stripe from 'stripe';
-
 @Public()
 @Controller('stripe')
 export class StripeController {
   private readonly logger = new Logger(StripeController.name);
-
   constructor(
     private stripeService: StripeService,
     private webhookService: StripeWebhookService,
   ) {}
-
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
@@ -31,17 +28,14 @@ export class StripeController {
     @Headers('stripe-signature') signature: string,
   ) {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
     if (!webhookSecret) {
       this.logger.error('STRIPE_WEBHOOK_SECRET is not set');
       throw new Error('Webhook secret not configured');
     }
-
     if (!req.rawBody) {
       this.logger.error('Raw body is missing');
       throw new Error('Raw body is required for webhook verification');
     }
-
     let event: Stripe.Event;
     try {
       event = this.stripeService.verifyWebhookSignature(
@@ -53,7 +47,6 @@ export class StripeController {
       this.logger.error(`Webhook signature verification failed: ${error}`);
       throw error;
     }
-
     switch (event.type) {
       case 'payment_intent.succeeded':
         await this.webhookService.handlePaymentIntentSucceeded(
@@ -71,7 +64,6 @@ export class StripeController {
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);
     }
-
     return { received: true };
   }
 }

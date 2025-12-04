@@ -8,7 +8,6 @@ import {
   numeric,
 } from 'drizzle-orm/pg-core';
 import { addresses } from './addresses.schema';
-
 export const properties = pgTable('properties', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),

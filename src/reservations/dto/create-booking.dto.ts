@@ -13,7 +13,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class BookingRoomDto {
   @ApiProperty({
     description: 'Room ID',
@@ -21,21 +20,18 @@ export class BookingRoomDto {
   })
   @IsUUID()
   roomId: string;
-
   @ApiProperty({
     description: 'Check-in date (ISO 8601)',
     example: '2025-12-20',
   })
   @IsDateString()
   checkIn: string;
-
   @ApiProperty({
     description: 'Check-out date (ISO 8601)',
     example: '2025-12-25',
   })
   @IsDateString()
   checkOut: string;
-
   @ApiPropertyOptional({
     description: 'Number of guests',
     example: 2,
@@ -45,7 +41,6 @@ export class BookingRoomDto {
   @IsInt()
   @Min(1)
   guestsCount: string;
-
   @ApiPropertyOptional({
     description: 'Number of rooms to book (quantity)',
     example: 1,
@@ -57,7 +52,6 @@ export class BookingRoomDto {
   @Min(1)
   quantity?: number;
 }
-
 export class CreateBookingDto {
   @ApiProperty({
     description: 'List of rooms to book',
@@ -68,7 +62,6 @@ export class CreateBookingDto {
   @ValidateNested({ each: true })
   @Type(() => BookingRoomDto)
   rooms: BookingRoomDto[];
-
   @ApiPropertyOptional({
     description: 'Special requests or notes',
     example: 'Late check-in required',
@@ -76,7 +69,6 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   specialRequests?: string;
-
   @ApiPropertyOptional({
     description: 'Payment transaction ID',
     example: 'txn_123456',
@@ -84,7 +76,6 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   transactionId?: string;
-
   @ApiPropertyOptional({
     description: 'Payment-specific metadata (e.g., phoneNumber for MB Way)',
     example: { phoneNumber: '+351912345678' },
@@ -92,7 +83,6 @@ export class CreateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, string>;
-
   @ApiPropertyOptional({
     description: 'Custom invoice data (overrides user profile data)',
     type: 'object',

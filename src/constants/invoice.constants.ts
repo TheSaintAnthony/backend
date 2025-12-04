@@ -1,12 +1,10 @@
 export enum InvoiceProvider {}
-
 export enum InvoiceTypeName {
   INVOICE = 'invoice',
   CREDIT_NOTE = 'credit_note',
   RECEIPT = 'receipt',
   PRO_FORMA = 'pro_forma',
 }
-
 export enum InvoiceLineItemType {
   ACCOMMODATION = 'accommodation',
   SERVICE = 'service',
@@ -14,7 +12,6 @@ export enum InvoiceLineItemType {
   TAX = 'tax',
   DISCOUNT = 'discount',
 }
-
 export enum ProductCode {
   ROOM_STANDARD = 'ROOM_STANDARD',
   ROOM_DELUXE = 'ROOM_DELUXE',

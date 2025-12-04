@@ -1,5 +1,4 @@
 import { NestedImageDto } from 'src/images/dto/nested-image.dto';
-
 export interface ActivityData {
   name: string;
   description: string;

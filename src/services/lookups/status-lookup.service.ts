@@ -3,24 +3,20 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from 'src/db/schema';
 import { CacheService } from 'src/cache/cache.service';
-
 @Injectable()
 export class StatusLookupService implements OnModuleInit {
   private reservationStatusCache = new Map<string, string>();
   private invoiceStatusCache = new Map<string, string>();
   private invoiceTypeCache = new Map<string, string>();
   private paymentStatusCache = new Map<string, string>();
-
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private _cacheService: CacheService,
   ) {}
-
   async onModuleInit() {
     await this.loadStatuses();
   }
-
   private async loadStatuses() {
     const [
       reservationStatuses,
@@ -33,24 +29,19 @@ export class StatusLookupService implements OnModuleInit {
       this.db.select().from(schema.invoiceTypes),
       this.db.select().from(schema.paymentStatus),
     ]);
-
     for (const status of reservationStatuses) {
       this.reservationStatusCache.set(status.name, status.id);
     }
-
     for (const status of invoiceStatuses) {
       this.invoiceStatusCache.set(status.name, status.id);
     }
-
     for (const type of invoiceTypes) {
       this.invoiceTypeCache.set(type.name, type.id);
     }
-
     for (const status of paymentStatuses) {
       this.paymentStatusCache.set(status.name, status.id);
     }
   }
-
   async getReservationStatusId(name: string): Promise<string> {
     const id = this.reservationStatusCache.get(name);
     if (!id) {
@@ -63,7 +54,6 @@ export class StatusLookupService implements OnModuleInit {
     }
     return id;
   }
-
   getInvoiceStatusId(name: string): string {
     const id = this.invoiceStatusCache.get(name);
     if (!id) {
@@ -71,7 +61,6 @@ export class StatusLookupService implements OnModuleInit {
     }
     return id;
   }
-
   getInvoiceTypeId(name: string): string {
     const id = this.invoiceTypeCache.get(name);
     if (!id) {
@@ -81,7 +70,6 @@ export class StatusLookupService implements OnModuleInit {
     }
     return id;
   }
-
   async getPaymentStatusId(name: string): Promise<string> {
     const id = this.paymentStatusCache.get(name);
     if (!id) {

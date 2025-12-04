@@ -6,17 +6,14 @@ import * as schema from '../db/schema';
 import { CreateImageDto, UpdateImageDto, GetImagesQueryDto } from './dto';
 import { eq, and, isNull, desc, sql, inArray } from 'drizzle-orm';
 import { FileStorageService } from 'src/services/file-storage.service';
-
 @Injectable()
 export class ImagesService {
   private entityTypeCache = new Map<string, { id: string; code: string }>();
-
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private fileStorageService: FileStorageService,
   ) {}
-
   async uploadImage(
     file: Express.Multer.File,
     data: {
@@ -33,7 +30,6 @@ export class ImagesService {
       data.entityTypeCode,
       data.entityId,
     );
-
     return await this.createImage({
       entityTypeCode: data.entityTypeCode,
       entityId: data.entityId,
@@ -48,7 +44,6 @@ export class ImagesService {
       storageProvider: 'local',
     });
   }
-
   async uploadMultipleImages(
     files: Express.Multer.File[],
     data: {
@@ -57,7 +52,6 @@ export class ImagesService {
     },
   ) {
     const uploadedImages = [];
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const image = await this.uploadImage(file, {
@@ -67,50 +61,40 @@ export class ImagesService {
       });
       uploadedImages.push(image);
     }
-
     return uploadedImages;
   }
-
   private async getEntityType(entityTypeCode: string) {
     const cached = this.entityTypeCache.get(entityTypeCode);
     if (cached) {
       return cached;
     }
-
     const entityType = await this.db.query.entityTypes.findFirst({
       where: eq(schema.entityTypes.code, entityTypeCode),
     });
-
     if (!entityType) {
       throw new BadRequestException(
         `Entity type '${entityTypeCode}' not found`,
       );
     }
-
     const entityTypeData = { id: entityType.id, code: entityType.code };
     this.entityTypeCache.set(entityTypeCode, entityTypeData);
     return entityTypeData;
   }
-
   async createImage(data: CreateImageDto) {
     const entityTypeData = await this.getEntityType(data.entityTypeCode);
-    // Need to check if entity type is active, so fetch full entity type
     const entityType = await this.db.query.entityTypes.findFirst({
       where: eq(schema.entityTypes.code, data.entityTypeCode),
     });
-
     if (!entityType) {
       throw new BadRequestException(
         `Entity type '${data.entityTypeCode}' not found`,
       );
     }
-
     if (!entityType.active) {
       throw new BadRequestException(
         `Entity type '${data.entityTypeCode}' is not active`,
       );
     }
-
     if (data.isPrimary) {
       await this.db
         .update(schema.images)
@@ -124,7 +108,6 @@ export class ImagesService {
           ),
         );
     }
-
     const insertValues: {
       id: ReturnType<typeof sql>;
       entityTypeId: string;
@@ -144,12 +127,10 @@ export class ImagesService {
       displayOrder: data.displayOrder ?? 0,
       isPrimary: data.isPrimary ?? false,
     };
-
     const [image] = await this.db
       .insert(schema.images)
       .values(insertValues)
       .returning();
-
     if (
       data.width ||
       data.height ||
@@ -168,10 +149,8 @@ export class ImagesService {
         storageProvider: data.storageProvider,
       });
     }
-
     return this.getImageById(image.id);
   }
-
   async getImageById(id: string) {
     const image = await this.db.query.images.findFirst({
       where: and(eq(schema.images.id, id), isNull(schema.images.deletedAt)),
@@ -180,30 +159,23 @@ export class ImagesService {
         metadata: true,
       },
     });
-
     if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
-
     return image;
   }
-
   async getImages(query: GetImagesQueryDto) {
     const whereConditions = [isNull(schema.images.deletedAt)];
-
     if (query.entityTypeCode) {
       const entityTypeData = await this.getEntityType(query.entityTypeCode);
       whereConditions.push(eq(schema.images.entityTypeId, entityTypeData.id));
     }
-
     if (query.entityId) {
       whereConditions.push(eq(schema.images.entityId, query.entityId));
     }
-
     if (query.primaryOnly === true) {
       whereConditions.push(eq(schema.images.isPrimary, true));
     }
-
     const images = await this.db.query.images.findMany({
       where: and(...whereConditions),
       with: {
@@ -212,14 +184,11 @@ export class ImagesService {
       },
       orderBy: [schema.images.displayOrder, desc(schema.images.createdAt)],
     });
-
     return images;
   }
-
   async getImagesByEntity(entityTypeCode: string, entityId: string) {
     return this.getImages({ entityTypeCode, entityId });
   }
-
   async getImagesByMultipleEntities(
     entityTypeCode: string,
     entityIds: string[],
@@ -227,9 +196,7 @@ export class ImagesService {
     if (entityIds.length === 0) {
       return [];
     }
-
     const entityTypeData = await this.getEntityType(entityTypeCode);
-
     const images = await this.db.query.images.findMany({
       where: and(
         eq(schema.images.entityTypeId, entityTypeData.id),
@@ -242,23 +209,18 @@ export class ImagesService {
       },
       orderBy: [schema.images.displayOrder, desc(schema.images.createdAt)],
     });
-
     return images;
   }
-
   async getPrimaryImage(entityTypeCode: string, entityId: string) {
     const images = await this.getImages({
       entityTypeCode,
       entityId,
       primaryOnly: true,
     });
-
     return images[0] || null;
   }
-
   async updateImage(id: string, data: UpdateImageDto) {
     const existingImage = await this.getImageById(id);
-
     if (data.isPrimary === true && !existingImage.isPrimary) {
       await this.db
         .update(schema.images)
@@ -272,7 +234,6 @@ export class ImagesService {
           ),
         );
     }
-
     const [updatedImage] = await this.db
       .update(schema.images)
       .set({
@@ -285,7 +246,6 @@ export class ImagesService {
       })
       .where(eq(schema.images.id, id))
       .returning();
-
     if (
       data.width !== undefined ||
       data.height !== undefined ||
@@ -297,7 +257,6 @@ export class ImagesService {
       const existingMetadata = await this.db.query.imageMetadata.findFirst({
         where: eq(schema.imageMetadata.imageId, id),
       });
-
       if (existingMetadata) {
         await this.db
           .update(schema.imageMetadata)
@@ -323,39 +282,30 @@ export class ImagesService {
         });
       }
     }
-
     return this.getImageById(updatedImage.id);
   }
-
   async deleteImage(id: string) {
     const image = await this.getImageById(id);
-
     await this.db
       .update(schema.images)
       .set({ deletedAt: new Date() })
       .where(eq(schema.images.id, id));
-
     return { message: 'Image deleted successfully', id: image.id };
   }
-
   async createImages(images: CreateImageDto[]) {
     const createdImages = [];
-
     for (const imageData of images) {
       const image = await this.createImage(imageData);
       createdImages.push(image);
     }
-
     return createdImages;
   }
-
   async reorderImages(
     entityTypeCode: string,
     entityId: string,
     imageIds: string[],
   ) {
     const entityTypeData = await this.getEntityType(entityTypeCode);
-
     const images = await this.db.query.images.findMany({
       where: and(
         eq(schema.images.entityTypeId, entityTypeData.id),
@@ -363,9 +313,7 @@ export class ImagesService {
         isNull(schema.images.deletedAt),
       ),
     });
-
     const imageMap = new Map(images.map((img) => [img.id, img]));
-
     for (const imageId of imageIds) {
       if (!imageMap.has(imageId)) {
         throw new BadRequestException(
@@ -373,14 +321,12 @@ export class ImagesService {
         );
       }
     }
-
     for (let i = 0; i < imageIds.length; i++) {
       await this.db
         .update(schema.images)
         .set({ displayOrder: i, updatedAt: new Date() })
         .where(eq(schema.images.id, imageIds[i]));
     }
-
     return this.getImagesByEntity(entityTypeCode, entityId);
   }
 }

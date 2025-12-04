@@ -6,7 +6,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-
 interface ErrorResponse {
   statusCode: number;
   timestamp: string;
@@ -17,7 +16,6 @@ interface ErrorResponse {
   details?: Record<string, unknown>;
   correlationId?: string;
 }
-
 interface DatabaseError {
   code?: string;
   constraint?: string;
@@ -25,31 +23,25 @@ interface DatabaseError {
   severity?: string;
   routine?: string;
 }
-
 interface ValidationError {
   name?: string;
   message?: string;
   errors?: unknown[];
 }
-
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-
     const correlationId = response.getHeader('X-Correlation-Id') as string;
-
     const errorResponse = this.buildErrorResponse(
       exception,
       request,
       correlationId,
     );
-
     response.status(errorResponse.statusCode).json(errorResponse);
   }
-
   private buildErrorResponse(
     exception: unknown,
     request: Request,
@@ -58,11 +50,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const timestamp = new Date().toISOString();
     const path = request.url;
     const method = request.method;
-
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as Record<string, unknown>;
         return {
@@ -77,7 +67,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
           correlationId,
         };
       }
-
       return {
         statusCode: status,
         timestamp,
@@ -88,7 +77,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         correlationId,
       };
     }
-
     if (this.isDatabaseError(exception)) {
       return this.handleDatabaseError(
         exception,
@@ -98,7 +86,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         correlationId,
       );
     }
-
     if (this.isValidationError(exception)) {
       return this.handleValidationError(
         exception,
@@ -108,7 +95,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         correlationId,
       );
     }
-
     return this.handleUnknownError(
       exception,
       timestamp,
@@ -117,7 +103,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       correlationId,
     );
   }
-
   private handleDatabaseError(
     exception: DatabaseError,
     timestamp: string,
@@ -127,7 +112,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
   ): ErrorResponse {
     const message = 'Database operation failed';
     let details: Record<string, unknown> = {};
-
     if (exception.code) {
       switch (exception.code) {
         case '23P01':
@@ -188,7 +172,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
           };
       }
     }
-
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
@@ -200,7 +183,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       correlationId,
     };
   }
-
   private handleValidationError(
     exception: ValidationError,
     timestamp: string,
@@ -219,7 +201,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       correlationId,
     };
   }
-
   private handleUnknownError(
     exception: unknown,
     timestamp: string,
@@ -231,7 +212,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Error
         ? exception.message
         : 'An unexpected error occurred';
-
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp,
@@ -242,7 +222,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       correlationId,
     };
   }
-
   private isDatabaseError(exception: unknown): exception is DatabaseError {
     const err = exception as DatabaseError;
     return (
@@ -254,7 +233,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         !!err.routine)
     );
   }
-
   private isValidationError(exception: unknown): exception is ValidationError {
     const err = exception as ValidationError;
     return (

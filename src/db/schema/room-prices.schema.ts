@@ -8,7 +8,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { rooms } from './rooms.schema';
-
 export const roomPrices = pgTable(
   'room_prices',
   {

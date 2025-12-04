@@ -12,7 +12,6 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/user-roles/roles.guard';
 import { Roles } from 'src/decorators';
 import { UserRole } from 'src/constants';
-
 @ApiTags('Reports')
 @ApiBearerAuth('access-token')
 @UseGuards(AuthGuard, RolesGuard)
@@ -20,7 +19,6 @@ import { UserRole } from 'src/constants';
 @Controller('reports')
 export class ReportsController {
   constructor(private reportsService: ReportsService) {}
-
   @Get('revenue')
   @ApiOperation({
     summary: 'Get revenue overview and analytics',
@@ -32,7 +30,6 @@ export class ReportsController {
   ) {
     return this.reportsService.getRevenueOverview(filters);
   }
-
   @Get('bookings')
   @ApiOperation({
     summary: 'Get booking trends and statistics',
@@ -44,7 +41,6 @@ export class ReportsController {
   ) {
     return this.reportsService.getBookingTrends(filters);
   }
-
   @Get('occupancy')
   @ApiOperation({
     summary: 'Get occupancy analytics',
@@ -56,7 +52,6 @@ export class ReportsController {
   ) {
     return this.reportsService.getOccupancyAnalytics(filters);
   }
-
   @Get('customers')
   @ApiOperation({
     summary: 'Get customer insights and analytics',
@@ -68,7 +63,6 @@ export class ReportsController {
   ) {
     return this.reportsService.getCustomerInsights(filters);
   }
-
   @Get('all')
   @ApiOperation({
     summary: 'Get all reports in one call',

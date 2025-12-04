@@ -13,13 +13,11 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto, EditInvoiceDto } from './dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-
 @ApiTags('Invoices')
 @ApiBearerAuth('access-token')
 @Controller('invoices')
 export class InvoicesController {
   constructor(private invoicesService: InvoicesService) {}
-
   @Get()
   async getInvoices(
     @Query('reservationId', new ParseUUIDPipe({ optional: true }))
@@ -34,22 +32,18 @@ export class InvoicesController {
     }
     return await this.invoicesService.getInvoices(pagination);
   }
-
   @Get(':id')
   async getInvoiceById(@Param('id') id: string) {
     return await this.invoicesService.getInvoiceById(id);
   }
-
   @Post()
   async createInvoice(@Body() body: CreateInvoiceDto) {
     return await this.invoicesService.createInvoice(body);
   }
-
   @Patch(':id')
   async editInvoice(@Param('id') id: string, @Body() body: EditInvoiceDto) {
     return await this.invoicesService.editInvoice(id, body);
   }
-
   @Delete(':id')
   async deleteInvoice(@Param('id') id: string) {
     return await this.invoicesService.deleteInvoice(id);

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -16,31 +15,26 @@ import {
   EditRoomDto,
   CheckAvailabilityDto,
   GetPriceQuoteDto,
+  GetRoomsDto,
 } from './dto';
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-
 @ApiTags('Rooms')
 @ApiBearerAuth('access-token')
 @Controller('rooms')
 export class RoomsController {
   constructor(private roomsService: RoomsService) {}
-
   @Public()
   @Get()
-  async getRooms(
-    @Query('propertyId', new ParseUUIDPipe({ optional: true }))
-    propertyId: string | undefined,
-    @Query() pagination: PaginationDto,
-  ) {
-    if (propertyId !== undefined) {
+  async getRooms(@Query() query: GetRoomsDto) {
+    if (query.propertyId) {
+      const { propertyId, ...pagination } = query;
       return await this.roomsService.getRoomsByProperty(propertyId, pagination);
     }
+    const { propertyId, ...pagination } = query;
     return await this.roomsService.getRooms(pagination);
   }
-
   @Public()
   @Get(':id')
   async getRoomById(
@@ -52,31 +46,26 @@ export class RoomsController {
     }
     return await this.roomsService.getRoomById(id);
   }
-
   @Public()
   @Post('availability')
   async checkAvailability(@Body() body: CheckAvailabilityDto) {
     return await this.roomsService.checkAvailability(body);
   }
-
   @Public()
   @Post('quotes')
   async getPriceQuote(@Body() body: GetPriceQuoteDto) {
     return await this.roomsService.getPriceQuote(body);
   }
-
   @Roles(UserRole.ADMIN)
   @Post()
   async createRoom(@Body() body: CreateRoomDto) {
     return await this.roomsService.createRoom(body);
   }
-
   @Roles(UserRole.ADMIN)
   @Patch(':id')
   async editRoom(@Param('id') id: string, @Body() body: EditRoomDto) {
     return await this.roomsService.editRoom(id, body);
   }
-
   @Roles(UserRole.ADMIN)
   @Delete(':id')
   async deleteRoom(@Param('id') id: string) {

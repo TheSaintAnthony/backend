@@ -9,7 +9,6 @@ import {
 import { sql } from 'drizzle-orm';
 import { users } from './users.schema';
 import { paymentStatus, reservationStatus } from './lookup-tables.schema';
-
 export const reservations = pgTable(
   'reservations',
   {

@@ -6,7 +6,6 @@ import { RoomHoldsModule } from 'src/room-holds/room-holds.module';
 import { ImagesModule } from 'src/images/images.module';
 import { StripeModule } from 'src/payments/stripe/stripe.module';
 import { PropertiesModule } from 'src/properties/properties.module';
-
 @Module({
   imports: [
     RoomPricesModule,

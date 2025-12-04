@@ -8,7 +8,6 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
-
 export const idempotencyKeys = pgTable(
   'idempotency_keys',
   {

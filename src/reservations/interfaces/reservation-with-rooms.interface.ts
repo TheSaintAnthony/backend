@@ -11,7 +11,6 @@ export interface ReservationRoom {
   propertyName: string | null;
   accessCode?: number | null;
 }
-
 export interface ReservationWithRooms {
   id: string | null;
   userId: string | null;

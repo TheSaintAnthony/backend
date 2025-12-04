@@ -15,7 +15,6 @@ import { StatusLookupService } from 'src/services/lookups/status-lookup.service'
 import { QueuesModule } from 'src/queues/queues.module';
 import { InvoicesModule } from 'src/invoices/invoices.module';
 import { UserRolesModule } from 'src/user-roles/user-roles.module';
-
 @Module({
   imports: [
     RoomsModule,

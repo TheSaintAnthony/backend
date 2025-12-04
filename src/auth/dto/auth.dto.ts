@@ -8,7 +8,6 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateAddressDto } from 'src/addresses/dto';
-
 export class SignInDto {
   @ApiProperty({
     description: 'User email address',
@@ -16,31 +15,26 @@ export class SignInDto {
   })
   @IsEmail()
   email: string;
-
   @ApiProperty({ description: 'User password', example: 'password123' })
   @IsString()
   @IsNotEmpty()
   password: string;
 }
-
 export class SignUpDto {
   @ApiProperty({ description: 'User first name', example: 'John' })
   @IsString()
   @IsNotEmpty()
   firstName: string;
-
   @ApiProperty({ description: 'User last name', example: 'Doe' })
   @IsString()
   @IsNotEmpty()
   lastName: string;
-
   @ApiProperty({
     description: 'User email address',
     example: 'john.doe@example.com',
   })
   @IsEmail()
   email: string;
-
   @ApiProperty({
     description: 'User password (minimum 6 characters)',
     example: 'password123',
@@ -49,7 +43,6 @@ export class SignUpDto {
   @IsString()
   @MinLength(6)
   password: string;
-
   @ApiProperty({
     description: 'User phone number',
     example: '+1234567890',
@@ -57,7 +50,6 @@ export class SignUpDto {
   @IsString()
   @IsNotEmpty()
   phone: string;
-
   @ApiProperty({
     description: 'User address information',
     type: CreateAddressDto,
@@ -66,7 +58,6 @@ export class SignUpDto {
   @Type(() => CreateAddressDto)
   address: CreateAddressDto;
 }
-
 export class PasswordResetDto {
   @ApiProperty({
     description: 'Password reset token from email',
@@ -75,7 +66,6 @@ export class PasswordResetDto {
   @IsString()
   @IsNotEmpty()
   token: string;
-
   @ApiProperty({
     description: 'New password (minimum 6 characters)',
     example: 'newPassword123',
@@ -85,5 +75,4 @@ export class PasswordResetDto {
   @MinLength(6)
   password: string;
 }
-
 export * from './forgot-password.dto';

@@ -3,7 +3,6 @@ import { StripeService } from './stripe.service';
 import { StripeController } from './stripe.controller';
 import { StripeWebhookService } from './stripe-webhook.service';
 import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
-
 @Module({
   providers: [StripeService, StripeWebhookService, StatusLookupService],
   controllers: [StripeController],

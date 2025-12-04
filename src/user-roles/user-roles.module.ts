@@ -3,7 +3,6 @@ import { UserRolesService } from './user-roles.service';
 import { UserRolesController } from './user-roles.controller';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
-
 @Module({
   providers: [
     UserRolesService,

@@ -9,7 +9,6 @@ import {
 import { sql } from 'drizzle-orm';
 import { invoices } from './invoices.schema';
 import { paymentStatus } from './lookup-tables.schema';
-
 export const payments = pgTable(
   'payments',
   {

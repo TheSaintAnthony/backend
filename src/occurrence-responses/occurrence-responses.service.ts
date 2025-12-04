@@ -4,56 +4,42 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateOccurrenceResponseDto } from './dto/create-occurrence-response.dto';
 import { eq, isNull, desc, and } from 'drizzle-orm';
-
 @Injectable()
 export class OccurrenceResponsesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async createResponse(
     createData: CreateOccurrenceResponseDto,
   ): Promise<unknown> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const occurrenceId: string = createData.occurrenceId;
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
       .where(eq(schema.occurrences.id, occurrenceId));
-
     if (!occurrence) {
       throw new NotFoundException('Occurrence', occurrenceId);
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const insertValues = {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       occurrenceId: createData.occurrenceId,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       userId: createData.userId,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       message: createData.message,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       isAdmin: createData.isAdmin,
     };
-
     return this.db
       .insert(schema.occurrenceResponses)
       .values(insertValues)
       .returning();
   }
-
   async getResponsesByOccurrence(occurrenceId: string) {
     const [occurrence] = await this.db
       .select()
       .from(schema.occurrences)
       .where(eq(schema.occurrences.id, occurrenceId));
-
     if (!occurrence) {
       throw new NotFoundException('Occurrence', occurrenceId);
     }
-
     return this.db
       .select({
         id: schema.occurrenceResponses.id,

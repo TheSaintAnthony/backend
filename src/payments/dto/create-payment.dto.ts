@@ -6,30 +6,24 @@ import {
   IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class CreatePaymentDto {
   @ApiProperty()
   @IsUUID()
   invoiceId: string;
-
   @ApiProperty()
   @IsNumberString()
   amount: string;
-
   @ApiProperty()
   @IsUUID()
   paymentStatusId: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   transactionId?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   externalReferenceId?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

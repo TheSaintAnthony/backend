@@ -4,24 +4,19 @@ import { Job } from 'bullmq';
 import { EmailService } from 'src/email/email.service';
 import { EmailConfirmation } from 'src/reservations/interfaces';
 import { EmailJobData } from './interfaces';
-
 @Processor('email')
 export class EmailConsumer extends WorkerHost {
   private readonly logger = new Logger(EmailConsumer.name);
-
   constructor(private readonly emailsService: EmailService) {
     super();
   }
-
   async process(job: Job<EmailJobData>): Promise<void> {
     const { id, name, attemptsMade } = job;
     const jobData = job.data?.data;
     job.opts.attempts = 3;
-
     this.logger.log(
       `Starting job [${name}] (ID: ${id}) - Attempt ${attemptsMade + 1}/${3}`,
     );
-
     try {
       switch (name) {
         case 'sendReservationConfirmationEmail':
@@ -29,28 +24,23 @@ export class EmailConsumer extends WorkerHost {
             jobData as EmailConfirmation,
           );
           break;
-
         case 'sendResetPasswordLink':
           await this.emailsService.sendResetPasswordLink(jobData as string);
           break;
-
         case 'sendVerifyUserLink':
           await this.emailsService.sendVerifyUserLink(
             jobData as { id: string; email: string },
           );
           break;
-
         default:
           this.logger.warn(`Unknown job type: ${name}`);
           return;
       }
-
       this.logger.log(`Completed job [${name}] (ID: ${id})`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-
       this.logger.error(
         `Failed job [${name}] (ID: ${id}) - ${errorMessage}`,
         errorStack,

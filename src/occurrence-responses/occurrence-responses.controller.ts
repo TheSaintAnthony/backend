@@ -3,18 +3,15 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OccurrenceResponsesService } from './occurrence-responses.service';
 import { CreateOccurrenceResponseDto } from './dto';
 import { BadRequestException } from 'src/filters';
-
 @ApiTags('Occurrence Responses')
 @ApiBearerAuth('access-token')
 @Controller('occurrences/responses')
 export class OccurrenceResponsesController {
   constructor(private occurrenceResponsesService: OccurrenceResponsesService) {}
-
   @Post()
   async createResponse(@Body() body: CreateOccurrenceResponseDto) {
     return await this.occurrenceResponsesService.createResponse(body);
   }
-
   @Get()
   async getResponsesByOccurrence(
     @Query('occurrenceId') occurrenceId?: string,

@@ -28,7 +28,13 @@ import { activityProperty } from './activity-property.schema';
 import { entityTypes } from './entity-types.schema';
 import { images } from './images.schema';
 import { imageMetadata } from './image-metadata.schema';
-
+import { residences } from './residences.schema';
+import { residenceUnits } from './residence-units.schema';
+import { residenceContacts } from './residence-contacts.schema';
+import { restaurants } from './restaurants.schema';
+import { restaurantMenus } from './restaurant-menus.schema';
+import { restaurantMenuItems } from './restaurant-menu-items.schema';
+import { menuCategories } from './lookup-tables.schema';
 export const usersRelations = relations(users, ({ one, many }) => ({
   address: one(addresses, {
     fields: [users.addressId],
@@ -37,7 +43,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   userRoles: many(userRoles),
   reservations: many(reservations),
 }));
-
 export const userRolesRelations = relations(userRoles, ({ one }) => ({
   user: one(users, {
     fields: [userRoles.userId],
@@ -48,7 +53,6 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
     references: [roles.id],
   }),
 }));
-
 export const buildingsRelations = relations(properties, ({ one, many }) => ({
   address: one(addresses, {
     fields: [properties.addressId],
@@ -57,7 +61,6 @@ export const buildingsRelations = relations(properties, ({ one, many }) => ({
   rooms: many(rooms),
   images: many(images),
 }));
-
 export const roomsRelations = relations(rooms, ({ one, many }) => ({
   building: one(properties, {
     fields: [rooms.propertyId],
@@ -73,7 +76,6 @@ export const roomsRelations = relations(rooms, ({ one, many }) => ({
   reservations: many(reservations),
   images: many(images),
 }));
-
 export const roomAmenitiesRelations = relations(roomAmenities, ({ one }) => ({
   room: one(rooms, {
     fields: [roomAmenities.roomId],
@@ -84,7 +86,6 @@ export const roomAmenitiesRelations = relations(roomAmenities, ({ one }) => ({
     references: [amenities.id],
   }),
 }));
-
 export const roomHighlightsRelations = relations(roomHighlights, ({ one }) => ({
   room: one(rooms, {
     fields: [roomHighlights.roomId],
@@ -95,14 +96,12 @@ export const roomHighlightsRelations = relations(roomHighlights, ({ one }) => ({
     references: [highlights.id],
   }),
 }));
-
 export const roomPricesRelations = relations(roomPrices, ({ one }) => ({
   room: one(rooms, {
     fields: [roomPrices.roomId],
     references: [rooms.id],
   }),
 }));
-
 export const reservationsRelations = relations(
   reservations,
   ({ one, many }) => ({
@@ -118,7 +117,6 @@ export const reservationsRelations = relations(
     occurrences: many(occurrences),
   }),
 );
-
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   reservation: one(reservations, {
     fields: [invoices.reservationId],
@@ -139,7 +137,6 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   payments: many(payments),
   lineItems: many(invoiceLineItems),
 }));
-
 export const invoiceLineItemsRelations = relations(
   invoiceLineItems,
   ({ one }) => ({
@@ -149,7 +146,6 @@ export const invoiceLineItemsRelations = relations(
     }),
   }),
 );
-
 export const paymentsRelations = relations(payments, ({ one }) => ({
   invoice: one(invoices, {
     fields: [payments.invoiceId],
@@ -160,7 +156,6 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     references: [paymentStatus.id],
   }),
 }));
-
 export const occurrencesRelations = relations(occurrences, ({ one }) => ({
   reservation: one(reservations, {
     fields: [occurrences.reservationId],
@@ -171,7 +166,6 @@ export const occurrencesRelations = relations(occurrences, ({ one }) => ({
     references: [occurrenceStatus.id],
   }),
 }));
-
 export const reservationRoomsRelations = relations(
   reservationRooms,
   ({ one }) => ({
@@ -185,11 +179,9 @@ export const reservationRoomsRelations = relations(
     }),
   }),
 );
-
 export const entityTypesRelations = relations(entityTypes, ({ many }) => ({
   images: many(images),
 }));
-
 export const imagesRelations = relations(images, ({ one }) => ({
   entityType: one(entityTypes, {
     fields: [images.entityTypeId],
@@ -200,18 +192,15 @@ export const imagesRelations = relations(images, ({ one }) => ({
     references: [imageMetadata.imageId],
   }),
 }));
-
 export const imageMetadataRelations = relations(imageMetadata, ({ one }) => ({
   image: one(images, {
     fields: [imageMetadata.imageId],
     references: [images.id],
   }),
 }));
-
 export const activitiesRelations = relations(activities, ({ many }) => ({
   images: many(images),
 }));
-
 export const activityPropertyRelations = relations(
   activityProperty,
   ({ one, many }) => ({
@@ -224,5 +213,70 @@ export const activityPropertyRelations = relations(
       references: [properties.id],
     }),
     images: many(images),
+  }),
+);
+export const residencesRelations = relations(residences, ({ one, many }) => ({
+  address: one(addresses, {
+    fields: [residences.addressId],
+    references: [addresses.id],
+  }),
+  units: many(residenceUnits),
+  contacts: many(residenceContacts),
+  images: many(images),
+}));
+export const residenceUnitsRelations = relations(
+  residenceUnits,
+  ({ one, many }) => ({
+    residence: one(residences, {
+      fields: [residenceUnits.residenceId],
+      references: [residences.id],
+    }),
+    contacts: many(residenceContacts),
+    images: many(images),
+  }),
+);
+export const residenceContactsRelations = relations(
+  residenceContacts,
+  ({ one }) => ({
+    residence: one(residences, {
+      fields: [residenceContacts.residenceId],
+      references: [residences.id],
+    }),
+    residenceUnit: one(residenceUnits, {
+      fields: [residenceContacts.residenceUnitId],
+      references: [residenceUnits.id],
+    }),
+  }),
+);
+export const restaurantsRelations = relations(restaurants, ({ one, many }) => ({
+  address: one(addresses, {
+    fields: [restaurants.addressId],
+    references: [addresses.id],
+  }),
+  menus: many(restaurantMenus),
+  images: many(images),
+}));
+export const restaurantMenusRelations = relations(
+  restaurantMenus,
+  ({ one, many }) => ({
+    restaurant: one(restaurants, {
+      fields: [restaurantMenus.restaurantId],
+      references: [restaurants.id],
+    }),
+    items: many(restaurantMenuItems),
+    images: many(images),
+  }),
+);
+export const restaurantMenuItemsRelations = relations(
+  restaurantMenuItems,
+  ({ one }) => ({
+    menu: one(restaurantMenus, {
+      fields: [restaurantMenuItems.menuId],
+      references: [restaurantMenus.id],
+    }),
+    category: one(menuCategories, {
+      fields: [restaurantMenuItems.categoryId],
+      references: [menuCategories.id],
+    }),
   }),
 );

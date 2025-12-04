@@ -11,7 +11,6 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-
 export class QuoteRoomDto {
   @ApiProperty({
     description: 'Room ID',
@@ -19,21 +18,18 @@ export class QuoteRoomDto {
   })
   @IsUUID()
   roomId: string;
-
   @ApiProperty({
     description: 'Check-in date (ISO 8601)',
     example: '2025-12-20',
   })
   @IsDateString()
   checkIn: string;
-
   @ApiProperty({
     description: 'Check-out date (ISO 8601)',
     example: '2025-12-25',
   })
   @IsDateString()
   checkOut: string;
-
   @ApiPropertyOptional({
     description: 'Number of guests',
     example: 2,
@@ -43,7 +39,6 @@ export class QuoteRoomDto {
   @IsInt()
   @Min(1)
   guestsCount?: number;
-
   @ApiPropertyOptional({
     description: 'Number of rooms to book (quantity)',
     example: 1,
@@ -55,7 +50,6 @@ export class QuoteRoomDto {
   @Min(1)
   quantity?: number;
 }
-
 export class GetPriceQuoteDto {
   @ApiProperty({
     description: 'List of rooms to get price quotes for',

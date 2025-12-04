@@ -5,12 +5,10 @@ import {
   PaymentCaptureResult,
   PaymentStatusResult,
 } from '../interfaces';
-
 @Injectable()
 export class StripeService {
   private readonly logger = new Logger(StripeService.name);
   private readonly stripe: Stripe;
-
   constructor() {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
@@ -20,7 +18,6 @@ export class StripeService {
       apiVersion: '2025-11-17.clover',
     });
   }
-
   async getOrCreateCustomer(
     userId: string,
     email: string,
@@ -34,12 +31,10 @@ export class StripeService {
           email,
           limit: 1,
         });
-
         if (existingCustomers.data.length > 0) {
           return existingCustomers.data[0];
         }
       }
-
       const customer = await this.stripe.customers.create({
         email,
         name,
@@ -49,14 +44,12 @@ export class StripeService {
           ...metadata,
         },
       });
-
       return customer;
     } catch (error) {
       this.logger.error(`Failed to create/get Stripe customer: ${error}`);
       throw error;
     }
   }
-
   async createProduct(
     name: string,
     description?: string,
@@ -71,14 +64,12 @@ export class StripeService {
         images,
         type: 'service',
       });
-
       return product;
     } catch (error) {
       this.logger.error(`Failed to create Stripe product: ${error}`);
       throw error;
     }
   }
-
   async createPrice(
     productId: string,
     amount: number,
@@ -92,14 +83,12 @@ export class StripeService {
         currency,
         metadata,
       });
-
       return price;
     } catch (error) {
       this.logger.error(`Failed to create Stripe price: ${error}`);
       throw error;
     }
   }
-
   async updateProduct(
     productId: string,
     updates: {
@@ -117,7 +106,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async archiveProduct(productId: string): Promise<Stripe.Product> {
     try {
       const product = await this.stripe.products.update(productId, {
@@ -129,7 +117,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async createPaymentIntent(params: {
     amount: string;
     currency: string;
@@ -141,7 +128,6 @@ export class StripeService {
   }): Promise<PaymentCreationResult> {
     try {
       const amountInCents = Math.round(parseFloat(params.amount) * 100);
-
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
         currency: params.currency.toLowerCase(),
@@ -159,7 +145,6 @@ export class StripeService {
           enabled: true,
         },
       });
-
       return {
         transactionId: paymentIntent.id,
         requiresUserAction: paymentIntent.status === 'requires_action',
@@ -175,7 +160,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async confirmPaymentIntent(
     paymentIntentId: string,
     paymentMethodId?: string,
@@ -185,7 +169,6 @@ export class StripeService {
         paymentIntentId,
         paymentMethodId ? { payment_method: paymentMethodId } : {},
       );
-
       const mappedStatus = this.mapStripeStatusToPaymentStatus(
         paymentIntent.status,
       );
@@ -195,7 +178,6 @@ export class StripeService {
           : mappedStatus === 'failed'
             ? 'failed'
             : 'pending';
-
       return {
         success: paymentIntent.status === 'succeeded',
         transactionId: paymentIntent.id,
@@ -215,14 +197,12 @@ export class StripeService {
       };
     }
   }
-
   async getPaymentIntentStatus(
     paymentIntentId: string,
   ): Promise<PaymentStatusResult> {
     try {
       const paymentIntent =
         await this.stripe.paymentIntents.retrieve(paymentIntentId);
-
       return {
         transactionId: paymentIntent.id,
         status: this.mapStripeStatusToPaymentStatus(paymentIntent.status),
@@ -239,7 +219,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async createInvoice(params: {
     customerId: string;
     description?: string;
@@ -263,7 +242,6 @@ export class StripeService {
         metadata: params.metadata,
         auto_advance: params.autoAdvance ?? false,
       });
-
       for (const item of params.lineItems) {
         if (
           item.priceId &&
@@ -295,18 +273,15 @@ export class StripeService {
           );
         }
       }
-
       const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
         invoice.id,
       );
-
       return finalizedInvoice;
     } catch (error) {
       this.logger.error(`Failed to create Stripe invoice: ${error}`);
       throw error;
     }
   }
-
   async getInvoiceStatus(
     invoiceId: string,
   ): Promise<{ status: string; paid: boolean; url?: string }> {
@@ -322,7 +297,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async payInvoice(invoiceId: string): Promise<Stripe.Invoice> {
     try {
       const invoice = await this.stripe.invoices.pay(invoiceId, {
@@ -334,7 +308,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async getInvoiceUrl(invoiceId: string): Promise<string | null> {
     try {
       const invoice = await this.stripe.invoices.retrieve(invoiceId);
@@ -344,7 +317,6 @@ export class StripeService {
       return null;
     }
   }
-
   async createRefund(
     paymentIntentId: string,
     amount?: number,
@@ -358,7 +330,6 @@ export class StripeService {
       this.logger.error(`Failed to retrieve payment intent: ${error}`);
       throw error;
     }
-
     if (!paymentIntent.latest_charge) {
       const error = new Error(
         `PaymentIntent ${paymentIntentId} has no charge to refund`,
@@ -366,17 +337,14 @@ export class StripeService {
       this.logger.error(error.message);
       throw error;
     }
-
     try {
       const refundParams: Stripe.RefundCreateParams = {
         charge: paymentIntent.latest_charge as string,
         reason: reason || 'requested_by_customer',
       };
-
       if (amount) {
         refundParams.amount = amount;
       }
-
       const refund = await this.stripe.refunds.create(refundParams);
       this.logger.log(
         `Refund created: ${refund.id} for PaymentIntent ${paymentIntentId}`,
@@ -387,7 +355,6 @@ export class StripeService {
       throw error;
     }
   }
-
   async createCreditNote(
     invoiceId: string,
     amount?: number,
@@ -403,15 +370,12 @@ export class StripeService {
         invoice: invoiceId,
         reason: reason || 'order_change',
       };
-
       if (amount) {
         creditNoteParams.amount = amount;
       }
-
       if (memo) {
         creditNoteParams.memo = memo;
       }
-
       const creditNote = await this.stripe.creditNotes.create(creditNoteParams);
       this.logger.log(
         `Credit note created: ${creditNote.id} for invoice ${invoiceId}`,
@@ -422,7 +386,6 @@ export class StripeService {
       throw error;
     }
   }
-
   private mapStripeStatusToPaymentStatus(
     stripeStatus: string,
   ): PaymentStatusResult['status'] {
@@ -436,10 +399,8 @@ export class StripeService {
       canceled: 'failed',
       payment_failed: 'failed',
     };
-
     return statusMap[stripeStatus] || 'pending';
   }
-
   verifyWebhookSignature(
     payload: string | Buffer,
     signature: string,

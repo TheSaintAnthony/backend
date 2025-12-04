@@ -6,18 +6,15 @@ import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
 import { EmailConfirmation } from 'src/reservations/interfaces';
 import ical from 'ical-generator';
-
 @Injectable()
 export class EmailService {
   private readonly transporter: Transporter;
-
   constructor(
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {
     const mailUser = this.configService.get<string>('MAIL_USER');
     const mailPass = this.configService.get<string>('MAIL_PASS');
-
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('MAIL_HOST'),
       port: this.configService.get<number>('MAIL_PORT'),
@@ -31,11 +28,9 @@ export class EmailService {
           : undefined,
     });
   }
-
   private async sendEmail(options: Mail.Options): Promise<void> {
     await this.transporter.sendMail(options);
   }
-
   async sendResetPasswordLink(email: string): Promise<void> {
     const payload = { email };
     const token = await this.jwtService.signAsync(payload, {
@@ -47,21 +42,14 @@ export class EmailService {
     const expirationTime =
       this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
       '15m';
-
     const text = `Hi,
-
 You recently requested to reset your password for your St. Anthony account.
-
 Click the link below to reset your password:
 ${url}
-
 This link will expire in ${expirationTime}.
-
 If you didn't request a password reset, you can safely ignore this email.
-
 Best regards,
 St. Anthony Team`;
-
     const html = `
 <!DOCTYPE html>
 <html>
@@ -81,20 +69,16 @@ St. Anthony Team`;
               <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Reset Your Password</h1>
             </td>
           </tr>
-
           <!-- Body -->
           <tr>
             <td style="padding: 40px 30px;">
               <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">Hi,</p>
-
               <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                 You recently requested to reset your password for your <strong>St. Anthony</strong> account.
               </p>
-
               <p style="margin: 0 0 30px 0; color: #333333; font-size: 16px; line-height: 1.6;">
                 Click the button below to reset your password:
               </p>
-
               <!-- Button -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
@@ -103,25 +87,20 @@ St. Anthony Team`;
                   </td>
                 </tr>
               </table>
-
               <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 <strong>This link will expire in ${expirationTime}.</strong>
               </p>
-
               <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 If the button doesn't work, copy and paste this link into your browser:
               </p>
-
               <p style="margin: 0 0 30px 0; padding: 12px; background-color: #f5f5f5; border-radius: 6px; word-break: break-all;">
                 <a href="${url}" style="color: #667eea; text-decoration: none; font-size: 13px;">${url}</a>
               </p>
-
               <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;">
                 If you didn't request a password reset, you can safely ignore this email.
               </p>
             </td>
           </tr>
-
           <!-- Footer -->
           <tr>
             <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
@@ -140,7 +119,6 @@ St. Anthony Team`;
   </table>
 </body>
 </html>`;
-
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: email,
@@ -149,19 +127,15 @@ St. Anthony Team`;
       html,
     });
   }
-
   async sendVerifyUserLink(data: { id: string; email: string }) {
     const payload = { subb: data.id, email: data.email };
-
     const token = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
       expiresIn: this.configService.get('JWT_USER_VERIFY_EXPIRATION_TIME'),
     });
     const verifyUrl = this.configService.get<string>('USER_VERIFY_ACCOUNT_URL');
     const url = `${verifyUrl}?token=${token}`;
-
     const text = `Hi, \nTo verify your account, click here:\n ${url}`;
-
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: data.email,
@@ -169,7 +143,6 @@ St. Anthony Team`;
       text,
     });
   }
-
   async sendReservationConfirmationEmail(emailPayload: EmailConfirmation) {
     const calendarEvents: Array<{
       filename: string;
@@ -199,32 +172,22 @@ St. Anthony Team`;
       \t\tPrice: $${Number(room.price).toFixed(2)}`;
       })
       .join('\n');
-
     const specialRequestsText = emailPayload.specialRequests
       ? `\n\tSpecial Requests: ${emailPayload.specialRequests}`
       : '';
-
     const text = `Hi ${emailPayload.userName},
-
 The St. Anthony hotel can not wait to host you!
-
 Your booking details:
-
 \tName: ${emailPayload.userName}
 \tEmail: ${emailPayload.email}
 \tTotal Rooms: ${emailPayload.rooms.length}${roomDetails}
 ${specialRequestsText}
-
 \tTotal Price: $${emailPayload.totalPrice}
 \tDeposit Amount: $${emailPayload.depositAmount}
-
 Thank you for choosing St. Anthony hotel. We look forward to your stay!
-
 If you have any questions, please don't hesitate to contact us.
-
 Best regards,
 The St. Anthony Hotel Team`;
-
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: emailPayload.email,
@@ -233,7 +196,6 @@ The St. Anthony Hotel Team`;
       attachments: calendarEvents,
     });
   }
-
   private createCalendarEvent(
     checkIn: string,
     checkOut: string,
@@ -250,7 +212,6 @@ The St. Anthony Hotel Team`;
       organizer: { name: 'St. Anthony Hotel', email: 'bookings@stanthony.com' },
       attendees: [{ name: userName, email: userEmail }],
     });
-
     return calendar.toString();
   }
 }

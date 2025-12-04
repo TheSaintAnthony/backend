@@ -5,7 +5,6 @@ import {
   varchar,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-
 export const invoiceSequences = pgTable(
   'invoice_sequences',
   {

@@ -1,6 +1,5 @@
 import { uuid, varchar } from 'drizzle-orm/pg-core';
 import { pgTable } from 'drizzle-orm/pg-core';
-
 export const addresses = pgTable('addresses', {
   id: uuid('id').primaryKey().defaultRandom(),
   street: varchar('street', { length: 100 }).notNull(),

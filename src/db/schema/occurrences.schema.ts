@@ -1,7 +1,6 @@
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
 import { reservations } from './reservations.schema';
 import { occurrenceStatus } from './lookup-tables.schema';
-
 export const occurrences = pgTable('occurrences', {
   id: uuid('id').primaryKey().defaultRandom(),
   reservationId: uuid('reservation_id')

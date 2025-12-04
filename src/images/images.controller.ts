@@ -30,7 +30,6 @@ import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
 import { FileStorageService } from 'src/services/file-storage.service';
-
 @ApiTags('Images')
 @ApiBearerAuth('access-token')
 @Controller('images')
@@ -39,7 +38,6 @@ export class ImagesController {
     private imagesService: ImagesService,
     private _fileStorageService: FileStorageService,
   ) {}
-
   @ApiOperation({ summary: 'Upload a single image file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -99,7 +97,6 @@ export class ImagesController {
       isPrimary: isPrimary === 'true',
     });
   }
-
   @ApiOperation({ summary: 'Upload multiple image files' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -138,14 +135,12 @@ export class ImagesController {
       entityId,
     });
   }
-
   @ApiOperation({ summary: 'Get all images with optional filters' })
   @Public()
   @Get()
   async getImages(@Query() query: GetImagesQueryDto) {
     return await this.imagesService.getImages(query);
   }
-
   @ApiOperation({ summary: 'Serve image file' })
   @Public()
   @Get('serve/:entityType/:filename')
@@ -158,21 +153,17 @@ export class ImagesController {
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
-
     const imagePath = `images/${entityType}/${filename}`;
     const desktopPath = '/Users/luismiranda/Desktop';
     const fullPath = path.join(desktopPath, imagePath);
-
     const resolvedPath = path.resolve(fullPath);
     const resolvedDesktop = path.resolve(desktopPath);
     if (!resolvedPath.startsWith(resolvedDesktop)) {
       return res.status(403).send('Forbidden');
     }
-
     if (!fs.existsSync(resolvedPath)) {
       return res.status(404).send('Image not found');
     }
-
     const ext = path.extname(resolvedPath).toLowerCase();
     const contentTypeMap: Record<string, string> = {
       '.jpg': 'image/jpeg',
@@ -183,19 +174,16 @@ export class ImagesController {
       '.svg': 'image/svg+xml',
     };
     const contentType = contentTypeMap[ext] || 'image/jpeg';
-
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(resolvedPath);
   }
-
   @ApiOperation({ summary: 'Get image by ID' })
   @Public()
   @Get(':id')
   async getImageById(@Param('id', ParseUUIDPipe) id: string) {
     return await this.imagesService.getImageById(id);
   }
-
   @ApiOperation({
     summary: 'Get all images for a specific entity',
   })
@@ -207,7 +195,6 @@ export class ImagesController {
   ) {
     return await this.imagesService.getImagesByEntity(entityTypeCode, entityId);
   }
-
   @ApiOperation({
     summary: 'Get primary image for a specific entity',
   })
@@ -219,21 +206,18 @@ export class ImagesController {
   ) {
     return await this.imagesService.getPrimaryImage(entityTypeCode, entityId);
   }
-
   @ApiOperation({ summary: 'Create a new image' })
   @Roles(UserRole.ADMIN)
   @Post()
   async createImage(@Body() body: CreateImageDto) {
     return await this.imagesService.createImage(body);
   }
-
   @ApiOperation({ summary: 'Create multiple images at once' })
   @Roles(UserRole.ADMIN)
   @Post('bulk')
   async createImages(@Body() body: { images: CreateImageDto[] }) {
     return await this.imagesService.createImages(body.images);
   }
-
   @ApiOperation({ summary: 'Reorder images for a specific entity' })
   @Roles(UserRole.ADMIN)
   @Post('entity/:entityTypeCode/:entityId/reorder')
@@ -248,7 +232,6 @@ export class ImagesController {
       body.imageIds,
     );
   }
-
   @ApiOperation({ summary: 'Update an image' })
   @Roles(UserRole.ADMIN)
   @Patch(':id')
@@ -258,7 +241,6 @@ export class ImagesController {
   ) {
     return await this.imagesService.updateImage(id, body);
   }
-
   @ApiOperation({ summary: 'Delete an image (soft delete)' })
   @Roles(UserRole.ADMIN)
   @Delete(':id')

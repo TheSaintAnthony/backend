@@ -3,9 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-
 export const DB_PROVIDER = 'DB_PROVIDER';
-
 @Global()
 @Module({
   providers: [

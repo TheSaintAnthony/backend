@@ -1,5 +1,4 @@
 import * as schema from '../../db/schema';
-
 export type LookupTable =
   | typeof schema.amenities
   | typeof schema.roomTypes

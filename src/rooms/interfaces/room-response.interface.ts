@@ -1,5 +1,4 @@
 import { AmenityHighlight } from './amenity-highlight.interface';
-
 export interface RoomResponse {
   id: string;
   propertyId: string;

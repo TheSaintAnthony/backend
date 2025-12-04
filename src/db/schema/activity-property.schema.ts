@@ -2,7 +2,6 @@ import { uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { pgTable } from 'drizzle-orm/pg-core';
 import { activities } from './activities.schema';
 import { properties } from './properties.schema';
-
 export const activityProperty = pgTable(
   'activity_property',
   {

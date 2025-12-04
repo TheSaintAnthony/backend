@@ -2,20 +2,16 @@ import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.provider';
 import { CacheSetItem } from './interfaces/cache.interfaces';
-
 @Injectable()
 export class CacheService implements OnModuleInit {
   private readonly logger = new Logger(CacheService.name);
-
   constructor(@Inject(REDIS_CLIENT) private redis: Redis) {}
-
   onModuleInit() {
     this.redis.on('connect', () => this.logger.log('Redis cache connected'));
     this.redis.on('error', (err) =>
       this.logger.error('Redis cache error', err),
     );
   }
-
   async get<T>(key: string): Promise<T | null> {
     try {
       const value = await this.redis.get(key);
@@ -25,7 +21,6 @@ export class CacheService implements OnModuleInit {
       return null;
     }
   }
-
   async set(
     key: string,
     value: unknown,
@@ -37,7 +32,6 @@ export class CacheService implements OnModuleInit {
       this.logger.error(`Error setting cache key ${key}:`, error);
     }
   }
-
   async del(key: string): Promise<void> {
     try {
       await this.redis.del(key);
@@ -45,12 +39,10 @@ export class CacheService implements OnModuleInit {
       this.logger.error(`Error deleting cache key ${key}:`, error);
     }
   }
-
   async delPattern(pattern: string): Promise<void> {
     try {
       const keys: string[] = [];
       let cursor = '0';
-
       do {
         const [newCursor, foundKeys] = await this.redis.scan(
           cursor,
@@ -62,7 +54,6 @@ export class CacheService implements OnModuleInit {
         cursor = newCursor;
         keys.push(...foundKeys);
       } while (cursor !== '0');
-
       if (keys.length > 0) {
         const batchSize = 1000;
         for (let i = 0; i < keys.length; i += batchSize) {
@@ -77,7 +68,6 @@ export class CacheService implements OnModuleInit {
       this.logger.error(`Error deleting cache pattern ${pattern}:`, error);
     }
   }
-
   async exists(key: string): Promise<boolean> {
     try {
       return (await this.redis.exists(key)) === 1;
@@ -86,7 +76,6 @@ export class CacheService implements OnModuleInit {
       return false;
     }
   }
-
   async getOrSet<T>(
     key: string,
     fetchFn: () => Promise<T>,
@@ -94,12 +83,10 @@ export class CacheService implements OnModuleInit {
   ): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached !== null) return cached;
-
     const fresh = await fetchFn();
     await this.set(key, fresh, ttlSeconds);
     return fresh;
   }
-
   async increment(key: string, ttlSeconds?: number): Promise<number> {
     try {
       const value = await this.redis.incr(key);
@@ -110,7 +97,6 @@ export class CacheService implements OnModuleInit {
       return 0;
     }
   }
-
   async setMany(items: CacheSetItem[]): Promise<void> {
     try {
       const pipeline = this.redis.pipeline();
@@ -123,7 +109,6 @@ export class CacheService implements OnModuleInit {
       this.logger.error('Error setting multiple cache keys:', error);
     }
   }
-
   async getMany<T>(keys: string[]): Promise<(T | null)[]> {
     try {
       if (keys.length === 0) return [];

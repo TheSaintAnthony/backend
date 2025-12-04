@@ -9,7 +9,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-
 export class UpdateReservationRoomDto {
   @ApiPropertyOptional({
     description: 'Check-in date (ISO 8601)',
@@ -18,7 +17,6 @@ export class UpdateReservationRoomDto {
   @IsOptional()
   @IsDateString()
   checkIn?: string;
-
   @ApiPropertyOptional({
     description: 'Check-out date (ISO 8601)',
     example: '2025-12-25',
@@ -26,7 +24,6 @@ export class UpdateReservationRoomDto {
   @IsOptional()
   @IsDateString()
   checkOut?: string;
-
   @ApiPropertyOptional({
     description: 'Number of guests',
     example: 2,
@@ -37,7 +34,6 @@ export class UpdateReservationRoomDto {
   @Min(1)
   guestsCount?: number;
 }
-
 export class UpdateReservationDto {
   @ApiPropertyOptional({
     description: 'Special requests or notes',
@@ -46,7 +42,6 @@ export class UpdateReservationDto {
   @IsOptional()
   @IsString()
   specialRequests?: string;
-
   @ApiPropertyOptional({
     description: 'Update reservation rooms (check-in, check-out, guests)',
     type: [UpdateReservationRoomDto],

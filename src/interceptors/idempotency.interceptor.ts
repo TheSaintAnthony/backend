@@ -12,14 +12,12 @@ import { tap, catchError } from 'rxjs/operators';
 import { IDEMPOTENT_KEY } from 'src/decorators/idempotent.decorator';
 import { IdempotencyService } from 'src/services/idempotency/idempotency.service';
 import { AuthenticatedRequest } from 'src/auth/interfaces';
-
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
     private reflector: Reflector,
     private idempotencyService: IdempotencyService,
   ) {}
-
   async intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -28,20 +26,16 @@ export class IdempotencyInterceptor implements NestInterceptor {
       IDEMPOTENT_KEY,
       context.getHandler(),
     );
-
     if (!isIdempotent) {
       return next.handle();
     }
-
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const idempotencyKey = request.headers['idempotency-key'] as
       | string
       | undefined;
-
     if (!idempotencyKey) {
       throw new BadRequestException('Idempotency-Key header is required');
     }
-
     const existing = await this.idempotencyService.findByKey(idempotencyKey);
     if (existing) {
       if (existing.statusCode && existing.statusCode >= 400) {
@@ -51,9 +45,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
       }
       return of(existing.responseBody);
     }
-
     let statusCode = 200;
-
     return next.handle().pipe(
       tap((response: unknown) => {
         void this.idempotencyService.store({
@@ -72,7 +64,6 @@ export class IdempotencyInterceptor implements NestInterceptor {
           message: error.message,
           error: error.name,
         };
-
         void this.idempotencyService
           .store({
             key: idempotencyKey,
@@ -83,7 +74,6 @@ export class IdempotencyInterceptor implements NestInterceptor {
             statusCode,
           })
           .catch(() => {});
-
         return throwError(() => error);
       }),
     );

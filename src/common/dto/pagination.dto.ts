@@ -1,7 +1,6 @@
 import { IsOptional, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-
 export class PaginationDto {
   @ApiProperty({
     required: false,
@@ -14,7 +13,6 @@ export class PaginationDto {
   @IsInt()
   @Min(1)
   page?: number = 1;
-
   @ApiProperty({
     required: false,
     default: 10,
@@ -29,7 +27,6 @@ export class PaginationDto {
   @Max(100)
   limit?: number = 10;
 }
-
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -41,18 +38,15 @@ export interface PaginatedResponse<T> {
     hasPreviousPage: boolean;
   };
 }
-
 export function createPaginatedResponse<T>(
   data: T[],
   total: number,
   page: number,
   limit: number,
 ): PaginatedResponse<T> {
-  // Safety clamp: ensure limit doesn't exceed maximum (defense in depth)
   const MAX_LIMIT = 100;
   const clampedLimit = Math.min(limit, MAX_LIMIT);
   const totalPages = Math.ceil(total / clampedLimit);
-
   return {
     data,
     meta: {

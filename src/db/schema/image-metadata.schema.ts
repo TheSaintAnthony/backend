@@ -6,7 +6,6 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { images } from './images.schema';
-
 export const imageMetadata = pgTable('image_metadata', {
   imageId: uuid('image_id')
     .primaryKey()

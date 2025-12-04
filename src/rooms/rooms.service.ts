@@ -21,7 +21,6 @@ import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
-
 @Injectable()
 export class RoomsService {
   constructor(
@@ -35,15 +34,12 @@ export class RoomsService {
     @Inject(forwardRef(() => PropertiesService))
     private propertiesService: PropertiesService,
   ) {}
-
   async createRoom(data: CreateRoomDto) {
     const { images, ...roomData } = data;
-
     const [createdRoom] = await this.db
       .insert(schema.rooms)
       .values({ ...roomData, quantity: roomData.quantity ?? 1 })
       .returning();
-
     if (images && images.length > 0) {
       await this.imagesService.createImages(
         images.map((img) => ({
@@ -53,7 +49,6 @@ export class RoomsService {
         })),
       );
     }
-
     try {
       const roomImages = await this.imagesService.getImagesByEntity(
         'room',
@@ -62,7 +57,6 @@ export class RoomsService {
       const imageUrls = roomImages
         .map((img) => img.url)
         .filter((url) => url && url.startsWith('http'));
-
       const stripeProduct = await this.stripeService.createProduct(
         createdRoom.name,
         createdRoom.description || undefined,
@@ -73,16 +67,13 @@ export class RoomsService {
         },
         imageUrls.length > 0 ? imageUrls : undefined,
       );
-
       let stripePriceId: string | undefined;
       const roomPrices = await this.roomPricesService.getRoomPricesByRoom(
         createdRoom.id,
       );
-
       if (roomPrices.length > 0) {
         const defaultPrice = roomPrices[0];
         const priceInCents = Math.round(parseFloat(defaultPrice.price) * 100);
-
         const stripePrice = await this.stripeService.createPrice(
           stripeProduct.id,
           priceInCents,
@@ -92,10 +83,8 @@ export class RoomsService {
             priceId: defaultPrice.id,
           },
         );
-
         stripePriceId = stripePrice.id;
       }
-
       await this.db
         .update(schema.rooms)
         .set({
@@ -106,34 +95,27 @@ export class RoomsService {
     } catch (error) {
       console.error('Failed to create Stripe product for room:', error);
     }
-
     return this.getRoomById(createdRoom.id);
   }
-
   async getRooms(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
-
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.rooms)
       .where(isNull(schema.rooms.deletedAt));
     const total = totalResult.count;
-
     const roomIdRows = await this.db
       .select({ id: schema.rooms.id })
       .from(schema.rooms)
       .where(isNull(schema.rooms.deletedAt))
       .limit(limit)
       .offset(offset);
-
     if (roomIdRows.length === 0) {
       return createPaginatedResponse([], total, page, limit);
     }
-
     const roomIds = roomIdRows.map((r) => r.id);
-
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -179,9 +161,7 @@ export class RoomsService {
           isNull(schema.rooms.deletedAt),
         ),
       );
-
     const roomsMap = new Map<string, RoomWithDetails>();
-
     for (const row of roomsData) {
       if (!roomsMap.has(row.id)) {
         roomsMap.set(row.id, {
@@ -200,16 +180,13 @@ export class RoomsService {
           highlights: [],
         });
       }
-
       const room = roomsMap.get(row.id)!;
-
       if (
         row.amenityId &&
         !room.amenities.some((a) => a.id === row.amenityId)
       ) {
         room.amenities.push({ id: row.amenityId, name: row.amenityName });
       }
-
       if (
         row.highlightId &&
         !room.highlights.some((h) => h.id === row.highlightId)
@@ -217,28 +194,21 @@ export class RoomsService {
         room.highlights.push({ id: row.highlightId, name: row.highlightName });
       }
     }
-
     const data = Array.from(roomsMap.values()).map((room) => ({
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
-
-    // Batch fetch all images for all rooms in a single query
     const roomIdStrings = data.map((room) => room.id);
     const allImages = roomIdStrings.length > 0
       ? await this.imagesService.getImagesByMultipleEntities('room', roomIdStrings)
       : [];
-
-    // Group images by room ID
     const imagesByRoomId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByRoomId.get(image.entityId) || [];
       existing.push(image);
       imagesByRoomId.set(image.entityId, existing);
     }
-
-    // Map rooms with their images
     const roomsWithImages = data.map((room) => {
       const images = imagesByRoomId.get(room.id) || [];
       const simplifiedImages = images.map((img) => ({
@@ -247,10 +217,8 @@ export class RoomsService {
       }));
       return { ...room, images: simplifiedImages };
     });
-
     return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
-
   async getRoomById(id: string): Promise<RoomResponse> {
     const cacheKey = `room:${id}`;
     const cached = await this.cacheService.get<RoomResponse>(cacheKey);
@@ -297,11 +265,9 @@ export class RoomsService {
         eq(schema.highlights.id, schema.roomHighlights.highlightId),
       )
       .where(eq(schema.rooms.id, id));
-
     if (!roomsData || roomsData.length === 0) {
       throw new NotFoundException('Room', id);
     }
-
     const room: RoomWithDetails = {
       id: roomsData[0].id,
       propertyId: roomsData[0].propertyId,
@@ -317,7 +283,6 @@ export class RoomsService {
       amenities: [],
       highlights: [],
     };
-
     for (const row of roomsData) {
       if (
         row.amenityId &&
@@ -325,7 +290,6 @@ export class RoomsService {
       ) {
         room.amenities.push({ id: row.amenityId, name: row.amenityName });
       }
-
       if (
         row.highlightId &&
         !room.highlights.some((h) => h.id === row.highlightId)
@@ -333,9 +297,7 @@ export class RoomsService {
         room.highlights.push({ id: row.highlightId, name: row.highlightName });
       }
     }
-
     const images = await this.imagesService.getImagesByEntity('room', id);
-
     const firstRow = roomsData[0];
     const result: RoomResponse = {
       id: room.id,
@@ -354,25 +316,20 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
       images,
     };
-
     await this.cacheService.set(cacheKey, result, 3600);
     return result;
   }
-
   async getRoomWithProperty(id: string) {
     const room = await this.getRoomById(id);
-
     if (!room.propertyId) {
       return { ...room, property: null };
     }
-
     const property = await this.db.query.properties.findFirst({
       where: eq(schema.properties.id, room.propertyId),
       with: {
         address: true,
       },
     });
-
     if (property) {
       const images = await this.imagesService.getImagesByEntity(
         'property',
@@ -380,15 +337,12 @@ export class RoomsService {
       );
       return { ...room, property: { ...property, images } };
     }
-
     return { ...room, property: null };
   }
-
   async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
     const offset = (page - 1) * limit;
-
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.rooms)
@@ -399,7 +353,6 @@ export class RoomsService {
         ),
       );
     const total = totalResult.count;
-
     const roomIds = await this.db
       .select({ id: schema.rooms.id })
       .from(schema.rooms)
@@ -411,11 +364,9 @@ export class RoomsService {
       )
       .limit(limit)
       .offset(offset);
-
     if (roomIds.length === 0) {
       return createPaginatedResponse([], total, page, limit);
     }
-
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -463,9 +414,7 @@ export class RoomsService {
           isNull(schema.rooms.deletedAt),
         ),
       );
-
     const roomsMap = new Map<string, RoomWithDetails>();
-
     for (const row of roomsData) {
       if (!roomsMap.has(row.id)) {
         roomsMap.set(row.id, {
@@ -484,16 +433,13 @@ export class RoomsService {
           roomTypeId: row.roomTypeId,
         });
       }
-
       const room = roomsMap.get(row.id)!;
-
       if (
         row.amenityId &&
         !room.amenities.some((a) => a.id === row.amenityId)
       ) {
         room.amenities.push({ id: row.amenityId, name: row.amenityName });
       }
-
       if (
         row.highlightId &&
         !room.highlights.some((h) => h.id === row.highlightId)
@@ -501,13 +447,11 @@ export class RoomsService {
         room.highlights.push({ id: row.highlightId, name: row.highlightName });
       }
     }
-
     const data = Array.from(roomsMap.values()).map((room) => ({
       ...room,
       amenities: room.amenities.length > 0 ? room.amenities : null,
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
-
     const roomsWithImages = await Promise.all(
       data.map(async (room) => {
         const images = await this.imagesService.getImagesByEntity(
@@ -521,37 +465,29 @@ export class RoomsService {
         return { ...room, images: simplifiedImages };
       }),
     );
-
     return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
-
   async editRoom(id: string, data: EditRoomDto) {
     const [room] = await this.db
       .select()
       .from(schema.rooms)
       .where(eq(schema.rooms.id, id));
-
     if (!room) {
       throw new NotFoundException('Room', id);
     }
-
     const { images, ...roomData } = data;
-
     await this.db
       .update(schema.rooms)
       .set({ ...roomData })
       .where(eq(schema.rooms.id, id));
-
     if (images !== undefined) {
       const existingImages = await this.imagesService.getImagesByEntity(
         'room',
         id,
       );
-
       await Promise.all(
         existingImages.map((img) => this.imagesService.deleteImage(img.id)),
       );
-
       if (images.length > 0) {
         await this.imagesService.createImages(
           images.map((img) => ({
@@ -562,7 +498,6 @@ export class RoomsService {
         );
       }
     }
-
     if (room.stripeProductId) {
       try {
         const updatedRoom = { ...room, ...roomData };
@@ -573,7 +508,6 @@ export class RoomsService {
         const imageUrls = roomImages
           .map((img) => img.url)
           .filter((url) => url && url.startsWith('http'));
-
         await this.stripeService.updateProduct(room.stripeProductId, {
           name: updatedRoom.name,
           description: updatedRoom.description || undefined,
@@ -588,21 +522,17 @@ export class RoomsService {
         console.error('Failed to update Stripe product:', error);
       }
     }
-
     await this.cacheService.del(`room:${id}`);
     return this.getRoomById(id);
   }
-
   async deleteRoom(id: string) {
     const [room] = await this.db
       .select()
       .from(schema.rooms)
       .where(eq(schema.rooms.id, id));
-
     if (!room) {
       throw new NotFoundException('Room', id);
     }
-
     const result = await this.db
       .update(schema.rooms)
       .set({
@@ -611,7 +541,6 @@ export class RoomsService {
       })
       .where(eq(schema.rooms.id, id))
       .returning();
-
     if (room.stripeProductId) {
       try {
         await this.stripeService.archiveProduct(room.stripeProductId);
@@ -619,14 +548,11 @@ export class RoomsService {
         console.error('Failed to archive Stripe product:', error);
       }
     }
-
     await this.cacheService.del(`room:${id}`);
     return result;
   }
-
   async checkAvailability(data: CheckAvailabilityDto) {
     const { roomId, roomIds, checkIn, checkOut } = data;
-
     if (roomIds && roomIds.length > 0) {
       const availabilityPromises = roomIds.map(async (id) => {
         try {
@@ -646,33 +572,27 @@ export class RoomsService {
           };
         }
       });
-
       const results = await Promise.all(availabilityPromises);
-
       return {
         checkIn,
         checkOut,
         results,
       };
     }
-
     if (!roomId) {
       throw new BadRequestException(
         'Either roomId or roomIds must be provided',
       );
     }
-
     const room = await this.getRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Room', String(roomId));
     }
-
     const isAvailable = await this.checkRoomAvailability(
       roomId,
       checkIn,
       checkOut,
     );
-
     return {
       roomId,
       checkIn,
@@ -683,19 +603,15 @@ export class RoomsService {
         : 'Room is not available for the selected dates',
     };
   }
-
   async getPriceQuote(data: GetPriceQuoteDto) {
     const { rooms } = data;
-
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
     }
-
     let totalBasePrice = 0;
     let totalTourismFee = 0;
     const roomQuotes: RoomQuote[] = [];
     let allAvailable = true;
-
     for (const roomRequest of rooms) {
       const {
         roomId,
@@ -704,12 +620,10 @@ export class RoomsService {
         guestsCount = 1,
         quantity = 1,
       } = roomRequest;
-
       const room = await this.getRoomById(roomId);
       if (!room) {
         throw new NotFoundException('Room', String(roomId));
       }
-
       const isAvailable = await this.checkRoomAvailability(
         roomId,
         checkIn,
@@ -717,23 +631,19 @@ export class RoomsService {
         undefined,
         quantity,
       );
-
       if (!isAvailable) {
         allAvailable = false;
       }
-
       const checkInDate = new Date(checkIn);
       const checkOutDate = new Date(checkOut);
       const nights = Math.ceil(
         (checkOutDate.getTime() - checkInDate.getTime()) /
           (1000 * 60 * 60 * 24),
       );
-
       let roomPrice = 0;
       let avgPricePerNight = 0;
       let tourismFee = 0;
       let nightlyBreakdown: { price: string; nights: number }[] = [];
-
       if (isAvailable) {
         try {
           const { totalPrice, breakdown } =
@@ -747,7 +657,6 @@ export class RoomsService {
           avgPricePerNight = singleRoomPrice / nights;
           totalBasePrice += roomPrice;
           nightlyBreakdown = breakdown;
-
           if (room.propertyId) {
             const property = await this.propertiesService.getPropertyById(
               room.propertyId,
@@ -774,7 +683,6 @@ export class RoomsService {
           continue;
         }
       }
-
       roomQuotes.push({
         roomId,
         checkIn,
@@ -787,11 +695,9 @@ export class RoomsService {
         available: isAvailable,
       });
     }
-
     const vatPercentage = 23;
     const vatValue = totalBasePrice * (vatPercentage / 100);
     const totalPrice = totalBasePrice + totalTourismFee + vatValue;
-
     return {
       rooms: roomQuotes,
       totalPrice: totalPrice.toFixed(2),
@@ -808,7 +714,6 @@ export class RoomsService {
         : 'Some rooms are not available',
     };
   }
-
   async checkRoomAvailability(
     roomId: string,
     checkIn: string,
@@ -816,20 +721,14 @@ export class RoomsService {
     excludeUserId?: string,
     requestedQuantity: number = 1,
   ): Promise<boolean> {
-    // Get room quantity
     const [room] = await this.db
       .select({ quantity: schema.rooms.quantity })
       .from(schema.rooms)
       .where(eq(schema.rooms.id, roomId));
-
     if (!room) {
       return false;
     }
-
     const totalQuantity = room.quantity || 1;
-
-    // Count overlapping reservations (excluding cancelled and soft-deleted ones)
-    // We join with reservations to exclude cancelled status
     const overlappingReservations = await this.db
       .select({ count: count() })
       .from(schema.reservationRooms)
@@ -862,24 +761,19 @@ export class RoomsService {
           ),
         ),
       );
-
     const bookedCount = Number(overlappingReservations[0]?.count || 0);
     const availableCount = totalQuantity - bookedCount;
-
     if (availableCount < requestedQuantity) {
       return false;
     }
-
     const hasConflictingHolds = await this.roomHoldsService.hasConflictingHolds(
       roomId,
       checkIn,
       checkOut,
       excludeUserId,
     );
-
     return !hasConflictingHolds;
   }
-
   async calculateTotalPriceWithBreakdown(
     roomId: string,
     checkInStr: string,
@@ -890,88 +784,61 @@ export class RoomsService {
   }> {
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
-
     const nights = Math.ceil(
       (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
     );
-
     if (nights <= 0) {
       throw new BadRequestException('Check-out must be after check-in');
     }
-
     const roomPrices = await this.roomPricesService.getRoomPricesByRoom(roomId);
-
     if (roomPrices.length === 0) {
       throw new BadRequestException('No pricing available for this room');
     }
-
     let totalPrice = 0;
     const currentDate = new Date(checkIn);
     const nightlyPrices: { date: Date; price: number }[] = [];
-
     for (let i = 0; i < nights; i++) {
-      // Find all prices that match the current date
-      // Note: endDate is exclusive - a price ending on March 3 should NOT apply to the night starting March 3
       const applicablePrices = roomPrices.filter((price) => {
         const priceStart = new Date(price.startDate);
         const priceEnd = new Date(price.endDate);
-        // Get date strings in YYYY-MM-DD format for comparison (timezone-independent)
         const currentDateStr = currentDate.toISOString().split('T')[0];
         const priceStartStr = priceStart.toISOString().split('T')[0];
         const priceEndStr = priceEnd.toISOString().split('T')[0];
-        // Compare as strings: startDate is inclusive, endDate is exclusive
         return currentDateStr >= priceStartStr && currentDateStr < priceEndStr;
       });
-
       if (applicablePrices.length === 0) {
         const dateStr = currentDate.toISOString().split('T')[0];
         throw new BadRequestException(
           `No pricing available for date: ${dateStr}`,
         );
       }
-
-      // Sort by specificity (shorter date ranges first) and then by creation date (newer first)
       applicablePrices.sort((a, b) => {
         const aStart = new Date(a.startDate);
         const aEnd = new Date(a.endDate);
         const bStart = new Date(b.startDate);
         const bEnd = new Date(b.endDate);
-
         const aRangeLength = aEnd.getTime() - aStart.getTime();
         const bRangeLength = bEnd.getTime() - bStart.getTime();
-
         if (aRangeLength !== bRangeLength) {
           return aRangeLength - bRangeLength;
         }
-
         const aCreated = new Date(a.createdAt);
         const bCreated = new Date(b.createdAt);
         return bCreated.getTime() - aCreated.getTime();
       });
-
       const applicablePrice = applicablePrices[0];
-      // Normalize price to 2 decimal places to ensure consistency
       const price = Math.round(parseFloat(applicablePrice.price) * 100) / 100;
       totalPrice += price;
       nightlyPrices.push({ date: new Date(currentDate), price });
-
       currentDate.setDate(currentDate.getDate() + 1);
     }
-
-    // Group all nights with the same price together (not just consecutive)
     const breakdown: { price: string; nights: number }[] = [];
     if (nightlyPrices.length > 0) {
-      // Normalize all prices to 2 decimal places first
       const normalizedPrices = nightlyPrices.map(
         (item) => Math.round(item.price * 100) / 100,
       );
-
-      // Convert prices to cents (integers) for exact comparison
       const priceToCents = (price: number) => Math.round(price * 100);
-
-      // Count occurrences of each price using cents as key
       const priceCountMap = new Map<number, { price: number; count: number }>();
-
       for (const price of normalizedPrices) {
         const priceCents = priceToCents(price);
         const existing = priceCountMap.get(priceCents);
@@ -981,8 +848,6 @@ export class RoomsService {
           priceCountMap.set(priceCents, { price, count: 1 });
         }
       }
-
-      // Convert map to array and sort by price (ascending) for consistent ordering
       breakdown.push(
         ...Array.from(priceCountMap.values())
           .sort((a, b) => a.price - b.price)
@@ -992,10 +857,8 @@ export class RoomsService {
           })),
       );
     }
-
     return { totalPrice, breakdown };
   }
-
   async calculateTotalPrice(
     roomId: string,
     checkInStr: string,

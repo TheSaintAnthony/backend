@@ -34,7 +34,11 @@ import { BullModule } from '@nestjs/bullmq';
 import { QueuesModule } from './queues/queues.module';
 import { CacheModule } from './cache/cache.module';
 import { ReportsModule } from './reports/reports.module';
-
+import { ResidencesModule } from './residences/residences.module';
+import { ResidenceUnitsModule } from './residence-units/residence-units.module';
+import { ResidenceContactsModule } from './residence-contacts/residence-contacts.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -82,6 +86,11 @@ import { ReportsModule } from './reports/reports.module';
     HealthModule,
     QueuesModule,
     ReportsModule,
+    ResidencesModule,
+    ResidenceUnitsModule,
+    ResidenceContactsModule,
+    RestaurantsModule,
+    RestaurantMenusModule,
   ],
   controllers: [],
   providers: [

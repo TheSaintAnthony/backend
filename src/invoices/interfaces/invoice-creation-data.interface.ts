@@ -13,7 +13,6 @@ export interface InvoiceCreationData {
   internalReferenceId: string;
   internalInvoiceNumber?: string;
 }
-
 export interface InvoiceLineItemData {
   description: string;
   productCode?: string;

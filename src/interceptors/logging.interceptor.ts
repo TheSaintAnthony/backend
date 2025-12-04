@@ -9,7 +9,6 @@ import {
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { AuthenticatedRequest } from 'src/auth/interfaces';
 import { CorrelationIdService } from 'src/services/correlation-id.service';
-
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
@@ -19,22 +18,17 @@ export class LoggingInterceptor implements NestInterceptor {
     'passwordHash',
     'accessToken',
   ];
-
   constructor(private readonly correlationIdService: CorrelationIdService) {}
-
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const res = context.switchToHttp().getResponse<{
       setHeader: (key: string, value: string) => void;
     }>();
     const { method, url } = req;
-
     const correlationId = this.correlationIdService.extractOrGenerate(
       req.headers as Record<string, string | string[] | undefined>,
     );
-
     res.setHeader('X-Correlation-Id', correlationId);
-
     return new Observable((subscriber) => {
       this.correlationIdService.run(correlationId, () => {
         if (req.body && typeof req.body === 'object') {
@@ -44,9 +38,7 @@ export class LoggingInterceptor implements NestInterceptor {
           });
           this.log(`Request: ${JSON.stringify(maskedBody)}`);
         }
-
         this.logger.log(`Invoking: [${method}] ${url}`);
-
         next
           .handle()
           .pipe(
@@ -64,7 +56,6 @@ export class LoggingInterceptor implements NestInterceptor {
             }),
             catchError((err: unknown) => {
               let errorResponse: unknown;
-
               if (err instanceof HttpException) {
                 errorResponse = err.getResponse();
                 if (typeof errorResponse === 'object') {
@@ -75,14 +66,11 @@ export class LoggingInterceptor implements NestInterceptor {
               } else {
                 errorResponse = { message: String(err) };
               }
-
               const error = err instanceof Error ? err : new Error(String(err));
-
               this.logError(
                 `Error: ${JSON.stringify(errorResponse)}`,
                 error.stack,
               );
-
               return throwError(() => error);
             }),
           )
@@ -90,7 +78,6 @@ export class LoggingInterceptor implements NestInterceptor {
       });
     });
   }
-
   private log(message: string): void {
     const correlationId = this.correlationIdService.get();
     const white = '\x1b[37m';
@@ -99,12 +86,10 @@ export class LoggingInterceptor implements NestInterceptor {
       `${white}${message}; correlationId: ${correlationId}${reset}`,
     );
   }
-
   private logError(message: string, trace?: string): void {
     const correlationId = this.correlationIdService.get();
     this.logger.error(`${message}; correlationId: ${correlationId}`, trace);
   }
-
   private maskSensitive(obj: unknown): unknown {
     if (Array.isArray(obj)) {
       return obj.map((item) => this.maskSensitive(item));

@@ -169,6 +169,20 @@
       "when": 1764410631832,
       "tag": "0023_add-room-quantity",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1764757597626,
+      "tag": "0024_residences-restaurants",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1764780341491,
+      "tag": "0025_menu-categories",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,6 @@
 import { pgTable, uuid, text, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { occurrences } from './occurrences.schema';
 import { users } from './users.schema';
-
 export const occurrenceResponses = pgTable('occurrence_responses', {
   id: uuid('id').primaryKey().defaultRandom(),
   occurrenceId: uuid('occurrence_id')
