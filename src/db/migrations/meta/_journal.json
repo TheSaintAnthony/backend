@@ -85,6 +85,111 @@
       "when": 1762769817453,
       "tag": "0011_refactor-payments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1763024107867,
+      "tag": "0012_add-idempotency-keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1763024643196,
+      "tag": "0013_unique-payment-transaction",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1763045205985,
+      "tag": "0014_chunky_photon",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1763124575377,
+      "tag": "0015_invoice-updates",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1763129142771,
+      "tag": "0016_confused_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1763132590707,
+      "tag": "0017_room-access-code",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1763140204503,
+      "tag": "0018_changed-ids-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1764073490890,
+      "tag": "0019_images-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1764168890964,
+      "tag": "0020_payments-refactor",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1764237883078,
+      "tag": "0021_stripe-integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1764250233948,
+      "tag": "0022_-images-fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1764410631832,
+      "tag": "0023_add-room-quantity",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1764757597626,
+      "tag": "0024_residences-restaurants",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1764780341491,
+      "tag": "0025_menu-categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1764846195525,
+      "tag": "0026_is-system-managed",
+      "breakpoints": true
     }
   ]
 }

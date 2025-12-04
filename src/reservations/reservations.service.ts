@@ -1,110 +1,687 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
+import { CreateBookingDto, UpdateReservationDto } from './dto';
 import {
-  CreateReservationDto,
-  EditReservationDto,
-  CreateBookingDto,
-} from './dto';
-import { EmailConfirmation, RoomValidation } from './interfaces';
-import { eq, and } from 'drizzle-orm';
+  RoomValidation,
+  RoomBookingInput,
+  ReservationWithRooms,
+} from './interfaces';
+import {
+  eq,
+  inArray,
+  count,
+  and,
+  ne,
+  gt,
+  sql,
+  or,
+  desc,
+  isNull,
+  SQL,
+} from 'drizzle-orm';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { UsersService } from 'src/users/users.service';
-import { RoomHoldsService } from 'src/room-holds/room-holds.service';
-import { EmailService } from 'src/email/email.service';
-import { PaymentStatus, PaymentMethod } from 'src/constants';
-import { PaypalService } from 'src/payments/paypal/paypal.service';
-
+import { PropertiesService } from 'src/properties/properties.service';
+import {
+  PaymentStatus,
+  RESERVATION_STATUS_NAMES,
+  INVOICE_STATUS_NAMES,
+  DEFAULT_DEPOSIT_AMOUNT,
+} from 'src/constants';
+import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
+import {
+  PaginationDto,
+  createPaginatedResponse,
+} from 'src/common/dto/pagination.dto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { InvoicesService } from 'src/invoices/invoices.service';
+import { StripeService } from 'src/payments/stripe/stripe.service';
+import { PaymentsService } from 'src/payments/payments.service';
 @Injectable()
 export class ReservationsService implements OnModuleInit {
-  private completedPaymentStatusId: number;
-  private pendingPaymentStatusId: number;
-  private paypalMethodId: number;
-
+  private readonly logger = new Logger(ReservationsService.name);
+  private completedPaymentStatusId: string;
+  private pendingPaymentStatusId: string;
+  private readonly HOLD_DURATION_MINUTES = 10;
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private roomsService: RoomsService,
     private usersService: UsersService,
-    private roomHoldsService: RoomHoldsService,
-    private emailService: EmailService,
-    private paypalService: PaypalService,
+    private propertiesService: PropertiesService,
+    @InjectQueue('email') private readonly emailQueue: Queue,
+    private statusLookupService: StatusLookupService,
+    private invoicesService: InvoicesService,
+    private stripeService: StripeService,
+    private _paymentsService: PaymentsService,
   ) {}
-
   async onModuleInit() {
     const [completedStatus] = await this.db
       .select()
       .from(schema.paymentStatus)
       .where(eq(schema.paymentStatus.name, PaymentStatus.COMPLETED));
-
     const [pendingStatus] = await this.db
       .select()
       .from(schema.paymentStatus)
       .where(eq(schema.paymentStatus.name, PaymentStatus.PENDING));
-
-    const [paypalMethod] = await this.db
-      .select()
-      .from(schema.paymentMethods)
-      .where(eq(schema.paymentMethods.name, PaymentMethod.PAYPAL));
-
     if (!completedStatus) {
       throw new Error(
         `Payment status '${PaymentStatus.COMPLETED}' not found in payment_status table`,
       );
     }
-
     if (!pendingStatus) {
       throw new Error(
         `Payment status '${PaymentStatus.PENDING}' not found in payment_status table`,
       );
     }
-
-    if (!paypalMethod) {
-      throw new Error(
-        `Payment method '${PaymentMethod.PAYPAL}' not found in payment_methods table`,
-      );
-    }
-
     this.completedPaymentStatusId = completedStatus.id;
     this.pendingPaymentStatusId = pendingStatus.id;
-    this.paypalMethodId = paypalMethod.id;
   }
-
-  async createReservation(userId: number, data: CreateReservationDto) {
-    return await this.db
+  private async validateRoomsAndCalculatePrice(
+    tx: NodePgDatabase<typeof schema>,
+    userId: string,
+    rooms: RoomBookingInput[],
+  ): Promise<{ totalPrice: number; validatedRooms: RoomValidation[] }> {
+    if (!rooms || rooms.length === 0) {
+      throw new BadRequestException('At least one room must be specified');
+    }
+    const roomIds = rooms.map((r) => r.roomId);
+    const roomRecords = await tx
+      .select({
+        id: schema.rooms.id,
+        quantity: schema.rooms.quantity,
+        maxCapacity: schema.roomTypes.maxCapacity,
+      })
+      .from(schema.rooms)
+      .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .where(
+        roomIds.length === 1
+          ? eq(schema.rooms.id, roomIds[0])
+          : inArray(schema.rooms.id, roomIds),
+      );
+    const roomsMap = new Map(roomRecords.map((room) => [room.id, room]));
+    let totalPrice = 0;
+    const validatedRooms: RoomValidation[] = [];
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + this.HOLD_DURATION_MINUTES);
+    for (const roomBooking of rooms) {
+      const {
+        roomId,
+        checkIn,
+        checkOut,
+        guestsCount,
+        quantity = 1,
+      } = roomBooking;
+      const room = roomsMap.get(roomId);
+      if (!room) {
+        throw new NotFoundException('Room', String(roomId));
+      }
+      if (room.maxCapacity && Number(guestsCount) > room.maxCapacity) {
+        throw new BadRequestException(
+          `Room ${roomId}: Guest count exceeds capacity`,
+        );
+      }
+      const isAvailable = await this.roomsService.checkRoomAvailability(
+        roomId,
+        checkIn,
+        checkOut,
+        userId,
+        quantity,
+      );
+      if (!isAvailable) {
+        throw new BadRequestException(
+          `Room ${roomId}: Not enough rooms available. Requested: ${quantity}`,
+        );
+      }
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
+      const existingPendingReservations = await tx
+        .select({
+          reservationId: schema.reservations.id,
+        })
+        .from(schema.reservationRooms)
+        .innerJoin(
+          schema.reservations,
+          eq(schema.reservationRooms.reservationId, schema.reservations.id),
+        )
+        .where(
+          and(
+            eq(schema.reservationRooms.roomId, roomId),
+            eq(schema.reservations.statusId, pendingStatusId),
+            eq(schema.reservations.userId, userId),
+            isNull(schema.reservationRooms.deletedAt),
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+          ),
+        );
+      if (existingPendingReservations.length > 0) {
+        const pendingReservationIds = existingPendingReservations.map(
+          (r) => r.reservationId,
+        );
+        await tx
+          .update(schema.reservations)
+          .set({ statusId: cancelledStatusId })
+          .where(inArray(schema.reservations.id, pendingReservationIds));
+      }
+      const [overlappingCount] = await tx
+        .select({ count: count() })
+        .from(schema.reservationRooms)
+        .innerJoin(
+          schema.reservations,
+          eq(schema.reservationRooms.reservationId, schema.reservations.id),
+        )
+        .where(
+          and(
+            eq(schema.reservationRooms.roomId, roomId),
+            ne(schema.reservations.statusId, cancelledStatusId),
+            or(
+              ne(schema.reservations.userId, userId),
+              ne(schema.reservations.statusId, pendingStatusId),
+            ),
+            isNull(schema.reservationRooms.deletedAt),
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+          ),
+        );
+      const roomQuantity = room.quantity || 1;
+      const bookedCount = Number(overlappingCount?.count || 0);
+      const availableCount = roomQuantity - bookedCount;
+      if (availableCount < quantity) {
+        throw new BadRequestException(
+          `Room ${roomId} is not available for selected dates. Available: ${availableCount}, Requested: ${quantity}`,
+        );
+      }
+      const now = new Date();
+      const activeHolds = await tx
+        .select()
+        .from(schema.roomHolds)
+        .where(
+          and(
+            eq(schema.roomHolds.roomId, roomId),
+            gt(schema.roomHolds.expiresAt, now),
+            userId ? ne(schema.roomHolds.userId, userId) : undefined,
+            sql`daterange(${schema.roomHolds.checkIn}::date, ${schema.roomHolds.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+          ),
+        );
+      if (activeHolds.length > 0) {
+        throw new BadRequestException(
+          `Room ${roomId} is currently being booked by another user`,
+        );
+      }
+      const singleRoomPrice = await this.roomsService.calculateTotalPrice(
+        roomId,
+        checkIn,
+        checkOut,
+      );
+      const roomPrice = singleRoomPrice * quantity;
+      totalPrice += roomPrice;
+      if (quantity > 0) {
+        const holdValues = Array.from({ length: quantity }, () => ({
+          userId,
+          roomId,
+          checkIn,
+          checkOut,
+          expiresAt,
+        }));
+        await tx.insert(schema.roomHolds).values(holdValues);
+      }
+      validatedRooms.push({
+        roomId,
+        checkIn,
+        checkOut,
+        guestsCount,
+        quantity,
+        price: String(roomPrice),
+      });
+    }
+    return { totalPrice, validatedRooms };
+  }
+  private async sendConfirmationEmail(
+    userId: string,
+    totalPrice: string,
+    depositAmount: string,
+    validatedRooms: RoomValidation[],
+    specialRequests?: string,
+  ) {
+    const user = await this.usersService.getUserById(userId);
+    const payload = {
+      data: {
+        userName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        totalPrice,
+        depositAmount,
+        rooms: validatedRooms,
+        specialRequests,
+      },
+    };
+    await this.emailQueue.add('sendReservationConfirmationEmail', payload);
+  }
+  private async createReservationWithRooms(
+    tx: NodePgDatabase<typeof schema>,
+    userId: string,
+    statusId: string,
+    paymentStatusId: string,
+    totalPrice: string,
+    validatedRooms: RoomValidation[],
+    specialRequests?: string,
+  ) {
+    const [reservation] = await tx
       .insert(schema.reservations)
-      .values({ userId, ...data })
+      .values({
+        userId,
+        statusId,
+        totalPrice,
+        paymentStatusId,
+        depositAmount: DEFAULT_DEPOSIT_AMOUNT,
+        specialRequests,
+      })
       .returning();
+    const roomsWithAccessCodes = [];
+    for (const room of validatedRooms) {
+      const quantity = room.quantity || 1;
+      for (let i = 0; i < quantity; i++) {
+        roomsWithAccessCodes.push({
+          reservationId: reservation.id,
+          roomId: room.roomId,
+          checkIn: room.checkIn,
+          checkOut: room.checkOut,
+          guestsCount: parseInt(room.guestsCount),
+          accessCode: await this.generateUniqueAccessCode(
+            room.checkIn,
+            room.checkOut,
+          ),
+          deletedAt: null,
+        });
+      }
+    }
+    await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
+    return reservation;
   }
-
-  async getReservations() {
-    return await this.db.select().from(schema.reservations);
+  private generateAccessCode(): number {
+    return Math.floor(100000 + Math.random() * 900000);
   }
-
-  async getReservationById(id: number) {
+  private async generateUniqueAccessCode(
+    checkIn: string,
+    checkOut: string,
+  ): Promise<number> {
+    let code = this.generateAccessCode();
+    let exists = true;
+    while (exists) {
+      const [result] = await this.db
+        .select({ count: count() })
+        .from(schema.reservationRooms)
+        .where(
+          and(
+            eq(schema.reservationRooms.accessCode, code),
+            eq(schema.reservationRooms.checkIn, checkIn),
+            eq(schema.reservationRooms.checkOut, checkOut),
+            isNull(schema.reservationRooms.deletedAt),
+          ),
+        );
+      exists = result.count > 0;
+      if (exists) {
+        code = this.generateAccessCode();
+      }
+    }
+    return code;
+  }
+  private async createInvoiceAndPayment(
+    tx: NodePgDatabase<typeof schema>,
+    reservationId: string,
+    userId: string,
+    amount: string,
+    invoiceStatusId: string,
+    paymentStatusId: string,
+    transactionId: string | undefined,
+    validatedRooms: RoomValidation[],
+    customInvoiceData?: {
+      customerName?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+      customerCity?: string;
+      customerZipCode?: string;
+      customerCountry?: string;
+      customerTaxId?: string;
+      customerCompanyName?: string;
+    },
+    stripeCustomerId?: string,
+  ) {
+    const user = await this.usersService.getUserById(userId);
+    const [address] = user.addressId
+      ? await tx
+          .select()
+          .from(schema.addresses)
+          .where(eq(schema.addresses.id, user.addressId))
+      : [null];
+    let customerName: string;
+    let customerEmail: string;
+    let customerPhone: string | undefined;
+    let customerAddress: string | undefined;
+    let customerCountry: string | undefined;
+    let customerTaxId: string | undefined;
+    let customerCompanyName: string | undefined;
+    if (customInvoiceData) {
+      const hasCustomName =
+        customInvoiceData.customerName &&
+        customInvoiceData.customerName.trim() !== '';
+      const hasCustomEmail =
+        customInvoiceData.customerEmail &&
+        customInvoiceData.customerEmail.trim() !== '';
+      const hasCustomPhone =
+        customInvoiceData.customerPhone &&
+        customInvoiceData.customerPhone.trim() !== '';
+      const hasCustomTaxId =
+        customInvoiceData.customerTaxId &&
+        customInvoiceData.customerTaxId.trim() !== '';
+      const hasCustomCompany =
+        customInvoiceData.customerCompanyName &&
+        customInvoiceData.customerCompanyName.trim() !== '';
+      const hasCustomAddress =
+        customInvoiceData.customerAddress &&
+        customInvoiceData.customerAddress.trim() !== '';
+      const hasCustomCity =
+        customInvoiceData.customerCity &&
+        customInvoiceData.customerCity.trim() !== '';
+      const hasCustomCountry =
+        customInvoiceData.customerCountry &&
+        customInvoiceData.customerCountry.trim() !== '';
+      customerName = hasCustomName
+        ? customInvoiceData.customerName!
+        : `${user.firstName} ${user.lastName}`;
+      customerEmail = hasCustomEmail
+        ? customInvoiceData.customerEmail!
+        : user.email;
+      customerPhone = hasCustomPhone
+        ? customInvoiceData.customerPhone!
+        : user.phone || undefined;
+      customerTaxId = hasCustomTaxId
+        ? customInvoiceData.customerTaxId!
+        : user.nif || undefined;
+      customerCompanyName = hasCustomCompany
+        ? customInvoiceData.customerCompanyName!
+        : user.companyName || undefined;
+      if (hasCustomAddress || hasCustomCity) {
+        const addressParts = [
+          customInvoiceData.customerAddress,
+          customInvoiceData.customerCity,
+          customInvoiceData.customerZipCode,
+          customInvoiceData.customerCountry,
+        ].filter(Boolean);
+        customerAddress =
+          addressParts.length > 0 ? addressParts.join(', ') : undefined;
+      } else if (address) {
+        customerAddress = `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`;
+      }
+      customerCountry = hasCustomCountry
+        ? customInvoiceData.customerCountry!.substring(0, 2).toUpperCase()
+        : address
+          ? address.country.substring(0, 2).toUpperCase()
+          : undefined;
+    } else {
+      customerName = `${user.firstName} ${user.lastName}`;
+      customerEmail = user.email;
+      customerPhone = user.phone || undefined;
+      customerTaxId = user.nif || undefined;
+      customerCompanyName = user.companyName || undefined;
+      customerAddress = address
+        ? `${address.street}, ${address.city}, ${address.zipCode}, ${address.country}`
+        : undefined;
+      customerCountry = address
+        ? address.country.substring(0, 2).toUpperCase()
+        : undefined;
+    }
+    const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('Invoice');
+    const lineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = this.calculateNights(checkIn, checkOut);
+        const totalAmount = Number(roomValidation.price).toFixed(2);
+        return {
+          description: `${room.name} - ${nights} night(s)`,
+          productCode: `ROOM_${room.id}`,
+          quantity: nights.toString(),
+          unitPrice: (Number(roomValidation.price) / nights).toFixed(2),
+          totalAmount: totalAmount,
+          itemType: 'accommodation',
+          startDate: checkIn.toISOString(),
+          endDate: checkOut.toISOString(),
+        };
+      }),
+    );
+    const tourismFeeLineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.propertyId) {
+          return null;
+        }
+        const property = await this.propertiesService.getPropertyById(
+          room.propertyId,
+        );
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = this.calculateNights(checkIn, checkOut);
+        const guestsCount = parseInt(roomValidation.guestsCount);
+        const tourismFeePerPersonPerNight = parseFloat(
+          ((property as { tourismFee?: string | null }).tourismFee as string) || '0',
+        );
+        const tourismFeeTotal =
+          tourismFeePerPersonPerNight * guestsCount * nights;
+        return {
+          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+          productCode: 'TOURIST_TAX',
+          quantity: (guestsCount * nights).toString(),
+          unitPrice: tourismFeePerPersonPerNight.toFixed(2),
+          totalAmount: tourismFeeTotal.toFixed(2),
+          itemType: 'tax',
+          startDate: checkIn.toISOString(),
+          endDate: checkOut.toISOString(),
+        };
+      }),
+    );
+    const validTourismFeeLineItems = tourismFeeLineItems.filter(
+      (item) => item !== null,
+    );
+    lineItems.push(...validTourismFeeLineItems);
+    const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
+    const [invoice] = await tx
+      .insert(schema.invoices)
+      .values({
+        reservationId,
+        userId,
+        totalAmount: amount,
+        currency: 'EUR',
+        customerName,
+        customerCompanyName: customerCompanyName || undefined,
+        customerTaxId: customerTaxId || undefined,
+        customerEmail,
+        customerPhone: customerPhone || undefined,
+        customerAddress,
+        customerCountry,
+        invoiceNumber,
+        invoiceTypeId,
+        statusId: invoiceStatusId,
+      })
+      .returning();
+    if (lineItems.length > 0) {
+      await tx.insert(schema.invoiceLineItems).values(
+        lineItems.map((item) => ({
+          invoiceId: invoice.id,
+          description: item.description,
+          productCode: item.productCode,
+          itemType: item.itemType,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalAmount: item.totalAmount,
+          startDate: item.startDate ? new Date(item.startDate) : undefined,
+          endDate: item.endDate ? new Date(item.endDate) : undefined,
+        })),
+      );
+    }
+    await tx.insert(schema.payments).values({
+      invoiceId: invoice.id,
+      amount,
+      paymentStatusId,
+      transactionId,
+    });
+    const stripeCustomerIdToUse = stripeCustomerId || user.stripeCustomerId;
+    if (stripeCustomerIdToUse) {
+      try {
+        const stripeLineItems = await Promise.all(
+          validatedRooms.map(async (roomValidation) => {
+            const room = await this.roomsService.getRoomById(
+              roomValidation.roomId,
+            );
+            const checkIn = new Date(roomValidation.checkIn);
+            const checkOut = new Date(roomValidation.checkOut);
+            const nights = this.calculateNights(checkIn, checkOut);
+            const basePricePerNight = Number(roomValidation.price) / nights;
+            const priceWithVAT = basePricePerNight * 1.23;
+            if (basePricePerNight <= 0) {
+              throw new BadRequestException(
+                `Invalid price for room ${roomValidation.roomId}: ${roomValidation.price}`,
+              );
+            }
+            if (!room.stripePriceId && !room.stripeProductId) {
+              throw new BadRequestException(
+                `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
+              );
+            }
+            if (room.stripeProductId) {
+              return {
+                priceId: undefined,
+                priceData: {
+                  currency: 'eur',
+                  product: room.stripeProductId,
+                  unitAmount: Math.round(priceWithVAT * 100),
+                },
+                quantity: nights,
+                description: `${room.name} - ${nights} night(s)`,
+              };
+            } else {
+              throw new BadRequestException(
+                `Room ${roomValidation.roomId} is missing Stripe product configuration`,
+              );
+            }
+          }),
+        );
+        const tourismFeeStripeItems = await Promise.all(
+          validatedRooms.map(async (roomValidation) => {
+            const room = await this.roomsService.getRoomById(
+              roomValidation.roomId,
+            );
+            if (!room.propertyId) {
+              return null;
+            }
+            const property = await this.propertiesService.getPropertyById(
+              room.propertyId,
+            );
+            const checkIn = new Date(roomValidation.checkIn);
+            const checkOut = new Date(roomValidation.checkOut);
+            const nights = this.calculateNights(checkIn, checkOut);
+            const guestsCount = parseInt(roomValidation.guestsCount);
+            const propertyWithFee = property as { tourismFee?: string | null };
+            const tourismFeeValue: string =
+              typeof propertyWithFee.tourismFee === 'string'
+                ? propertyWithFee.tourismFee
+                : String(propertyWithFee.tourismFee ?? '0');
+            const tourismFeePerPersonPerNight = parseFloat(tourismFeeValue);
+            if (tourismFeePerPersonPerNight <= 0) {
+              return null;
+            }
+            if (!room.stripeProductId) {
+              return null;
+            }
+            return {
+              priceId: undefined,
+              priceData: {
+                currency: 'eur',
+                product: room.stripeProductId,
+                unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
+              },
+              quantity: guestsCount * nights,
+              description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+            };
+          }),
+        );
+        const validTourismFeeItems = tourismFeeStripeItems.filter(
+          (item) => item !== null,
+        );
+        stripeLineItems.push(...validTourismFeeItems);
+        const stripeInvoice = await this.stripeService.createInvoice({
+          customerId: stripeCustomerIdToUse,
+          description: `Invoice ${invoiceNumber} for reservation ${reservationId}`,
+          metadata: {
+            reservationId,
+            invoiceId: invoice.id,
+            invoiceNumber,
+          },
+          lineItems: stripeLineItems,
+          autoAdvance: false,
+        });
+        await tx
+          .update(schema.invoices)
+          .set({
+            externalInvoiceId: stripeInvoice.id,
+            externalInvoiceNumber: stripeInvoice.number || undefined,
+            externalInvoiceUrl: stripeInvoice.hosted_invoice_url || undefined,
+          })
+          .where(eq(schema.invoices.id, invoice.id));
+      } catch (error) {
+        console.error('Failed to create Stripe invoice:', error);
+      }
+    }
+    return invoice;
+  }
+  private calculateNights(checkIn: Date, checkOut: Date): number {
+    const diffTime = checkOut.getTime() - checkIn.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+  async getReservationById(id: string) {
     const [reservation] = await this.db
       .select()
       .from(schema.reservations)
       .where(eq(schema.reservations.id, id));
-
     if (!reservation) {
-      throw new NotFoundException('Reservation not found');
+      throw new NotFoundException('Reservation', id);
     }
-
     return reservation;
   }
-
-  async getReservationsByUser(userId: number) {
-    const reservations = await this.db
+  async getReservationsByUser(userId: string, pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const offset = (page - 1) * limit;
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.reservations)
+      .where(eq(schema.reservations.userId, userId));
+    const total = totalResult.count;
+    const reservationIds = await this.db
+      .select({ id: schema.reservations.id })
+      .from(schema.reservations)
+      .where(eq(schema.reservations.userId, userId))
+      .orderBy(schema.reservations.createdAt)
+      .limit(limit)
+      .offset(offset);
+    if (reservationIds.length === 0) {
+      return createPaginatedResponse([], total, page, limit);
+    }
+    const results = await this.db
       .select({
-        id: schema.reservations.id,
+        reservationId: schema.reservations.id,
         userId: schema.reservations.userId,
         statusId: schema.reservations.statusId,
         statusName: schema.reservationStatus.name,
@@ -115,6 +692,19 @@ export class ReservationsService implements OnModuleInit {
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
+        roomId: schema.reservationRooms.id,
+        roomReservationId: schema.reservationRooms.reservationId,
+        roomRoomId: schema.reservationRooms.roomId,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        accessCode: schema.reservationRooms.accessCode,
+        roomName: schema.rooms.name,
+        roomDescription: schema.rooms.description,
+        propertyId: schema.properties.id,
+        propertyName: schema.properties.name,
+        invoiceUrl: schema.invoices.externalInvoiceUrl,
+        invoiceTotalAmount: schema.invoices.totalAmount,
       })
       .from(schema.reservations)
       .leftJoin(
@@ -125,447 +715,1087 @@ export class ReservationsService implements OnModuleInit {
         schema.paymentStatus,
         eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
       )
-      .where(eq(schema.reservations.userId, userId))
+      .leftJoin(
+        schema.reservationRooms,
+        eq(schema.reservations.id, schema.reservationRooms.reservationId),
+      )
+      .leftJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .leftJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .leftJoin(
+        schema.invoices,
+        eq(schema.reservations.id, schema.invoices.reservationId),
+      )
+      .where(
+        inArray(
+          schema.reservations.id,
+          reservationIds.map((r) => r.id),
+        ),
+      )
       .orderBy(schema.reservations.createdAt);
-
-    const reservationsWithRooms = await Promise.all(
-      reservations.map(async (reservation) => {
-        const rooms = await this.db
-          .select({
-            id: schema.reservationRooms.id,
-            reservationId: schema.reservationRooms.reservationId,
-            roomId: schema.reservationRooms.roomId,
-            checkIn: schema.reservationRooms.checkIn,
-            checkOut: schema.reservationRooms.checkOut,
-            guestsCount: schema.reservationRooms.guestsCount,
-            roomName: schema.rooms.name,
-            roomDescription: schema.rooms.description,
-          })
-          .from(schema.reservationRooms)
-          .leftJoin(
-            schema.rooms,
-            eq(schema.reservationRooms.roomId, schema.rooms.id),
-          )
-          .where(eq(schema.reservationRooms.reservationId, reservation.id));
-
-        return {
-          ...reservation,
-          rooms,
-        };
-      }),
-    );
-
-    return reservationsWithRooms;
-  }
-
-  async editReservation(id: number, data: EditReservationDto) {
-    const [reservation] = await this.db
-      .select()
-      .from(schema.reservations)
-      .where(eq(schema.reservations.id, id));
-
-    if (!reservation) {
-      throw new NotFoundException('Reservation not found');
-    }
-
-    return await this.db
-      .update(schema.reservations)
-      .set({ ...data })
-      .where(eq(schema.reservations.id, id))
-      .returning();
-  }
-
-  async deleteReservation(id: number) {
-    const [reservation] = await this.db
-      .select()
-      .from(schema.reservations)
-      .where(eq(schema.reservations.id, id));
-
-    if (!reservation) {
-      throw new NotFoundException('Reservation not found');
-    }
-
-    return await this.db
-      .delete(schema.reservations)
-      .where(eq(schema.reservations.id, id))
-      .returning();
-  }
-
-  async createBooking(userId: number, data: CreateBookingDto) {
-    const { rooms, specialRequests, paymentMethodId, transactionId } = data;
-
-    if (!rooms || rooms.length === 0) {
-      throw new BadRequestException('At least one room must be specified');
-    }
-
-    const user = await this.usersService.getUserById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    let totalPrice = 0;
-    const roomValidations: RoomValidation[] = [];
-
-    for (const roomBooking of rooms) {
-      const { roomId, checkIn, checkOut } = roomBooking;
-
-      const room = await this.roomsService.getRoomById(roomId);
-      if (!room) {
-        throw new NotFoundException(`Room ${roomId} not found`);
-      }
-
-      const hasHold = await this.roomHoldsService.hasActiveHold(
-        userId,
-        roomId,
-        checkIn,
-        checkOut,
-      );
-
-      if (!hasHold) {
-        throw new BadRequestException(
-          `No active hold for room ${roomId}. Please request a price quote first.`,
-        );
-      }
-
-      const isAvailable = await this.roomsService.checkRoomAvailability(
-        roomId,
-        checkIn,
-        checkOut,
-        userId,
-      );
-      if (!isAvailable) {
-        throw new BadRequestException(
-          `Room ${roomId} is not available for the selected dates`,
-        );
-      }
-
-      const roomPrice = await this.roomsService.calculateTotalPrice(
-        roomId,
-        checkIn,
-        checkOut,
-      );
-      totalPrice += roomPrice;
-
-      roomValidations.push({
-        roomId,
-        checkIn,
-        checkOut,
-        guestsCount: roomBooking.guestsCount || 1,
-        price: roomPrice,
-      });
-    }
-
-    return await this.db.transaction(async (tx) => {
-      const [reservation] = await tx
-        .insert(schema.reservations)
-        .values({
-          userId,
-          statusId: 1,
-          totalPrice: totalPrice.toString(),
-          paymentStatusId: 1,
-          depositAmount: '0.0',
-          specialRequests,
-        })
-        .returning();
-
-      for (const roomBooking of roomValidations) {
-        await tx.insert(schema.reservationRooms).values({
-          reservationId: reservation.id,
-          roomId: roomBooking.roomId,
-          checkIn: roomBooking.checkIn,
-          checkOut: roomBooking.checkOut,
-          guestsCount: roomBooking.guestsCount,
+    const reservationsMap = new Map<string, ReservationWithRooms>();
+    for (const row of results) {
+      const reservationId = row.reservationId;
+      if (!reservationsMap.has(reservationId)) {
+        reservationsMap.set(reservationId, {
+          id: row.reservationId,
+          userId: row.userId,
+          statusId: row.statusId,
+          statusName: row.statusName,
+          totalPrice: row.totalPrice,
+          paymentStatusId: row.paymentStatusId,
+          paymentStatusName: row.paymentStatusName,
+          depositAmount: row.depositAmount,
+          specialRequests: row.specialRequests,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          invoiceUrl: row.invoiceUrl || null,
+          invoiceTotalAmount: row.invoiceTotalAmount || null,
+          rooms: [],
         });
       }
-
-      const [invoice] = await tx
-        .insert(schema.invoices)
-        .values({
-          reservationId: reservation.id,
-          amount: totalPrice.toString(),
-          statusId: 1,
-        })
-        .returning();
-
-      await tx.insert(schema.payments).values({
-        invoiceId: invoice.id,
-        amount: totalPrice.toString(),
-        paymentMethodId,
-        paymentStatusId: this.completedPaymentStatusId,
-        transactionId,
-      });
-
-      await tx
-        .update(schema.invoices)
-        .set({ statusId: 2 })
-        .where(eq(schema.invoices.id, invoice.id));
-
-      await tx
-        .update(schema.reservations)
-        .set({
-          statusId: 2,
-          paymentStatusId: 2,
-        })
-        .where(eq(schema.reservations.id, reservation.id));
-
-      for (const roomBooking of roomValidations) {
-        await tx
-          .delete(schema.roomHolds)
-          .where(
-            and(
-              eq(schema.roomHolds.userId, userId),
-              eq(schema.roomHolds.roomId, roomBooking.roomId),
-              eq(schema.roomHolds.checkIn, roomBooking.checkIn),
-              eq(schema.roomHolds.checkOut, roomBooking.checkOut),
-            ),
-          );
+      if (row.roomId !== null) {
+        const reservation = reservationsMap.get(reservationId);
+        if (reservation) {
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
+          if (!roomExists) {
+            reservation.rooms.push({
+              id: row.roomId,
+              reservationId: row.roomReservationId,
+              roomId: row.roomRoomId,
+              checkIn: row.checkIn,
+              checkOut: row.checkOut,
+              guestsCount: row.guestsCount,
+              roomName: row.roomName,
+              roomDescription: row.roomDescription,
+              propertyId: row.propertyId || null,
+              propertyName: row.propertyName || null,
+            });
+          }
+        }
       }
-
-      const emailPayload: EmailConfirmation = {
-        userName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        totalPrice: reservation.totalPrice,
-        depositAmount: reservation.depositAmount,
-        rooms: [...roomValidations],
-        specialRequests: reservation.specialRequests?.toString(),
-      };
-
-      await this.emailService.sendReservationConfirmationEmail(emailPayload);
-
-      return {
-        success: true,
-        reservation: {
-          ...reservation,
-          statusId: 2,
-          paymentStatusId: 2,
+    }
+    const data = Array.from(reservationsMap.values());
+    return createPaginatedResponse(data, total, page, limit);
+  }
+  async createBooking(userId: string, data: CreateBookingDto) {
+    const { rooms, specialRequests, metadata, invoiceData } = data;
+    return this.db.transaction(async (tx) => {
+      const { totalPrice, validatedRooms } =
+        await this.validateRoomsAndCalculatePrice(tx, userId, rooms);
+      let totalTourismFee = 0;
+      for (const roomValidation of validatedRooms) {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.propertyId) continue;
+        const property = await this.propertiesService.getPropertyById(
+          room.propertyId,
+        );
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = Math.ceil(
+          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        const guestsCount = parseInt(roomValidation.guestsCount);
+        const propertyWithFee = property as { tourismFee?: string | null };
+        const tourismFeePerPersonPerNight = parseFloat(
+          (propertyWithFee.tourismFee as string) || '0',
+        );
+        totalTourismFee += tourismFeePerPersonPerNight * guestsCount * nights;
+      }
+      const totalPriceStr = totalPrice.toString();
+      const vatAmount = totalPrice * 0.23;
+      const totalPriceWithVAT = (
+        totalPrice +
+        totalTourismFee +
+        vatAmount
+      ).toFixed(2);
+      const user = await this.usersService.getUserById(userId);
+      const invoiceCustomerEmail =
+        invoiceData?.customerEmail && invoiceData.customerEmail.trim() !== ''
+          ? invoiceData.customerEmail
+          : user.email;
+      const invoiceCustomerName =
+        invoiceData?.customerName && invoiceData.customerName.trim() !== ''
+          ? invoiceData.customerName
+          : `${user.firstName} ${user.lastName}`;
+      const invoiceCustomerPhone =
+        invoiceData?.customerPhone && invoiceData.customerPhone.trim() !== ''
+          ? invoiceData.customerPhone
+          : user.phone || undefined;
+      const invoiceStripeCustomer =
+        await this.stripeService.getOrCreateCustomer(
+          userId,
+          invoiceCustomerEmail,
+          invoiceCustomerName,
+          invoiceCustomerPhone,
+          {
+            userId,
+            invoiceCustomer: 'true',
+          },
+        );
+      const userStripeCustomer = await this.stripeService.getOrCreateCustomer(
+        userId,
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        user.phone || undefined,
+        {
+          userId,
         },
-        invoice,
-        totalPrice: totalPrice.toString(),
-        message: 'Booking completed successfully',
-      };
-    });
-  }
-
-  async createPaypalBooking(userId: number, data: CreateBookingDto) {
-    const { rooms, specialRequests } = data;
-
-    if (!rooms || rooms.length === 0) {
-      throw new BadRequestException('At least one room must be specified');
-    }
-
-    const user = await this.usersService.getUserById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    let totalPrice = 0;
-    const roomValidations: RoomValidation[] = [];
-
-    for (const roomBooking of rooms) {
-      const { roomId, checkIn, checkOut } = roomBooking;
-
-      const room = await this.roomsService.getRoomById(roomId);
-      if (!room) {
-        throw new NotFoundException(`Room ${roomId} not found`);
+      );
+      if (!user.stripeCustomerId) {
+        await tx
+          .update(schema.users)
+          .set({ stripeCustomerId: userStripeCustomer.id })
+          .where(eq(schema.users.id, userId));
       }
-
-      const hasHold = await this.roomHoldsService.hasActiveHold(
+      const reservation = await this.createReservationWithRooms(
+        tx,
         userId,
-        roomId,
-        checkIn,
-        checkOut,
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        ),
+        this.pendingPaymentStatusId,
+        totalPriceStr,
+        validatedRooms,
+        specialRequests,
       );
-
-      if (!hasHold) {
-        throw new BadRequestException(
-          `No active hold for room ${roomId}. Please request a price quote first.`,
-        );
-      }
-
-      const isAvailable = await this.roomsService.checkRoomAvailability(
-        roomId,
-        checkIn,
-        checkOut,
+      const invoice = await this.createInvoiceAndPayment(
+        tx,
+        reservation.id,
         userId,
+        totalPriceWithVAT,
+        this.statusLookupService.getInvoiceStatusId(
+          INVOICE_STATUS_NAMES.PENDING,
+        ),
+        this.pendingPaymentStatusId,
+        undefined,
+        validatedRooms,
+        invoiceData,
+        invoiceStripeCustomer.id,
       );
-      if (!isAvailable) {
-        throw new BadRequestException(
-          `Room ${roomId} is not available for the selected dates`,
-        );
-      }
-
-      const roomPrice = await this.roomsService.calculateTotalPrice(
-        roomId,
-        checkIn,
-        checkOut,
-      );
-      totalPrice += roomPrice;
-
-      roomValidations.push({
-        roomId,
-        checkIn,
-        checkOut,
-        guestsCount: roomBooking.guestsCount || 1,
-        price: roomPrice,
-      });
-    }
-
-    return await this.db.transaction(async (tx) => {
-      const [reservation] = await tx
-        .insert(schema.reservations)
-        .values({
+      const paymentResult = await this.stripeService.createPaymentIntent({
+        amount: totalPriceWithVAT,
+        currency: 'EUR',
+        customerId: invoiceStripeCustomer.id,
+        orderId: reservation.id.toString(),
+        description: `Booking ${reservation.id}`,
+        statementDescriptor: 'ST ANTHONY',
+        metadata: {
+          reservationId: reservation.id,
+          invoiceId: invoice.id,
           userId,
-          statusId: 1,
-          totalPrice: totalPrice.toString(),
-          paymentStatusId: this.pendingPaymentStatusId,
-          depositAmount: '0.0',
-          specialRequests,
-        })
-        .returning();
-
-      for (const roomBooking of roomValidations) {
-        await tx.insert(schema.reservationRooms).values({
-          reservationId: reservation.id,
-          roomId: roomBooking.roomId,
-          checkIn: roomBooking.checkIn,
-          checkOut: roomBooking.checkOut,
-          guestsCount: roomBooking.guestsCount,
-        });
-      }
-
-      const [invoice] = await tx
-        .insert(schema.invoices)
-        .values({
-          reservationId: reservation.id,
-          amount: totalPrice.toString(),
-          statusId: 1,
-        })
-        .returning();
-
-      const paypalOrder = await this.paypalService.createOrder({
-        invoiceId: invoice.id,
-        amount: totalPrice.toString(),
+          ...metadata,
+        },
       });
-
-      // Create payment record inside transaction
-      await tx.insert(schema.payments).values({
-        invoiceId: invoice.id,
-        amount: totalPrice.toString(),
-        paymentMethodId: this.paypalMethodId,
-        paymentStatusId: this.pendingPaymentStatusId,
-        transactionId: paypalOrder.orderId,
-      });
-
-      const approveLink = paypalOrder.links?.find(
-        (link) => link.rel === 'approve',
-      );
-
+      await tx
+        .update(schema.payments)
+        .set({
+          transactionId: paymentResult.transactionId,
+          externalReferenceId: paymentResult.transactionId,
+        })
+        .where(eq(schema.payments.invoiceId, invoice.id));
+      const basePrice = totalPrice;
+      const tourismFee = totalTourismFee;
+      const vatPercentage = 23;
+      const vatValue = basePrice * 0.23;
+      const finalTotal = basePrice + tourismFee + vatValue;
       return {
         success: true,
         reservation,
         invoice,
-        paypalOrder: {
-          orderId: paypalOrder.orderId,
-          approveUrl: approveLink?.href,
+        payment: {
+          transactionId: paymentResult.transactionId,
+          requiresUserAction: paymentResult.requiresUserAction,
+          actionUrl: paymentResult.actionUrl,
+          clientSecret: paymentResult.metadata?.clientSecret,
+          metadata: paymentResult.metadata,
         },
-        totalPrice: totalPrice.toString(),
-        message: 'Reservation created. Please complete payment via PayPal.',
+        pricing: {
+          basePrice: basePrice.toFixed(2),
+          tourismFee: tourismFee.toFixed(2),
+          vatPercentage: vatPercentage.toString(),
+          vatValue: vatValue.toFixed(2),
+          totalPrice: finalTotal.toFixed(2),
+        },
+        totalPrice: totalPriceStr,
+        message: paymentResult.requiresUserAction
+          ? 'Complete payment to confirm booking'
+          : 'Booking completed successfully',
       };
     });
   }
-
-  async completePaypalBooking(orderId: string) {
-    const captureResult = await this.paypalService.captureOrder(orderId);
-
-    const payment = await this.db
-      .select()
-      .from(schema.payments)
-      .where(eq(schema.payments.id, captureResult.paymentId))
-      .limit(1);
-
-    if (!payment || payment.length === 0) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    const [invoice] = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(eq(schema.invoices.id, payment[0].invoiceId))
-      .limit(1);
-
-    if (!invoice) {
-      throw new NotFoundException('Invoice not found');
-    }
-
-    await this.db
-      .update(schema.invoices)
-      .set({ statusId: 2 })
-      .where(eq(schema.invoices.id, invoice.id));
-
-    const [reservation] = await this.db
-      .select()
-      .from(schema.reservations)
-      .where(eq(schema.reservations.id, invoice.reservationId))
-      .limit(1);
-
-    if (!reservation) {
-      throw new NotFoundException('Reservation not found');
-    }
-
-    await this.db
-      .update(schema.reservations)
-      .set({
-        statusId: 2,
-        paymentStatusId: this.completedPaymentStatusId,
-      })
-      .where(eq(schema.reservations.id, reservation.id));
-
-    const roomValidations = await this.db
-      .select()
-      .from(schema.reservationRooms)
-      .where(eq(schema.reservationRooms.reservationId, reservation.id));
-
-    for (const room of roomValidations) {
-      await this.db
-        .delete(schema.roomHolds)
+  async completeBooking(transactionId: string) {
+    return this.db.transaction(async (tx) => {
+      const [existingPayment] = await tx
+        .select()
+        .from(schema.payments)
         .where(
-          and(
-            eq(schema.roomHolds.userId, reservation.userId),
-            eq(schema.roomHolds.roomId, room.roomId),
-            eq(schema.roomHolds.checkIn, room.checkIn),
-            eq(schema.roomHolds.checkOut, room.checkOut),
+          or(
+            eq(schema.payments.transactionId, transactionId),
+            eq(schema.payments.externalReferenceId, transactionId),
           ),
+        )
+        .limit(1);
+      if (!existingPayment) {
+        let paymentStatus;
+        try {
+          paymentStatus =
+            await this.stripeService.getPaymentIntentStatus(transactionId);
+        } catch {
+          throw new NotFoundException('Payment', transactionId);
+        }
+        if (paymentStatus.status === 'completed') {
+          throw new NotFoundException(
+            'Payment record not found in database. Please contact support.',
+            transactionId,
+          );
+        } else {
+          throw new BadRequestException(
+            `Payment is not completed. Current status: ${paymentStatus.status}`,
+          );
+        }
+      }
+      if (existingPayment.paymentStatusId === this.completedPaymentStatusId) {
+        const [invoice] = await tx
+          .select()
+          .from(schema.invoices)
+          .where(eq(schema.invoices.id, existingPayment.invoiceId))
+          .limit(1);
+        if (invoice) {
+          const [reservation] = await tx
+            .select()
+            .from(schema.reservations)
+            .where(eq(schema.reservations.id, invoice.reservationId))
+            .limit(1);
+          if (reservation) {
+            return {
+              success: true,
+              reservation,
+              message: 'Payment already completed',
+            };
+          }
+        }
+      }
+      const paymentStatus =
+        await this.stripeService.getPaymentIntentStatus(transactionId);
+      if (paymentStatus.status !== 'completed') {
+        throw new BadRequestException(
+          `Payment is not completed. Current status: ${paymentStatus.status}`,
         );
-    }
-
-    const user = await this.usersService.getUserById(reservation.userId);
-    if (user) {
-      const emailPayload: EmailConfirmation = {
-        userName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        totalPrice: reservation.totalPrice,
-        depositAmount: reservation.depositAmount,
-        rooms: roomValidations.map((r) => ({
+      }
+      await tx
+        .update(schema.payments)
+        .set({
+          paymentStatusId: this.completedPaymentStatusId,
+          paidAt: paymentStatus.completedAt || new Date(),
+        })
+        .where(eq(schema.payments.id, existingPayment.id));
+      const [invoice] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, existingPayment.invoiceId))
+        .limit(1);
+      if (!invoice) {
+        throw new NotFoundException(
+          'Invoice',
+          String(existingPayment.invoiceId),
+        );
+      }
+      if (invoice.externalInvoiceId) {
+        try {
+          const paidInvoice = await this.stripeService.payInvoice(
+            invoice.externalInvoiceId,
+          );
+          const invoiceUrl =
+            paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
+          let finalUrl = invoiceUrl;
+          if (!finalUrl) {
+            finalUrl = await this.stripeService.getInvoiceUrl(
+              invoice.externalInvoiceId,
+            );
+          }
+          await tx
+            .update(schema.invoices)
+            .set({
+              statusId: this.statusLookupService.getInvoiceStatusId(
+                INVOICE_STATUS_NAMES.PAID,
+              ),
+              issuedAt: new Date(),
+              externalInvoiceUrl: finalUrl || invoice.externalInvoiceUrl,
+            })
+            .where(eq(schema.invoices.id, invoice.id));
+        } catch (error) {
+          console.error('Failed to pay Stripe invoice:', error);
+          let invoiceUrl = invoice.externalInvoiceUrl;
+          if (!invoiceUrl && invoice.externalInvoiceId) {
+            try {
+              invoiceUrl = await this.stripeService.getInvoiceUrl(
+                invoice.externalInvoiceId,
+              );
+            } catch (urlError) {
+              console.error('Failed to retrieve invoice URL:', urlError);
+            }
+          }
+          await tx
+            .update(schema.invoices)
+            .set({
+              statusId: this.statusLookupService.getInvoiceStatusId(
+                INVOICE_STATUS_NAMES.PAID,
+              ),
+              issuedAt: new Date(),
+              externalInvoiceUrl: invoiceUrl || invoice.externalInvoiceUrl,
+            })
+            .where(eq(schema.invoices.id, invoice.id));
+        }
+      } else {
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: this.statusLookupService.getInvoiceStatusId(
+              INVOICE_STATUS_NAMES.PAID,
+            ),
+            issuedAt: new Date(),
+          })
+          .where(eq(schema.invoices.id, invoice.id));
+      }
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(eq(schema.reservations.id, invoice.reservationId))
+        .limit(1);
+      if (!reservation) {
+        throw new NotFoundException(
+          'Reservation',
+          String(invoice.reservationId),
+        );
+      }
+      await tx
+        .update(schema.reservations)
+        .set({
+          statusId: await this.statusLookupService.getReservationStatusId(
+            RESERVATION_STATUS_NAMES.CONFIRMED,
+          ),
+          paymentStatusId: this.completedPaymentStatusId,
+        })
+        .where(eq(schema.reservations.id, reservation.id));
+      await tx
+        .delete(schema.roomHolds)
+        .where(eq(schema.roomHolds.userId, reservation.userId));
+      const reservationRooms = await tx
+        .select()
+        .from(schema.reservationRooms)
+        .where(eq(schema.reservationRooms.reservationId, reservation.id));
+      await this.sendConfirmationEmail(
+        reservation.userId,
+        reservation.totalPrice,
+        reservation.depositAmount,
+        reservationRooms.map((r) => ({
           roomId: r.roomId,
           checkIn: r.checkIn,
           checkOut: r.checkOut,
-          guestsCount: r.guestsCount,
-          price: 0,
+          guestsCount: r.guestsCount.toString(),
+          price: (
+            parseFloat(reservation.totalPrice) / reservationRooms.length
+          ).toString(),
         })),
-        specialRequests: reservation.specialRequests?.toString(),
+        reservation.specialRequests || undefined,
+      );
+      return {
+        success: true,
+        reservation: {
+          ...reservation,
+          statusId: await this.statusLookupService.getReservationStatusId(
+            RESERVATION_STATUS_NAMES.CONFIRMED,
+          ),
+          paymentStatusId: this.completedPaymentStatusId,
+        },
+        message: 'Payment completed successfully',
       };
-
-      await this.emailService.sendReservationConfirmationEmail(emailPayload);
+    });
+  }
+  async cancelReservation(reservationId: string, userId: string) {
+    return this.db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(
+          and(
+            eq(schema.reservations.id, reservationId),
+            eq(schema.reservations.userId, userId),
+          ),
+        )
+        .limit(1);
+      if (!reservation) {
+        throw new NotFoundException('Reservation', String(reservationId));
+      }
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
+      if (reservation.statusId !== pendingStatusId) {
+        throw new BadRequestException(
+          'Only pending reservations can be canceled',
+        );
+      }
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
+      await tx
+        .update(schema.reservations)
+        .set({
+          statusId: cancelledStatusId,
+        })
+        .where(eq(schema.reservations.id, reservationId));
+      const [invoice] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.reservationId, reservationId))
+        .limit(1);
+      if (invoice) {
+        const cancelledInvoiceStatusId =
+          this.statusLookupService.getInvoiceStatusId(
+            INVOICE_STATUS_NAMES.CANCELLED,
+          );
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: cancelledInvoiceStatusId,
+          })
+          .where(eq(schema.invoices.id, invoice.id));
+      }
+      await tx
+        .delete(schema.roomHolds)
+        .where(eq(schema.roomHolds.userId, userId));
+      return {
+        success: true,
+        message: 'Reservation canceled successfully',
+      };
+    });
+  }
+  async retryPayment(reservationId: string, userId: string) {
+    return this.db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(
+          and(
+            eq(schema.reservations.id, reservationId),
+            eq(schema.reservations.userId, userId),
+          ),
+        )
+        .limit(1);
+      if (!reservation) {
+        throw new NotFoundException('Reservation', String(reservationId));
+      }
+      const pendingStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.PENDING,
+        );
+      if (reservation.statusId !== pendingStatusId) {
+        throw new BadRequestException(
+          'Only pending reservations can retry payment',
+        );
+      }
+      const user = await this.usersService.getUserById(reservation.userId);
+      const stripeCustomer = await this.stripeService.getOrCreateCustomer(
+        reservation.userId,
+        user.email,
+        `${user.firstName} ${user.lastName}`,
+        user.phone || undefined,
+        {
+          userId: reservation.userId,
+        },
+      );
+      const paymentResult = await this.stripeService.createPaymentIntent({
+        amount: reservation.totalPrice,
+        currency: 'EUR',
+        customerId: stripeCustomer.id,
+        orderId: reservation.id.toString(),
+        description: `Retry payment for booking ${reservation.id}`,
+        statementDescriptor: 'ST ANTHONY',
+        metadata: {
+          reservationId: reservation.id,
+          userId: reservation.userId,
+          retry: 'true',
+        },
+      });
+      const [payment] = await tx
+        .select()
+        .from(schema.payments)
+        .innerJoin(
+          schema.invoices,
+          eq(schema.payments.invoiceId, schema.invoices.id),
+        )
+        .where(eq(schema.invoices.reservationId, reservation.id))
+        .limit(1);
+      if (payment) {
+        await tx
+          .update(schema.payments)
+          .set({
+            transactionId: paymentResult.transactionId,
+            externalReferenceId: paymentResult.transactionId,
+            paymentStatusId: this.pendingPaymentStatusId,
+            paidAt: null,
+          })
+          .where(eq(schema.payments.id, payment.payments.id));
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: this.statusLookupService.getInvoiceStatusId(
+              INVOICE_STATUS_NAMES.PENDING,
+            ),
+          })
+          .where(eq(schema.invoices.id, payment.invoices.id));
+      }
+      return {
+        success: true,
+        reservation,
+        payment: {
+          transactionId: paymentResult.transactionId,
+          requiresUserAction: paymentResult.requiresUserAction,
+          actionUrl: paymentResult.actionUrl,
+          clientSecret: paymentResult.metadata?.clientSecret,
+          metadata: paymentResult.metadata,
+        },
+        message: 'Ready to retry payment',
+      };
+    });
+  }
+  async getPendingReservations(userId: string) {
+    const pendingStatusId =
+      await this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.PENDING,
+      );
+    const reservations = await this.db
+      .select()
+      .from(schema.reservations)
+      .where(
+        and(
+          eq(schema.reservations.userId, userId),
+          eq(schema.reservations.statusId, pendingStatusId),
+        ),
+      )
+      .orderBy(schema.reservations.createdAt);
+    return reservations;
+  }
+  async getAllReservations(pagination?: PaginationDto, statusFilter?: string) {
+    const page = pagination?.page || 1;
+    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const offset = (page - 1) * limit;
+    const whereConditions: SQL[] = [];
+    if (statusFilter) {
+      try {
+        const statusId =
+          await this.statusLookupService.getReservationStatusId(statusFilter);
+        if (statusId) {
+          whereConditions.push(eq(schema.reservations.statusId, statusId));
+        }
+      } catch {
+        this.logger.warn(`Invalid status filter: ${statusFilter}`);
+        return createPaginatedResponse([], 0, page, limit);
+      }
     }
-
-    return {
-      success: true,
-      reservation: {
-        ...reservation,
-        statusId: 2,
-        paymentStatusId: this.completedPaymentStatusId,
-      },
-      message: 'Payment completed successfully',
-    };
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.reservations)
+      .where(whereClause);
+    const total = totalResult.count;
+    const reservationIds = await this.db
+      .select({ id: schema.reservations.id })
+      .from(schema.reservations)
+      .where(whereClause)
+      .orderBy(desc(schema.reservations.createdAt))
+      .limit(limit)
+      .offset(offset);
+    if (reservationIds.length === 0) {
+      return createPaginatedResponse([], total, page, limit);
+    }
+    const results = await this.db
+      .select({
+        reservationId: schema.reservations.id,
+        userId: schema.reservations.userId,
+        statusId: schema.reservations.statusId,
+        statusName: schema.reservationStatus.name,
+        totalPrice: schema.reservations.totalPrice,
+        paymentStatusId: schema.reservations.paymentStatusId,
+        paymentStatusName: schema.paymentStatus.name,
+        depositAmount: schema.reservations.depositAmount,
+        specialRequests: schema.reservations.specialRequests,
+        createdAt: schema.reservations.createdAt,
+        updatedAt: schema.reservations.updatedAt,
+        roomId: schema.reservationRooms.id,
+        roomReservationId: schema.reservationRooms.reservationId,
+        roomRoomId: schema.reservationRooms.roomId,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        accessCode: schema.reservationRooms.accessCode,
+        roomName: schema.rooms.name,
+        roomDescription: schema.rooms.description,
+        propertyId: schema.properties.id,
+        propertyName: schema.properties.name,
+        invoiceUrl: schema.invoices.externalInvoiceUrl,
+        userEmail: schema.users.email,
+        userFirstName: schema.users.firstName,
+        userLastName: schema.users.lastName,
+      })
+      .from(schema.reservations)
+      .leftJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
+      .leftJoin(
+        schema.paymentStatus,
+        eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
+      )
+      .leftJoin(
+        schema.reservationRooms,
+        eq(schema.reservations.id, schema.reservationRooms.reservationId),
+      )
+      .leftJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .leftJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .leftJoin(
+        schema.invoices,
+        eq(schema.reservations.id, schema.invoices.reservationId),
+      )
+      .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .where(
+        inArray(
+          schema.reservations.id,
+          reservationIds.map((r) => r.id),
+        ),
+      )
+      .orderBy(desc(schema.reservations.createdAt));
+    const reservationsMap = new Map<
+      string,
+      ReservationWithRooms & {
+        userEmail?: string;
+        userFirstName?: string;
+        userLastName?: string;
+      }
+    >();
+    for (const row of results) {
+      const reservationId = row.reservationId;
+      if (!reservationsMap.has(reservationId)) {
+        reservationsMap.set(reservationId, {
+          id: row.reservationId,
+          userId: row.userId,
+          statusId: row.statusId,
+          statusName: row.statusName,
+          totalPrice: row.totalPrice,
+          paymentStatusId: row.paymentStatusId,
+          paymentStatusName: row.paymentStatusName,
+          depositAmount: row.depositAmount,
+          specialRequests: row.specialRequests,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          invoiceUrl: row.invoiceUrl || null,
+          userEmail: row.userEmail || undefined,
+          userFirstName: row.userFirstName || undefined,
+          userLastName: row.userLastName || undefined,
+          rooms: [],
+        });
+      }
+      if (row.roomId !== null) {
+        const reservation = reservationsMap.get(reservationId);
+        if (reservation) {
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
+          if (!roomExists) {
+            reservation.rooms.push({
+              id: row.roomId,
+              reservationId: row.roomReservationId,
+              roomId: row.roomRoomId,
+              checkIn: row.checkIn,
+              checkOut: row.checkOut,
+              guestsCount: row.guestsCount,
+              roomName: row.roomName,
+              roomDescription: row.roomDescription,
+              propertyId: row.propertyId || null,
+              propertyName: row.propertyName || null,
+            });
+          }
+        }
+      }
+    }
+    const data = Array.from(reservationsMap.values());
+    return createPaginatedResponse(data, total, page, limit);
+  }
+  async updateReservationStatus(reservationId: string, statusName: string) {
+    const reservation = await this.getReservationById(reservationId);
+    if (!reservation) {
+      throw new NotFoundException('Reservation', reservationId);
+    }
+    const statusId =
+      await this.statusLookupService.getReservationStatusId(statusName);
+    if (!statusId) {
+      throw new BadRequestException(`Invalid status: ${statusName}`);
+    }
+    await this.db
+      .update(schema.reservations)
+      .set({
+        statusId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.reservations.id, reservationId));
+    return this.getReservationById(reservationId);
+  }
+  async cancelReservationAdmin(
+    reservationId: string,
+    issueRefund: boolean = false,
+  ) {
+    return this.db.transaction(async (tx) => {
+      const [reservation] = await tx
+        .select()
+        .from(schema.reservations)
+        .where(eq(schema.reservations.id, reservationId))
+        .limit(1);
+      if (!reservation) {
+        throw new NotFoundException('Reservation', reservationId);
+      }
+      const cancelledStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CANCELLED,
+        );
+      await tx
+        .update(schema.reservations)
+        .set({
+          statusId: cancelledStatusId,
+        })
+        .where(eq(schema.reservations.id, reservationId));
+      const [invoice] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.reservationId, reservationId))
+        .limit(1);
+      if (invoice) {
+        const cancelledInvoiceStatusId =
+          this.statusLookupService.getInvoiceStatusId(
+            INVOICE_STATUS_NAMES.CANCELLED,
+          );
+        await tx
+          .update(schema.invoices)
+          .set({
+            statusId: cancelledInvoiceStatusId,
+          })
+          .where(eq(schema.invoices.id, invoice.id));
+        if (issueRefund) {
+          const [payment] = await tx
+            .select()
+            .from(schema.payments)
+            .where(eq(schema.payments.invoiceId, invoice.id))
+            .limit(1);
+          if (!payment) {
+            throw new BadRequestException(
+              'No payment found for this reservation. Cannot issue refund.',
+            );
+          }
+          const paymentIntentId =
+            payment.transactionId || payment.externalReferenceId;
+          if (!paymentIntentId) {
+            throw new BadRequestException(
+              'No PaymentIntent ID found. Cannot issue refund.',
+            );
+          }
+          try {
+            const refund = await this.stripeService.createRefund(
+              paymentIntentId,
+              undefined,
+              'requested_by_customer',
+            );
+            this.logger.log(
+              `Refund created successfully: ${refund.id} for PaymentIntent ${paymentIntentId}`,
+            );
+            if (invoice.externalInvoiceId) {
+              try {
+                const creditNote = await this.stripeService.createCreditNote(
+                  invoice.externalInvoiceId,
+                  undefined,
+                  'order_change',
+                  `Credit note for cancelled reservation ${reservationId}`,
+                );
+                this.logger.log(
+                  `Credit note created successfully: ${creditNote.id} for invoice ${invoice.externalInvoiceId}`,
+                );
+              } catch (creditNoteError) {
+                this.logger.warn(
+                  `Failed to create credit note for invoice ${invoice.externalInvoiceId}: ${creditNoteError}`,
+                );
+              }
+            }
+          } catch (error) {
+            this.logger.error(
+              `Failed to process refund for PaymentIntent ${paymentIntentId}: ${error}`,
+            );
+            throw new BadRequestException(
+              `Failed to process refund: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+          }
+        }
+      }
+      const reservationRooms = await tx
+        .select()
+        .from(schema.reservationRooms)
+        .where(eq(schema.reservationRooms.reservationId, reservationId));
+      for (const room of reservationRooms) {
+        await tx
+          .update(schema.reservationRooms)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.reservationRooms.id, room.id));
+      }
+      await tx
+        .delete(schema.roomHolds)
+        .where(eq(schema.roomHolds.userId, reservation.userId));
+      return {
+        success: true,
+        message: 'Reservation cancelled successfully',
+      };
+    });
+  }
+  async updateReservation(reservationId: string, data: UpdateReservationDto) {
+    return this.db.transaction(async (tx) => {
+      const reservation = await this.getReservationById(reservationId);
+      if (!reservation) {
+        throw new NotFoundException('Reservation', reservationId);
+      }
+      if (data.specialRequests !== undefined) {
+        await tx
+          .update(schema.reservations)
+          .set({
+            specialRequests: data.specialRequests,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.reservations.id, reservationId));
+      }
+      if (data.rooms && data.rooms.length > 0) {
+        const existingRooms = await tx
+          .select()
+          .from(schema.reservationRooms)
+          .where(eq(schema.reservationRooms.reservationId, reservationId));
+        for (
+          let i = 0;
+          i < data.rooms.length && i < existingRooms.length;
+          i++
+        ) {
+          const roomUpdate = data.rooms[i];
+          const existingRoom = existingRooms[i];
+          const updateData: {
+            checkIn?: Date;
+            checkOut?: Date;
+            guestsCount?: number;
+            updatedAt?: Date;
+          } = {};
+          if (roomUpdate.checkIn)
+            updateData.checkIn = new Date(roomUpdate.checkIn);
+          if (roomUpdate.checkOut)
+            updateData.checkOut = new Date(roomUpdate.checkOut);
+          if (roomUpdate.guestsCount !== undefined)
+            updateData.guestsCount = roomUpdate.guestsCount;
+          if (Object.keys(updateData).length > 0) {
+            updateData.updatedAt = new Date();
+            await tx
+              .update(schema.reservationRooms)
+              .set(
+                updateData as Partial<
+                  typeof schema.reservationRooms.$inferInsert
+                >,
+              )
+              .where(eq(schema.reservationRooms.id, existingRoom.id));
+          }
+        }
+      }
+      return this.getReservationById(reservationId);
+    });
+  }
+  async checkInReservation(reservationId: string) {
+    const [reservation] = await this.db
+      .select({
+        id: schema.reservations.id,
+        statusId: schema.reservations.statusId,
+        statusName: schema.reservationStatus.name,
+      })
+      .from(schema.reservations)
+      .leftJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
+      .where(eq(schema.reservations.id, reservationId))
+      .limit(1);
+    if (!reservation) {
+      throw new NotFoundException('Reservation', reservationId);
+    }
+    const currentStatus = reservation.statusName || '';
+    if (currentStatus.toLowerCase() !== 'confirmed') {
+      throw new BadRequestException(
+        `Reservation must be in 'Confirmed' status to check in. Current status: ${currentStatus}`,
+      );
+    }
+    const checkedInStatusId =
+      await this.statusLookupService.getReservationStatusId(
+        RESERVATION_STATUS_NAMES.CHECKED_IN,
+      );
+    await this.db
+      .update(schema.reservations)
+      .set({
+        statusId: checkedInStatusId,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.reservations.id, reservationId));
+    return this.getReservationById(reservationId);
+  }
+  async findReservationByCustomerAndDates(
+    customerName?: string,
+    checkIn?: string,
+    checkOut?: string,
+  ) {
+    const conditions: SQL[] = [];
+    if (customerName) {
+      const searchPattern = `%${customerName.toLowerCase()}%`;
+      const nameCondition = or(
+        sql`LOWER(${schema.users.firstName}) LIKE ${searchPattern}`,
+        sql`LOWER(${schema.users.lastName}) LIKE ${searchPattern}`,
+        sql`LOWER(${schema.users.email}) LIKE ${searchPattern}`,
+      );
+      if (nameCondition) {
+        conditions.push(nameCondition);
+      }
+    }
+    if (checkIn) {
+      conditions.push(eq(schema.reservationRooms.checkIn, checkIn));
+    }
+    if (checkOut) {
+      conditions.push(eq(schema.reservationRooms.checkOut, checkOut));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const results = await this.db
+      .select({
+        reservationId: schema.reservations.id,
+        userId: schema.reservations.userId,
+        statusId: schema.reservations.statusId,
+        statusName: schema.reservationStatus.name,
+        totalPrice: schema.reservations.totalPrice,
+        paymentStatusId: schema.reservations.paymentStatusId,
+        paymentStatusName: schema.paymentStatus.name,
+        depositAmount: schema.reservations.depositAmount,
+        specialRequests: schema.reservations.specialRequests,
+        createdAt: schema.reservations.createdAt,
+        updatedAt: schema.reservations.updatedAt,
+        roomId: schema.reservationRooms.id,
+        roomReservationId: schema.reservationRooms.reservationId,
+        roomRoomId: schema.reservationRooms.roomId,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        accessCode: schema.reservationRooms.accessCode,
+        roomName: schema.rooms.name,
+        roomDescription: schema.rooms.description,
+        propertyId: schema.properties.id,
+        propertyName: schema.properties.name,
+        invoiceUrl: schema.invoices.externalInvoiceUrl,
+        userEmail: schema.users.email,
+        userFirstName: schema.users.firstName,
+        userLastName: schema.users.lastName,
+        userPhone: schema.users.phone,
+      })
+      .from(schema.reservations)
+      .leftJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
+      .leftJoin(
+        schema.paymentStatus,
+        eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
+      )
+      .leftJoin(
+        schema.reservationRooms,
+        eq(schema.reservations.id, schema.reservationRooms.reservationId),
+      )
+      .leftJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .leftJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .leftJoin(
+        schema.invoices,
+        eq(schema.reservations.id, schema.invoices.reservationId),
+      )
+      .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .where(whereClause)
+      .orderBy(desc(schema.reservations.createdAt))
+      .limit(50);
+    const reservationsMap = new Map<
+      string,
+      ReservationWithRooms & {
+        userEmail?: string;
+        userFirstName?: string;
+        userLastName?: string;
+        userPhone?: string;
+      }
+    >();
+    for (const row of results) {
+      const reservationId = row.reservationId;
+      if (!reservationsMap.has(reservationId)) {
+        reservationsMap.set(reservationId, {
+          id: row.reservationId,
+          userId: row.userId,
+          statusId: row.statusId,
+          statusName: row.statusName,
+          totalPrice: row.totalPrice,
+          paymentStatusId: row.paymentStatusId,
+          paymentStatusName: row.paymentStatusName,
+          depositAmount: row.depositAmount,
+          specialRequests: row.specialRequests,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          invoiceUrl: row.invoiceUrl || null,
+          userEmail: row.userEmail || undefined,
+          userFirstName: row.userFirstName || undefined,
+          userLastName: row.userLastName || undefined,
+          userPhone: row.userPhone || undefined,
+          rooms: [],
+        });
+      }
+      if (row.roomId !== null) {
+        const reservation = reservationsMap.get(reservationId);
+        if (reservation) {
+          const roomExists = reservation.rooms.some((r) => r.id === row.roomId);
+          if (!roomExists) {
+            reservation.rooms.push({
+              id: row.roomId,
+              reservationId: row.roomReservationId,
+              roomId: row.roomRoomId,
+              checkIn: row.checkIn,
+              checkOut: row.checkOut,
+              guestsCount: row.guestsCount,
+              accessCode: row.accessCode || null,
+              roomName: row.roomName,
+              roomDescription: row.roomDescription,
+              propertyId: row.propertyId || null,
+              propertyName: row.propertyName || null,
+            });
+          }
+        }
+      }
+    }
+    return Array.from(reservationsMap.values());
   }
 }

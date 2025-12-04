@@ -4,71 +4,59 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateActivityPropertyDto } from './dto';
 import { eq, and } from 'drizzle-orm';
-
 @Injectable()
 export class ActivityPropertyService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async createActivityProperty(data: CreateActivityPropertyDto) {
-    return await this.db
+    return this.db
       .insert(schema.activityProperty)
       .values({ ...data })
       .returning();
   }
-
   async getActivityProperties() {
-    return await this.db.select().from(schema.activityProperty);
+    return this.db.select().from(schema.activityProperty);
   }
-
-  async getActivityPropertyById(id: number) {
+  async getActivityPropertyById(id: string) {
     const [activityProperty] = await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id));
-
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException('Activity property', id);
     }
-
     return activityProperty;
   }
-
-  async getActivityPropertiesByProperty(propertyId: number) {
-    return await this.db
+  async getActivityPropertiesByProperty(propertyId: string) {
+    return this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.propertyId, propertyId));
   }
-
-  async getActivityPropertiesByActivity(activityId: number) {
-    return await this.db
+  async getActivityPropertiesByActivity(activityId: string) {
+    return this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.activityId, activityId));
   }
-
-  async deleteActivityProperty(id: number) {
+  async deleteActivityProperty(id: string) {
     const [activityProperty] = await this.db
       .select()
       .from(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id));
-
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException('Activity property', id);
     }
-
-    return await this.db
+    return this.db
       .delete(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id))
       .returning();
   }
-
   async deleteActivityPropertyByActivityAndProperty(
-    activityId: number,
-    propertyId: number,
+    activityId: string,
+    propertyId: string,
   ) {
     const [activityProperty] = await this.db
       .select()
@@ -79,12 +67,13 @@ export class ActivityPropertyService {
           eq(schema.activityProperty.propertyId, propertyId),
         ),
       );
-
     if (!activityProperty) {
-      throw new NotFoundException('Activity property not found');
+      throw new NotFoundException(
+        'Activity property',
+        `${activityId}-${propertyId}`,
+      );
     }
-
-    return await this.db
+    return this.db
       .delete(schema.activityProperty)
       .where(eq(schema.activityProperty.id, activityProperty.id))
       .returning();

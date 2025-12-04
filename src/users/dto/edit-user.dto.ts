@@ -8,20 +8,17 @@ import {
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EditAddressDto } from 'src/addresses/dto';
-
 export class EditUserDto {
   @ApiPropertyOptional({ description: 'First name', example: 'John' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   firstName: string;
-
   @ApiPropertyOptional({ description: 'Last name', example: 'Doe' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   lastName: string;
-
   @ApiPropertyOptional({
     description: 'Email address',
     example: 'john.doe@example.com',
@@ -29,7 +26,6 @@ export class EditUserDto {
   @IsOptional()
   @IsEmail()
   email: string;
-
   @ApiPropertyOptional({
     description: 'Phone number',
     example: '+1234567890',
@@ -38,7 +34,6 @@ export class EditUserDto {
   @IsString()
   @IsNotEmpty()
   phone: string;
-
   @ApiPropertyOptional({
     description: 'Address information',
     type: EditAddressDto,
@@ -47,4 +42,18 @@ export class EditUserDto {
   @ValidateNested()
   @Type(() => EditAddressDto)
   address: EditAddressDto;
+  @ApiPropertyOptional({
+    description: 'NIF / VAT number',
+    example: '123456789',
+  })
+  @IsOptional()
+  @IsString()
+  nif?: string;
+  @ApiPropertyOptional({
+    description: 'Company name',
+    example: 'Acme Corp',
+  })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }

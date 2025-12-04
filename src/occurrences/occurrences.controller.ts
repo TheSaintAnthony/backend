@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -12,45 +12,43 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OccurrencesService } from './occurrences.service';
 import { CreateOccurrenceDto, EditOccurrenceDto } from './dto';
-
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 @ApiTags('Occurrences')
 @ApiBearerAuth('access-token')
 @Controller('occurrences')
 export class OccurrencesController {
   constructor(private occurrencesService: OccurrencesService) {}
-
   @Get()
   async getOccurrences(
-    @Query('reservationId', ParseIntPipe) reservationId?: number,
+    @Query('reservationId', new ParseUUIDPipe({ optional: true }))
+    reservationId: string | undefined,
+    @Query() pagination: PaginationDto,
   ) {
-    if (reservationId) {
+    if (reservationId !== undefined) {
       return await this.occurrencesService.getOccurrencesByReservation(
         reservationId,
+        pagination,
       );
     }
-    return await this.occurrencesService.getOccurrences();
+    return await this.occurrencesService.getOccurrences(pagination);
   }
-
   @Get(':id')
-  async getOccurrenceById(@Param('id', ParseIntPipe) id: number) {
+  async getOccurrenceById(@Param('id') id: string) {
     return await this.occurrencesService.getOccurrenceById(id);
   }
-
   @Post()
   async createOccurrence(@Body() body: CreateOccurrenceDto) {
     return await this.occurrencesService.createOccurrence(body);
   }
-
   @Patch(':id')
   async editOccurrence(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditOccurrenceDto,
   ) {
     return await this.occurrencesService.editOccurrence(id, body);
   }
-
   @Delete(':id')
-  async deleteOccurrence(@Param('id', ParseIntPipe) id: number) {
+  async deleteOccurrence(@Param('id') id: string) {
     return await this.occurrencesService.deleteOccurrence(id);
   }
 }

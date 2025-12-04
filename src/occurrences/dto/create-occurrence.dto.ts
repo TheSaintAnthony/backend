@@ -1,18 +1,12 @@
-import {
-  IsInt,
-  IsPositive,
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class CreateOccurrenceDto {
-  @ApiProperty({ description: 'Reservation ID', example: 1 })
-  @IsInt()
-  @IsPositive()
-  reservationId: number;
-
+  @ApiProperty({
+    description: 'Reservation ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
+  reservationId: string;
   @ApiProperty({
     description: 'Occurrence description',
     example: 'Room service requested',
@@ -20,10 +14,11 @@ export class CreateOccurrenceDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiPropertyOptional({ description: 'Occurrence status ID', example: 1 })
+  @ApiPropertyOptional({
+    description: 'Occurrence status ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   @IsOptional()
-  @IsInt()
-  @IsPositive()
-  statusId?: number;
+  @IsUUID()
+  statusId?: string;
 }

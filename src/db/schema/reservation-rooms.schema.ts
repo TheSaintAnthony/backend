@@ -1,5 +1,6 @@
 import {
   pgTable,
+  uuid,
   integer,
   uniqueIndex,
   date,
@@ -9,20 +10,20 @@ import {
 import { rooms } from './rooms.schema';
 import { reservations } from './reservations.schema';
 import { sql } from 'drizzle-orm';
-
 export const reservationRooms = pgTable(
   'reservation_rooms',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    roomId: integer('room_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id, { onDelete: 'cascade' }),
-    reservationId: integer('reservation_id')
+    reservationId: uuid('reservation_id')
       .notNull()
       .references(() => reservations.id, { onDelete: 'cascade' }),
     checkIn: date('check_in').notNull(),
     checkOut: date('check_out').notNull(),
     guestsCount: integer('guests_count').notNull().default(1),
+    accessCode: integer('access_code').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -34,6 +35,9 @@ export const reservationRooms = pgTable(
       table.roomId,
       table.reservationId,
     ),
+    uniqueAccessCodeWithinDates: uniqueIndex(
+      'unique_access_code_within_date',
+    ).on(table.accessCode, table.checkIn, table.checkOut),
     checkDates: check('check_reservation_dates', sql`check_out > check_in`),
     checkGuestsCount: check('check_guests_count', sql`guests_count > 0`),
   }),

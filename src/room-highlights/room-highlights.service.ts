@@ -4,64 +4,53 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateRoomHighlightDto } from './dto';
 import { eq, and } from 'drizzle-orm';
-
 @Injectable()
 export class RoomHighlightsService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async createRoomHighlight(data: CreateRoomHighlightDto) {
-    return await this.db
+    return this.db
       .insert(schema.roomHighlights)
       .values({ ...data })
       .returning();
   }
-
   async getRoomHighlights() {
-    return await this.db.select().from(schema.roomHighlights);
+    return this.db.select().from(schema.roomHighlights);
   }
-
-  async getRoomHighlightById(id: number) {
+  async getRoomHighlightById(id: string) {
     const [roomHighlight] = await this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id));
-
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', id);
     }
-
     return roomHighlight;
   }
-
-  async getRoomHighlightsByRoom(roomId: number) {
-    return await this.db
+  async getRoomHighlightsByRoom(roomId: string) {
+    return this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.roomId, roomId));
   }
-
-  async deleteRoomHighlight(id: number) {
+  async deleteRoomHighlight(id: string) {
     const [roomHighlight] = await this.db
       .select()
       .from(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id));
-
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', id);
     }
-
-    return await this.db
+    return this.db
       .delete(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, id))
       .returning();
   }
-
   async deleteRoomHighlightByRoomAndHighlight(
-    roomId: number,
-    highlightId: number,
+    roomId: string,
+    highlightId: string,
   ) {
     const [roomHighlight] = await this.db
       .select()
@@ -72,12 +61,10 @@ export class RoomHighlightsService {
           eq(schema.roomHighlights.highlightId, highlightId),
         ),
       );
-
     if (!roomHighlight) {
-      throw new NotFoundException('Room highlight not found');
+      throw new NotFoundException('Room highlight', `${roomId}-${highlightId}`);
     }
-
-    return await this.db
+    return this.db
       .delete(schema.roomHighlights)
       .where(eq(schema.roomHighlights.id, roomHighlight.id))
       .returning();

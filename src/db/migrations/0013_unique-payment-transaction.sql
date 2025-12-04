@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "unique_transaction_per_method_idx" ON "payments" USING btree ("transaction_id","payment_method_id") WHERE "payments"."transaction_id" IS NOT NULL;

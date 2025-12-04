@@ -1,5 +1,4 @@
 import * as schema from '../../db/schema';
-
 export type LookupTable =
   | typeof schema.amenities
   | typeof schema.roomTypes
@@ -9,5 +8,5 @@ export type LookupTable =
   | typeof schema.occurrenceStatus
   | typeof schema.roles
   | typeof schema.paymentStatus
-  | typeof schema.paymentMethods
-  | typeof schema.activities;
+  | typeof schema.activities
+  | typeof schema.activityCategories;

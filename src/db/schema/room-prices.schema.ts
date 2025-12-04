@@ -1,6 +1,6 @@
 import {
   pgTable,
-  integer,
+  uuid,
   numeric,
   date,
   timestamp,
@@ -8,12 +8,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { rooms } from './rooms.schema';
-
 export const roomPrices = pgTable(
   'room_prices',
   {
-    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
-    roomId: integer('room_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    roomId: uuid('room_id')
       .notNull()
       .references(() => rooms.id, { onDelete: 'cascade' }),
     price: numeric('price', { precision: 10, scale: 2 }).notNull(),

@@ -4,62 +4,51 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateRoomAmenityDto } from './dto';
 import { eq, and } from 'drizzle-orm';
-
 @Injectable()
 export class RoomAmenitiesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
   ) {}
-
   async createRoomAmenity(data: CreateRoomAmenityDto) {
-    return await this.db
+    return this.db
       .insert(schema.roomAmenities)
       .values({ ...data })
       .returning();
   }
-
   async getRoomAmenities() {
-    return await this.db.select().from(schema.roomAmenities);
+    return this.db.select().from(schema.roomAmenities);
   }
-
-  async getRoomAmenityById(id: number) {
+  async getRoomAmenityById(id: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id));
-
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', id);
     }
-
     return roomAmenity;
   }
-
-  async getRoomAmenitiesByRoom(roomId: number) {
-    return await this.db
+  async getRoomAmenitiesByRoom(roomId: string) {
+    return this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.roomId, roomId));
   }
-
-  async deleteRoomAmenity(id: number) {
+  async deleteRoomAmenity(id: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id));
-
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', id);
     }
-
-    return await this.db
+    return this.db
       .delete(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, id))
       .returning();
   }
-
-  async deleteRoomAmenityByRoomAndAmenity(roomId: number, amenityId: number) {
+  async deleteRoomAmenityByRoomAndAmenity(roomId: string, amenityId: string) {
     const [roomAmenity] = await this.db
       .select()
       .from(schema.roomAmenities)
@@ -69,12 +58,10 @@ export class RoomAmenitiesService {
           eq(schema.roomAmenities.amenityId, amenityId),
         ),
       );
-
     if (!roomAmenity) {
-      throw new NotFoundException('Room amenity not found');
+      throw new NotFoundException('Room amenity', `${roomId}-${amenityId}`);
     }
-
-    return await this.db
+    return this.db
       .delete(schema.roomAmenities)
       .where(eq(schema.roomAmenities.id, roomAmenity.id))
       .returning();

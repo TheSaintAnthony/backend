@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -12,51 +11,43 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReservationRoomsService } from './reservation-rooms.service';
 import { CreateReservationRoomDto, EditReservationRoomDto } from './dto';
-
 @ApiTags('Reservation Rooms')
 @ApiBearerAuth('access-token')
 @Controller('reservation/rooms')
 export class ReservationRoomsController {
   constructor(private reservationRoomsService: ReservationRoomsService) {}
-
   @Get()
   async getReservationRooms(
-    @Query('reservationId', ParseIntPipe) reservationId?: number,
-    @Query('roomId', ParseIntPipe) roomId?: number,
+    @Query('reservationId') reservationId?: string,
+    @Query('roomId') roomId?: string,
   ) {
     if (reservationId) {
-      return await this.reservationRoomsService.getReservationRoomsByReservation(
+      return this.reservationRoomsService.getReservationRoomsByReservation(
         reservationId,
       );
     }
     if (roomId) {
-      return await this.reservationRoomsService.getReservationRoomsByRoom(
-        roomId,
-      );
+      return this.reservationRoomsService.getReservationRoomsByRoom(roomId);
     }
-    return await this.reservationRoomsService.getReservationRooms();
+    return this.reservationRoomsService.getReservationRooms();
   }
-
   @Get(':id')
-  async getReservationRoomById(@Param('id', ParseIntPipe) id: number) {
-    return await this.reservationRoomsService.getReservationRoomById(id);
+  async getReservationRoomById(@Param('id') id: string) {
+    return this.reservationRoomsService.getReservationRoomById(id);
   }
-
   @Post()
   async createReservationRoom(@Body() body: CreateReservationRoomDto) {
-    return await this.reservationRoomsService.createReservationRoom(body);
+    return this.reservationRoomsService.createReservationRoom(body);
   }
-
   @Patch(':id')
   async editReservationRoom(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() body: EditReservationRoomDto,
   ) {
-    return await this.reservationRoomsService.editReservationRoom(id, body);
+    return this.reservationRoomsService.editReservationRoom(id, body);
   }
-
   @Delete(':id')
-  async deleteReservationRoom(@Param('id', ParseIntPipe) id: number) {
-    return await this.reservationRoomsService.deleteReservationRoom(id);
+  async deleteReservationRoom(@Param('id') id: string) {
+    return this.reservationRoomsService.deleteReservationRoom(id);
   }
 }

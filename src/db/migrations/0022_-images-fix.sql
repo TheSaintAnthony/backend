@@ -1,0 +1,2 @@
+DROP INDEX "idx_one_primary_per_entity";--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_one_primary_per_entity" ON "images" USING btree ("entity_type_id","entity_id") WHERE ("images"."is_primary" = true and "images"."deleted_at" is null);
