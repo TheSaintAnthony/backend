@@ -29,9 +29,11 @@ export class LoggingInterceptor implements NestInterceptor {
       req.headers as Record<string, string | string[] | undefined>,
     );
     res.setHeader('X-Correlation-Id', correlationId);
+    // Skip detailed logging for file/image serving endpoints
+    const isFileEndpoint = url.includes('/images/serve/') || url.includes('/images/entity/');
     return new Observable((subscriber) => {
       this.correlationIdService.run(correlationId, () => {
-        if (req.body && typeof req.body === 'object') {
+        if (req.body && typeof req.body === 'object' && !isFileEndpoint) {
           const maskedBody = { ...req.body } as Record<string, unknown>;
           this.sensitiveFields.forEach((field) => {
             if (maskedBody[field]) maskedBody[field] = '*****';
@@ -43,15 +45,48 @@ export class LoggingInterceptor implements NestInterceptor {
           .handle()
           .pipe(
             tap((response: unknown) => {
+              // Skip detailed logging for file/image serving endpoints
+              if (isFileEndpoint) {
+                this.log('Response: [File Response]');
+                return;
+              }
+              // Skip logging for file/stream responses (they contain circular references)
               if (response && typeof response === 'object') {
-                const maskedResponse = { ...response } as Record<
-                  string,
-                  unknown
-                >;
-                this.sensitiveFields.forEach((field) => {
-                  if (maskedResponse[field]) maskedResponse[field] = '*****';
-                });
-                this.log(`Response: ${JSON.stringify(maskedResponse)}`);
+                // Check if response is an Express Response object (has methods like sendFile, setHeader, etc.)
+                // These objects contain circular references and cannot be stringified
+                if (
+                  'sendFile' in response ||
+                  ('setHeader' in response && 'status' in response && 'send' in response)
+                ) {
+                  this.log('Response: [File/Stream Response]');
+                  return;
+                }
+                try {
+                  // Use a replacer function to handle circular references
+                  const seen = new WeakSet();
+                  const maskedResponse = { ...response } as Record<
+                    string,
+                    unknown
+                  >;
+                  this.sensitiveFields.forEach((field) => {
+                    if (maskedResponse[field]) maskedResponse[field] = '*****';
+                  });
+                  const jsonString = JSON.stringify(maskedResponse, (key, value) => {
+                    if (typeof value === 'object' && value !== null) {
+                      if (seen.has(value)) {
+                        return '[Circular]';
+                      }
+                      seen.add(value);
+                    }
+                    return value;
+                  });
+                  this.log(`Response: ${jsonString}`);
+                } catch (err) {
+                  // Handle circular references or other serialization errors
+                  this.log('Response: [Non-serializable object]');
+                }
+              } else if (response !== null && response !== undefined) {
+                this.log(`Response: ${String(response)}`);
               }
             }),
             catchError((err: unknown) => {
