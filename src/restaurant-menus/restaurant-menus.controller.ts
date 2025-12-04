@@ -53,14 +53,8 @@ export class RestaurantMenusController {
   }
   @Public()
   @Get(':id')
-  async getMenuById(
-    @Param('id') id: string,
-    @Query('bypassCache') bypassCache?: string,
-  ) {
-    return await this.restaurantMenusService.getMenuById(
-      id,
-      bypassCache === 'true',
-    );
+  async getMenuById(@Param('id') id: string) {
+    return await this.restaurantMenusService.getMenuById(id);
   }
   @Roles(UserRole.ADMIN)
   @Post()

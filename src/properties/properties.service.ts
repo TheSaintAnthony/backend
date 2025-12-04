@@ -10,7 +10,6 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { ActivityPropertyService } from 'src/activity-property/activity-property.service';
@@ -19,7 +18,6 @@ export class PropertiesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
     private imagesService: ImagesService,
     @Inject(forwardRef(() => RoomsService))
     private roomsService: RoomsService,
@@ -84,9 +82,6 @@ export class PropertiesService {
     return createPaginatedResponse(propertiesWithImages, total, page, limit);
   }
   async getPropertyById(id: string) {
-    const cacheKey = `property:${id}`;
-    const cached = await this.cacheService.get(cacheKey);
-    if (cached) return cached;
     const property = await this.db.query.properties.findFirst({
       where: eq(schema.properties.id, id),
       with: {
@@ -97,30 +92,23 @@ export class PropertiesService {
       throw new NotFoundException('Property', id);
     }
     const images = await this.imagesService.getImagesByEntity('property', id);
-    const propertyWithImages = { ...property, images };
-    await this.cacheService.set(cacheKey, propertyWithImages, 3600);
-    return propertyWithImages;
+    return { ...property, images };
   }
   async getPropertyWithDetails(
     id: string,
     includeRooms = true,
     includeActivities = true,
   ) {
-    const cacheKey = `property:${id}:details:${includeRooms}:${includeActivities}`;
-    const cached = await this.cacheService.get(cacheKey);
-    if (cached) return cached;
     const property = await this.getPropertyById(id);
     const [rooms, activities] = await Promise.all([
       includeRooms ? this.getPropertyRooms(id) : Promise.resolve([]),
       includeActivities ? this.getPropertyActivities(id) : Promise.resolve([]),
     ]);
-    const result = {
+    return {
       ...property,
       rooms: includeRooms ? rooms : undefined,
       activities: includeActivities ? activities : undefined,
     };
-    await this.cacheService.set(cacheKey, result, 300);
-    return result;
   }
   async getPropertyBySlug(slug: string) {
     let property = await this.db.query.properties.findFirst({
@@ -223,7 +211,6 @@ export class PropertiesService {
         );
       }
     }
-    await this.cacheService.del(`property:${id}`);
     return this.getPropertyById(id);
   }
   async deleteProperty(id: string) {
@@ -244,6 +231,5 @@ export class PropertiesService {
         operation: 'delete',
       });
     }
-    await this.cacheService.del(`property:${id}`);
   }
 }

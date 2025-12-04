@@ -44,14 +44,28 @@ export class LookupsService {
     }
     return record[0];
   }
+
+  private async ensureNotSystemManaged(table: LookupTable, id: string) {
+    const record = await this.ensureExistsById(table, id);
+    if ('isSystemManaged' in record && record.isSystemManaged === true) {
+      throw new ConflictException(
+        'Cannot modify system-managed lookup values. This value is required for application functionality.',
+      );
+    }
+  }
   async addValue(table: LookupTable, value: LookupValue): Promise<unknown> {
     if ('name' in table && value.name) {
       await this.ensureNotExists(table, value.name);
     }
     return this.db.insert(table).values(value as any);
   }
-  async getAll(table: LookupTable) {
-    return this.db.select().from(table);
+  async getAll(table: LookupTable, includeSystemManaged = true) {
+    const allRecords = await this.db.select().from(table);
+    if (!includeSystemManaged) {
+      // Filter out system-managed records
+      return allRecords.filter((record: any) => !record.isSystemManaged);
+    }
+    return allRecords;
   }
   async getById(table: LookupTable, id: string) {
     return this.ensureExistsById(table, id);
@@ -61,6 +75,7 @@ export class LookupsService {
     id: string,
     value: UpdateLookupValue,
   ): Promise<unknown> {
+    await this.ensureNotSystemManaged(table, id);
     await this.ensureExistsById(table, id);
     return (
       this.db
@@ -70,6 +85,7 @@ export class LookupsService {
     );
   }
   async deleteValue(table: LookupTable, id: string) {
+    await this.ensureNotSystemManaged(table, id);
     await this.ensureExistsById(table, id);
     return this.db.delete(table).where(eq(table.id, id));
   }
@@ -77,7 +93,7 @@ export class LookupsService {
     return this.addValue(schema.amenities, { name: value });
   }
   getAmenities() {
-    return this.getAll(schema.amenities);
+    return this.getAll(schema.amenities, false); // Exclude system-managed for admin
   }
   getAmenityById(id: string) {
     return this.getById(schema.amenities, id);
@@ -92,7 +108,7 @@ export class LookupsService {
     return this.addValue(schema.roomTypes, { name, maxCapacity });
   }
   getRoomTypes() {
-    return this.getAll(schema.roomTypes);
+    return this.getAll(schema.roomTypes, false); // Exclude system-managed for admin
   }
   getRoomTypeById(id: string) {
     return this.getById(schema.roomTypes, id);
@@ -107,7 +123,7 @@ export class LookupsService {
     return this.addValue(schema.highlights, { name: value });
   }
   getHighlights() {
-    return this.getAll(schema.highlights);
+    return this.getAll(schema.highlights, false); // Exclude system-managed for admin
   }
   getHighlightById(id: string) {
     return this.getById(schema.highlights, id);
@@ -282,7 +298,7 @@ export class LookupsService {
     return this.addValue(schema.activityCategories, { name: value });
   }
   getActivityCategories() {
-    return this.getAll(schema.activityCategories);
+    return this.getAll(schema.activityCategories, false); // Exclude system-managed for admin
   }
   getActivityCategoryById(id: string) {
     return this.getById(schema.activityCategories, id);
@@ -308,11 +324,13 @@ export class LookupsService {
       .returning();
     return created;
   }
-  getMenuCategories() {
-    return this.db
+  async getMenuCategories() {
+    const allCategories = await this.db
       .select()
       .from(schema.menuCategories)
       .orderBy(schema.menuCategories.displayOrder);
+    // Filter out system-managed categories for admin
+    return allCategories.filter((cat: any) => !cat.isSystemManaged);
   }
   async getMenuCategoryById(id: string) {
     const [category] = await this.db

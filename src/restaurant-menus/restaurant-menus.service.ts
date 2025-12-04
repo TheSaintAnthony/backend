@@ -14,14 +14,12 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 @Injectable()
 export class RestaurantMenusService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
     private imagesService: ImagesService,
   ) {}
   async createMenu(data: CreateRestaurantMenuDto) {
@@ -92,12 +90,7 @@ export class RestaurantMenusService {
     }));
     return createPaginatedResponse(menusWithImages, total, page, limit);
   }
-  async getMenuById(id: string, bypassCache = false) {
-    const cacheKey = `restaurant_menu:${id}`;
-    if (!bypassCache) {
-      const cached = await this.cacheService.get(cacheKey);
-      if (cached) return cached;
-    }
+  async getMenuById(id: string) {
     const menu = await this.db.query.restaurantMenus.findFirst({
       where: eq(schema.restaurantMenus.id, id),
       with: {
@@ -122,9 +115,7 @@ export class RestaurantMenusService {
       'restaurant_menu',
       id,
     );
-    const menuWithImages = { ...menu, images };
-    await this.cacheService.set(cacheKey, menuWithImages, 300);
-    return menuWithImages;
+    return { ...menu, images };
   }
   async editMenu(id: string, data: EditRestaurantMenuDto) {
     const [menu] = await this.db
@@ -158,7 +149,6 @@ export class RestaurantMenusService {
         );
       }
     }
-    await this.cacheService.del(`restaurant_menu:${id}`);
     return this.getMenuById(id);
   }
   async deleteMenu(id: string) {
@@ -174,7 +164,6 @@ export class RestaurantMenusService {
       .update(schema.restaurantMenus)
       .set({ deletedAt: new Date() })
       .where(eq(schema.restaurantMenus.id, id));
-    await this.cacheService.del(`restaurant_menu:${id}`);
   }
   async createMenuItem(data: CreateMenuItemDto) {
     const [createdItem] = await this.db
@@ -184,8 +173,6 @@ export class RestaurantMenusService {
         displayOrder: data.displayOrder ?? 0,
       })
       .returning();
-    const cacheKey = `restaurant_menu:${data.menuId}`;
-    await this.cacheService.del(cacheKey);
     return this.getMenuItemById(createdItem.id);
   }
   async getMenuItems(pagination?: PaginationDto, menuId?: string) {
@@ -246,7 +233,6 @@ export class RestaurantMenusService {
       .update(schema.restaurantMenuItems)
       .set({ ...data })
       .where(eq(schema.restaurantMenuItems.id, id));
-    await this.cacheService.del(`restaurant_menu:${item.menuId}`);
     return this.getMenuItemById(id);
   }
   async deleteMenuItem(id: string) {
@@ -262,7 +248,5 @@ export class RestaurantMenusService {
       .update(schema.restaurantMenuItems)
       .set({ deletedAt: new Date() })
       .where(eq(schema.restaurantMenuItems.id, id));
-    const cacheKey = `restaurant_menu:${item.menuId}`;
-    await this.cacheService.del(cacheKey);
   }
 }

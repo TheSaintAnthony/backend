@@ -17,7 +17,6 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
@@ -28,7 +27,6 @@ export class RoomsService {
     private db: NodePgDatabase<typeof schema>,
     private roomPricesService: RoomPricesService,
     private roomHoldsService: RoomHoldsService,
-    private cacheService: CacheService,
     private imagesService: ImagesService,
     private stripeService: StripeService,
     @Inject(forwardRef(() => PropertiesService))
@@ -220,9 +218,6 @@ export class RoomsService {
     return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
   async getRoomById(id: string): Promise<RoomResponse> {
-    const cacheKey = `room:${id}`;
-    const cached = await this.cacheService.get<RoomResponse>(cacheKey);
-    if (cached) return cached;
     const roomsData = await this.db
       .select({
         id: schema.rooms.id,
@@ -316,7 +311,6 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
       images,
     };
-    await this.cacheService.set(cacheKey, result, 3600);
     return result;
   }
   async getRoomWithProperty(id: string) {
@@ -522,7 +516,6 @@ export class RoomsService {
         console.error('Failed to update Stripe product:', error);
       }
     }
-    await this.cacheService.del(`room:${id}`);
     return this.getRoomById(id);
   }
   async deleteRoom(id: string) {
@@ -548,7 +541,6 @@ export class RoomsService {
         console.error('Failed to archive Stripe product:', error);
       }
     }
-    await this.cacheService.del(`room:${id}`);
     return result;
   }
   async checkAvailability(data: CheckAvailabilityDto) {

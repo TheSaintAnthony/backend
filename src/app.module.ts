@@ -32,7 +32,6 @@ import { IdempotencyService } from './services/idempotency/idempotency.service';
 import { IdempotencyCleanupService } from './services/idempotency/idempotency-cleanup.service';
 import { BullModule } from '@nestjs/bullmq';
 import { QueuesModule } from './queues/queues.module';
-import { CacheModule } from './cache/cache.module';
 import { ReportsModule } from './reports/reports.module';
 import { ResidencesModule } from './residences/residences.module';
 import { ResidenceUnitsModule } from './residence-units/residence-units.module';
@@ -62,7 +61,6 @@ import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.modul
     }),
     ScheduleModule.forRoot(),
     DrizzleModule,
-    CacheModule,
     AuthModule,
     UsersModule,
     EmailModule,

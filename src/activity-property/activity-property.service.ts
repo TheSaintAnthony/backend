@@ -4,21 +4,17 @@ import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { CreateActivityPropertyDto } from './dto';
 import { eq, and } from 'drizzle-orm';
-import { CacheService } from 'src/cache/cache.service';
 @Injectable()
 export class ActivityPropertyService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
   ) {}
   async createActivityProperty(data: CreateActivityPropertyDto) {
-    const result = await this.db
+    return this.db
       .insert(schema.activityProperty)
       .values({ ...data })
       .returning();
-    await this.cacheService.delPattern(`property:${data.propertyId}:details:*`);
-    return result;
   }
   async getActivityProperties() {
     return this.db.select().from(schema.activityProperty);
@@ -53,12 +49,10 @@ export class ActivityPropertyService {
     if (!activityProperty) {
       throw new NotFoundException('Activity property', id);
     }
-    const result = await this.db
+    return this.db
       .delete(schema.activityProperty)
       .where(eq(schema.activityProperty.id, id))
       .returning();
-    await this.cacheService.delPattern(`property:${activityProperty.propertyId}:details:*`);
-    return result;
   }
   async deleteActivityPropertyByActivityAndProperty(
     activityId: string,

@@ -30,6 +30,7 @@ import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
 import { FileStorageService } from 'src/services/file-storage.service';
+import { ConfigService } from '@nestjs/config';
 @ApiTags('Images')
 @ApiBearerAuth('access-token')
 @Controller('images')
@@ -37,6 +38,7 @@ export class ImagesController {
   constructor(
     private imagesService: ImagesService,
     private _fileStorageService: FileStorageService,
+    private configService: ConfigService,
   ) {}
   @ApiOperation({ summary: 'Upload a single image file' })
   @ApiConsumes('multipart/form-data')
@@ -154,7 +156,7 @@ export class ImagesController {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
     const imagePath = `images/${entityType}/${filename}`;
-    const desktopPath = '/Users/luismiranda/Desktop';
+    const desktopPath = this.configService.get<string>('IMAGES_PATH') || '/Users/luismiranda/Desktop';
     const fullPath = path.join(desktopPath, imagePath);
     const resolvedPath = path.resolve(fullPath);
     const resolvedDesktop = path.resolve(desktopPath);

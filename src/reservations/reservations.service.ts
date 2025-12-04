@@ -38,7 +38,6 @@ import {
 } from 'src/common/dto/pagination.dto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { CacheService } from 'src/cache/cache.service';
 import { InvoicesService } from 'src/invoices/invoices.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PaymentsService } from 'src/payments/payments.service';
@@ -55,24 +54,12 @@ export class ReservationsService implements OnModuleInit {
     private usersService: UsersService,
     private propertiesService: PropertiesService,
     @InjectQueue('email') private readonly emailQueue: Queue,
-    private cacheService: CacheService,
     private statusLookupService: StatusLookupService,
     private invoicesService: InvoicesService,
     private stripeService: StripeService,
     private _paymentsService: PaymentsService,
   ) {}
   async onModuleInit() {
-    const completedStatusCached = await this.cacheService.get<{ id: string }>(
-      'payment_status:completed',
-    );
-    const pendingStatusCached = await this.cacheService.get<{ id: string }>(
-      'payment_status:pending',
-    );
-    if (completedStatusCached && pendingStatusCached) {
-      this.completedPaymentStatusId = completedStatusCached.id;
-      this.pendingPaymentStatusId = pendingStatusCached.id;
-      return;
-    }
     const [completedStatus] = await this.db
       .select()
       .from(schema.paymentStatus)
@@ -93,10 +80,6 @@ export class ReservationsService implements OnModuleInit {
     }
     this.completedPaymentStatusId = completedStatus.id;
     this.pendingPaymentStatusId = pendingStatus.id;
-    await this.cacheService.setMany([
-      { key: 'payment_status:completed', value: completedStatus, ttl: 86400 },
-      { key: 'payment_status:pending', value: pendingStatus, ttl: 86400 },
-    ]);
   }
   private async validateRoomsAndCalculatePrice(
     tx: NodePgDatabase<typeof schema>,

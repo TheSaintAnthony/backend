@@ -2,7 +2,6 @@ import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from 'src/db/schema';
-import { CacheService } from 'src/cache/cache.service';
 @Injectable()
 export class StatusLookupService implements OnModuleInit {
   private reservationStatusCache = new Map<string, string>();
@@ -12,7 +11,6 @@ export class StatusLookupService implements OnModuleInit {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private _cacheService: CacheService,
   ) {}
   async onModuleInit() {
     await this.loadStatuses();

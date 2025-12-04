@@ -10,14 +10,12 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 @Injectable()
 export class RestaurantsService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
     private imagesService: ImagesService,
   ) {}
   async createRestaurant(data: CreateRestaurantDto) {
@@ -85,9 +83,6 @@ export class RestaurantsService {
     return createPaginatedResponse(restaurantsWithImages, total, page, limit);
   }
   async getRestaurantById(id: string) {
-    const cacheKey = `restaurant:${id}`;
-    const cached = await this.cacheService.get(cacheKey);
-    if (cached) return cached;
     const restaurant = await this.db.query.restaurants.findFirst({
       where: eq(schema.restaurants.id, id),
       with: {
@@ -98,9 +93,7 @@ export class RestaurantsService {
       throw new NotFoundException('Restaurant', id);
     }
     const images = await this.imagesService.getImagesByEntity('restaurant', id);
-    const restaurantWithImages = { ...restaurant, images };
-    await this.cacheService.set(cacheKey, restaurantWithImages, 3600);
-    return restaurantWithImages;
+    return { ...restaurant, images };
   }
   async editRestaurant(id: string, data: EditRestaurantDto) {
     const [restaurant] = await this.db
@@ -154,7 +147,6 @@ export class RestaurantsService {
         );
       }
     }
-    await this.cacheService.del(`restaurant:${id}`);
     return this.getRestaurantById(id);
   }
   async deleteRestaurant(id: string) {
@@ -170,6 +162,5 @@ export class RestaurantsService {
       .update(schema.restaurants)
       .set({ deletedAt: new Date() })
       .where(eq(schema.restaurants.id, id));
-    await this.cacheService.del(`restaurant:${id}`);
   }
 }

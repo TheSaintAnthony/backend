@@ -183,6 +183,13 @@
       "when": 1764780341491,
       "tag": "0025_menu-categories",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1764846195525,
+      "tag": "0026_is-system-managed",
+      "breakpoints": true
     }
   ]
 }

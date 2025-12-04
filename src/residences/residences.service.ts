@@ -10,14 +10,12 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
-import { CacheService } from 'src/cache/cache.service';
 import { ImagesService } from 'src/images/images.service';
 @Injectable()
 export class ResidencesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-    private cacheService: CacheService,
     private imagesService: ImagesService,
   ) {}
   async createResidence(data: CreateResidenceDto) {
@@ -85,9 +83,6 @@ export class ResidencesService {
     return createPaginatedResponse(residencesWithImages, total, page, limit);
   }
   async getResidenceById(id: string) {
-    const cacheKey = `residence:${id}`;
-    const cached = await this.cacheService.get(cacheKey);
-    if (cached) return cached;
     const residence = await this.db.query.residences.findFirst({
       where: eq(schema.residences.id, id),
       with: {
@@ -98,9 +93,7 @@ export class ResidencesService {
       throw new NotFoundException('Residence', id);
     }
     const images = await this.imagesService.getImagesByEntity('residence', id);
-    const residenceWithImages = { ...residence, images };
-    await this.cacheService.set(cacheKey, residenceWithImages, 300);
-    return residenceWithImages;
+    return { ...residence, images };
   }
   async editResidence(id: string, data: EditResidenceDto) {
     const [residence] = await this.db
@@ -154,7 +147,6 @@ export class ResidencesService {
         );
       }
     }
-    await this.cacheService.del(`residence:${id}`);
     return this.getResidenceById(id);
   }
   async deleteResidence(id: string) {
@@ -170,6 +162,5 @@ export class ResidencesService {
       .update(schema.residences)
       .set({ deletedAt: new Date() })
       .where(eq(schema.residences.id, id));
-    await this.cacheService.del(`residence:${id}`);
   }
 }
