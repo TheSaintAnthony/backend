@@ -6,9 +6,24 @@ import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
 import { EmailConfirmation } from 'src/reservations/interfaces';
 import ical from 'ical-generator';
+import {
+  createBaseEmailTemplate,
+  createEmailButton,
+  createMainTitle,
+  createParagraph,
+  createDivider,
+  createInfoBox,
+  createDetailsTable,
+  createDetailRow,
+  createSectionHeading,
+  EMAIL_STYLES,
+} from './templates';
+
 @Injectable()
 export class EmailService {
   private readonly transporter: Transporter;
+  private readonly frontendUrl: string;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
@@ -27,130 +42,194 @@ export class EmailService {
             }
           : undefined,
     });
+    this.frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://stanthony.pt';
   }
+
   private async sendEmail(options: Mail.Options): Promise<void> {
     await this.transporter.sendMail(options);
   }
+
+  /**
+   * Sends a password reset email with styled template
+   */
   async sendResetPasswordLink(email: string): Promise<void> {
     const payload = { email };
     const token = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
       expiresIn: this.configService.get('JWT_PASSWORD_RESET_EXPIRATION_TIME'),
     });
+
     const resetUrl = this.configService.get<string>('EMAIL_RESET_PASSWORD_URL');
     const url = `${resetUrl}?token=${token}`;
+
     const expirationTime =
       this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
       '15m';
-    const text = `Hi,
-You recently requested to reset your password for your St. Anthony account.
-Click the link below to reset your password:
+
+    // Plain text version for email clients that don't support HTML
+    const text = `The St. Anthony
+
+Recuperação de Password
+
+Recebemos um pedido para redefinir a password da sua conta The St. Anthony.
+
+Clique no link abaixo para redefinir a sua password:
 ${url}
-This link will expire in ${expirationTime}.
-If you didn't request a password reset, you can safely ignore this email.
-Best regards,
-St. Anthony Team`;
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Your Password</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);" width="100%" cellspacing="0" cellpadding="0" border="0">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Reset Your Password</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">Hi,</p>
-              <p style="margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;">
-                You recently requested to reset your password for your <strong>St. Anthony</strong> account.
-              </p>
-              <p style="margin: 0 0 30px 0; color: #333333; font-size: 16px; line-height: 1.6;">
-                Click the button below to reset your password:
-              </p>
-              <!-- Button -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                <tr>
-                  <td style="text-align: center; padding: 0 0 30px 0;">
-                    <a href="${url}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);">Reset Password</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
-                <strong>This link will expire in ${expirationTime}.</strong>
-              </p>
-              <p style="margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
-                If the button doesn't work, copy and paste this link into your browser:
-              </p>
-              <p style="margin: 0 0 30px 0; padding: 12px; background-color: #f5f5f5; border-radius: 6px; word-break: break-all;">
-                <a href="${url}" style="color: #667eea; text-decoration: none; font-size: 13px;">${url}</a>
-              </p>
-              <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;">
-                If you didn't request a password reset, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
-              <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;">
-                Best regards,<br>
-                <strong>St. Anthony Team</strong>
-              </p>
-              <p style="margin: 10px 0 0 0; color: #999999; font-size: 12px;">
-                This is an automated message, please do not reply to this email.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+
+Este link expira em ${expirationTime}.
+
+Se não solicitou a recuperação de password, pode ignorar este email com segurança.
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Recuperação de Password')}
+      
+      ${createParagraph('Recebemos um pedido para redefinir a password da sua conta <strong>The St. Anthony</strong>.')}
+      
+      ${createParagraph('Clique no botão abaixo para criar uma nova password:')}
+      
+      <div style="text-align: center; margin: 35px 0;">
+        ${createEmailButton('Redefinir Password', url)}
+      </div>
+      
+      ${createInfoBox(`
+        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>⏱ Este link expira em ${expirationTime}.</strong>
+        </p>
+      `)}
+      
+      ${createDivider()}
+      
+      ${createParagraph('Se o botão não funcionar, copie e cole o seguinte link no seu navegador:', 'muted')}
+      
+      <p style="margin: 0 0 25px 0; padding: 15px; background-color: ${EMAIL_STYLES.colors.gold}; border-radius: 4px; word-break: break-all;">
+        <a href="${url}" style="color: ${EMAIL_STYLES.colors.accent}; text-decoration: none; font-size: 13px;">${url}</a>
+      </p>
+      
+      ${createParagraph('Se não solicitou a recuperação de password, pode ignorar este email com segurança. A sua conta permanece protegida.', 'small')}
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText:
+        'Redefinir a sua password - The St. Anthony',
+      showFooterLinks: false,
+    });
+
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: email,
-      subject: '🔐 Reset Your Password - St. Anthony',
+      subject: 'Recuperação de Password - The St. Anthony',
       text,
       html,
     });
   }
-  async sendVerifyUserLink(data: { id: string; email: string }) {
+
+  /**
+   * Sends a verification email with styled template
+   */
+  async sendVerifyUserLink(data: { id: string; email: string }): Promise<void> {
     const payload = { subb: data.id, email: data.email };
     const token = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
       expiresIn: this.configService.get('JWT_USER_VERIFY_EXPIRATION_TIME'),
     });
+
     const verifyUrl = this.configService.get<string>('USER_VERIFY_ACCOUNT_URL');
     const url = `${verifyUrl}?token=${token}`;
-    const text = `Hi, \nTo verify your account, click here:\n ${url}`;
+
+    const expirationTime =
+      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') || '24h';
+
+    // Plain text version
+    const text = `The St. Anthony
+
+Bem-vindo à The St. Anthony Collection
+
+Obrigado por se registar! Estamos entusiasmados por tê-lo connosco.
+
+Para concluir o seu registo e verificar a sua conta, clique no link abaixo:
+${url}
+
+Este link expira em ${expirationTime}.
+
+Se não criou uma conta, pode ignorar este email.
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Bem-vindo à The St. Anthony Collection')}
+      
+      ${createParagraph('Obrigado por se registar! Estamos entusiasmados por tê-lo connosco.')}
+      
+      ${createParagraph('Para concluir o seu registo e começar a descobrir as nossas propriedades exclusivas, por favor verifique o seu email:')}
+      
+      <div style="text-align: center; margin: 35px 0;">
+        ${createEmailButton('Verificar Conta', url)}
+      </div>
+      
+      ${createInfoBox(`
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>O que pode fazer depois de verificar:</strong>
+        </p>
+        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted}; line-height: 1.8;">
+          <li>Reservar estadias nas nossas propriedades</li>
+          <li>Aceder a ofertas exclusivas</li>
+          <li>Gerir as suas reservas</li>
+        </ul>
+      `)}
+      
+      ${createDivider()}
+      
+      ${createParagraph('Se o botão não funcionar, copie e cole o seguinte link no seu navegador:', 'muted')}
+      
+      <p style="margin: 0 0 25px 0; padding: 15px; background-color: ${EMAIL_STYLES.colors.gold}; border-radius: 4px; word-break: break-all;">
+        <a href="${url}" style="color: ${EMAIL_STYLES.colors.accent}; text-decoration: none; font-size: 13px;">${url}</a>
+      </p>
+      
+      ${createParagraph(`Este link expira em ${expirationTime}. Se não criou uma conta The St. Anthony, pode ignorar este email.`, 'small')}
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: 'Verifique a sua conta - The St. Anthony',
+      showFooterLinks: false,
+    });
+
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: data.email,
-      subject: 'Verify account',
+      subject: 'Verifique a sua Conta - The St. Anthony',
       text,
+      html,
     });
   }
-  async sendReservationConfirmationEmail(emailPayload: EmailConfirmation) {
+
+  /**
+   * Sends a reservation confirmation email with styled template
+   */
+  async sendReservationConfirmationEmail(
+    emailPayload: EmailConfirmation,
+  ): Promise<void> {
     const calendarEvents: Array<{
       filename: string;
       content: string;
       contentType: string;
       method: string;
     }> = [];
-    const roomDetails = emailPayload.rooms
+
+    // Build room details HTML
+    const roomDetailsHtml = emailPayload.rooms
       .map((room, index) => {
         const icsContent = this.createCalendarEvent(
           room.checkIn,
@@ -159,59 +238,193 @@ St. Anthony Team`;
           emailPayload.email,
         );
         calendarEvents.push({
-          filename: `booking-room-${index + 1}.ics`,
+          filename: `reserva-quarto-${index + 1}.ics`,
           content: icsContent,
           contentType: 'text/calendar; charset=utf-8',
           method: 'PUBLISH',
         });
-        return `\n\tRoom ${index + 1}:
-      \t\tRoom ID: ${room.roomId}
-      \t\tCheck-in: ${room.checkIn}
-      \t\tCheck-out: ${room.checkOut}
-      \t\tGuests: ${room.guestsCount}
-      \t\tPrice: $${Number(room.price).toFixed(2)}`;
+
+        const checkInDate = this.formatDate(room.checkIn);
+        const checkOutDate = this.formatDate(room.checkOut);
+
+        return `
+          <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; margin-bottom: 15px; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
+            <h3 style="margin: 0 0 15px 0; font-size: 14px; font-weight: 600; color: ${EMAIL_STYLES.colors.accent}; text-transform: uppercase; letter-spacing: 1px;">
+              Quarto ${index + 1}
+            </h3>
+            ${createDetailsTable(`
+              ${createDetailRow('Check-in', checkInDate)}
+              ${createDetailRow('Check-out', checkOutDate)}
+              ${createDetailRow('Hóspedes', `${room.guestsCount} ${Number(room.guestsCount) === 1 ? 'pessoa' : 'pessoas'}`)}
+              ${createDetailRow('Preço', `€${Number(room.price).toFixed(2)}`)}
+            `)}
+          </div>
+        `;
+      })
+      .join('');
+
+    // Plain text version for rooms
+    const roomDetailsText = emailPayload.rooms
+      .map((room, index) => {
+        return `
+Quarto ${index + 1}:
+  - Check-in: ${this.formatDate(room.checkIn)}
+  - Check-out: ${this.formatDate(room.checkOut)}
+  - Hóspedes: ${room.guestsCount}
+  - Preço: €${Number(room.price).toFixed(2)}`;
       })
       .join('\n');
+
     const specialRequestsText = emailPayload.specialRequests
-      ? `\n\tSpecial Requests: ${emailPayload.specialRequests}`
+      ? `\nPedidos Especiais: ${emailPayload.specialRequests}`
       : '';
-    const text = `Hi ${emailPayload.userName},
-The St. Anthony hotel can not wait to host you!
-Your booking details:
-\tName: ${emailPayload.userName}
-\tEmail: ${emailPayload.email}
-\tTotal Rooms: ${emailPayload.rooms.length}${roomDetails}
+
+    // Plain text version
+    const text = `The St. Anthony
+
+Confirmação de Reserva
+
+Olá ${emailPayload.userName},
+
+A sua reserva foi confirmada! Estamos entusiasmados por recebê-lo no The St. Anthony.
+
+Detalhes da Reserva:
+${roomDetailsText}
 ${specialRequestsText}
-\tTotal Price: $${emailPayload.totalPrice}
-\tDeposit Amount: $${emailPayload.depositAmount}
-Thank you for choosing St. Anthony hotel. We look forward to your stay!
-If you have any questions, please don't hesitate to contact us.
-Best regards,
-The St. Anthony Hotel Team`;
+
+Resumo do Pagamento:
+- Total: €${emailPayload.totalPrice}
+- Depósito Pago: €${emailPayload.depositAmount}
+
+Em anexo encontrará os eventos de calendário para adicionar à sua agenda.
+
+Se tiver alguma questão, não hesite em contactar-nos.
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Confirmação de Reserva')}
+      
+      ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
+      
+      ${createParagraph('A sua reserva foi confirmada! Estamos entusiasmados por recebê-lo no <strong>The St. Anthony</strong>.')}
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Detalhes da Reserva')}
+      
+      ${roomDetailsHtml}
+      
+      ${
+        emailPayload.specialRequests
+          ? `
+        <div style="margin-top: 25px;">
+          ${createSectionHeading('Pedidos Especiais')}
+          ${createParagraph(emailPayload.specialRequests, 'muted')}
+        </div>
+      `
+          : ''
+      }
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Resumo do Pagamento')}
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0;">
+        <tr>
+          <td style="padding: 15px 0; border-bottom: 1px solid ${EMAIL_STYLES.colors.border};">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted};">Total da Reserva</td>
+                <td style="text-align: right; font-size: 16px; font-weight: 600; color: ${EMAIL_STYLES.colors.textDark};">€${emailPayload.totalPrice}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 15px 0;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted};">Depósito Pago</td>
+                <td style="text-align: right; font-size: 16px; font-weight: 600; color: ${EMAIL_STYLES.colors.accent};">€${emailPayload.depositAmount}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      ${createInfoBox(`
+        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          📎 <strong>Em anexo encontrará os eventos de calendário</strong> para adicionar à sua agenda.
+        </p>
+      `)}
+      
+      ${createDivider()}
+      
+      <div style="text-align: center; margin: 30px 0;">
+        ${createEmailButton('Ver a Minha Conta', `${this.frontendUrl}/account`, 'secondary')}
+      </div>
+      
+      ${createParagraph('Se tiver alguma questão sobre a sua reserva, não hesite em contactar-nos. Teremos todo o gosto em ajudar.', 'muted')}
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Reserva confirmada para ${emailPayload.userName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
+
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
       to: emailPayload.email,
-      subject: 'Booking confirmation',
+      subject: 'Confirmação de Reserva - The St. Anthony',
       text,
       attachments: calendarEvents,
+      html,
     });
   }
+
+  /**
+   * Formats a date string to Portuguese locale format
+   */
+  private formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-PT', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  /**
+   * Creates a calendar event (ICS format) for the booking
+   */
   private createCalendarEvent(
     checkIn: string,
     checkOut: string,
     userName: string,
     userEmail: string,
-  ) {
-    const calendar = ical({ name: 'St. Anthony Hotel' });
+  ): string {
+    const calendar = ical({ name: 'The St. Anthony' });
+    const hotelEmail =
+      this.configService.get<string>('MAIL_FROM') || 'reservas@stanthony.pt';
+
     calendar.createEvent({
       start: checkIn,
       end: checkOut,
-      summary: 'Booking',
-      location: 'Hotel Address',
-      url: 'http://localhost:4200',
-      organizer: { name: 'St. Anthony Hotel', email: 'bookings@stanthony.com' },
+      summary: 'Estadia no The St. Anthony',
+      description: `A sua reserva no The St. Anthony está confirmada.\n\nCheck-in: ${this.formatDate(checkIn)}\nCheck-out: ${this.formatDate(checkOut)}\n\nEsperamos por si!`,
+      location: 'The St. Anthony, Portugal',
+      url: this.frontendUrl,
+      organizer: { name: 'The St. Anthony', email: hotelEmail },
       attendees: [{ name: userName, email: userEmail }],
     });
+
     return calendar.toString();
   }
 }

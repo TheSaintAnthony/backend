@@ -9,13 +9,24 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LookupsService } from './lookups.service';
-import { CreateLookupDto, CreateRoomTypeDto, CreateActivityDto } from './dto';
+import {
+  CreateLookupDto,
+  CreateRoomTypeDto,
+  CreateActivityDto,
+  CreateMenuCategoryDto,
+  CreateActivityCategoryDto,
+} from './dto';
 import { Public } from 'src/decorators/public.decorator';
 @ApiTags('Lookups')
 @ApiBearerAuth('access-token')
 @Controller()
 export class LookupsController {
   constructor(private readonly lookupsService: LookupsService) {}
+  @Public()
+  @Get('lookups/all')
+  async getAllLookups() {
+    return this.lookupsService.getAllLookups();
+  }
   @Post('amenities')
   addAmenity(@Body() dto: CreateLookupDto) {
     return this.lookupsService.addAmenity(dto.name);
@@ -213,8 +224,8 @@ export class LookupsController {
     return this.lookupsService.deleteActivity(id);
   }
   @Post('activitycategories')
-  addActivityCategory(@Body() body: { name: string }) {
-    return this.lookupsService.addActivityCategory(body.name);
+  addActivityCategory(@Body() dto: CreateActivityCategoryDto) {
+    return this.lookupsService.addActivityCategory(dto.name);
   }
   @Public()
   @Get('activitycategories')
@@ -229,20 +240,17 @@ export class LookupsController {
   @Patch('activitycategories/:id')
   editActivityCategory(
     @Param('id') id: string,
-    @Body() body: { name: string },
+    @Body() dto: CreateActivityCategoryDto,
   ) {
-    return this.lookupsService.editActivityCategory(id, body.name);
+    return this.lookupsService.editActivityCategory(id, dto.name);
   }
   @Delete('activitycategories/:id')
   deleteActivityCategory(@Param('id') id: string) {
     return this.lookupsService.deleteActivityCategory(id);
   }
   @Post('menucategories')
-  addMenuCategory(@Body() body: { name: string; displayOrder?: number }) {
-    return this.lookupsService.addMenuCategory(
-      body.name,
-      body.displayOrder || 0,
-    );
+  addMenuCategory(@Body() dto: CreateMenuCategoryDto) {
+    return this.lookupsService.addMenuCategory(dto.name, dto.displayOrder || 0);
   }
   @Public()
   @Get('menucategories')
@@ -257,13 +265,9 @@ export class LookupsController {
   @Patch('menucategories/:id')
   editMenuCategory(
     @Param('id') id: string,
-    @Body() body: { name: string; displayOrder?: number },
+    @Body() dto: CreateMenuCategoryDto,
   ) {
-    return this.lookupsService.editMenuCategory(
-      id,
-      body.name,
-      body.displayOrder,
-    );
+    return this.lookupsService.editMenuCategory(id, dto.name, dto.displayOrder);
   }
   @Delete('menucategories/:id')
   deleteMenuCategory(@Param('id') id: string) {

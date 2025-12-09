@@ -641,7 +641,7 @@ export class ReservationsService implements OnModuleInit {
           })
           .where(eq(schema.invoices.id, invoice.id));
       } catch (error) {
-        console.error('Failed to create Stripe invoice:', error);
+        this.logger.error('Failed to create Stripe invoice:', error);
       }
     }
     return invoice;
@@ -1030,7 +1030,7 @@ export class ReservationsService implements OnModuleInit {
             })
             .where(eq(schema.invoices.id, invoice.id));
         } catch (error) {
-          console.error('Failed to pay Stripe invoice:', error);
+          this.logger.error('Failed to pay Stripe invoice:', error);
           let invoiceUrl = invoice.externalInvoiceUrl;
           if (!invoiceUrl && invoice.externalInvoiceId) {
             try {
@@ -1038,7 +1038,7 @@ export class ReservationsService implements OnModuleInit {
                 invoice.externalInvoiceId,
               );
             } catch (urlError) {
-              console.error('Failed to retrieve invoice URL:', urlError);
+              this.logger.error('Failed to retrieve invoice URL:', urlError);
             }
           }
           await tx
@@ -1331,6 +1331,7 @@ export class ReservationsService implements OnModuleInit {
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
+        // Reservation room fields
         roomId: schema.reservationRooms.id,
         roomReservationId: schema.reservationRooms.reservationId,
         roomRoomId: schema.reservationRooms.roomId,
@@ -1338,14 +1339,31 @@ export class ReservationsService implements OnModuleInit {
         checkOut: schema.reservationRooms.checkOut,
         guestsCount: schema.reservationRooms.guestsCount,
         accessCode: schema.reservationRooms.accessCode,
+        // Room fields
         roomName: schema.rooms.name,
         roomDescription: schema.rooms.description,
+        bedCount: schema.rooms.bedCount,
+        bathroomCount: schema.rooms.bathroomCount,
+        // Room type fields
+        roomTypeName: schema.roomTypes.name,
+        maxCapacity: schema.roomTypes.maxCapacity,
+        // Property fields
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
+        // Invoice
         invoiceUrl: schema.invoices.externalInvoiceUrl,
+        invoiceTotalAmount: schema.invoices.totalAmount,
+        // User fields
         userEmail: schema.users.email,
         userFirstName: schema.users.firstName,
         userLastName: schema.users.lastName,
+        userPhone: schema.users.phone,
+        userNif: schema.users.nif,
+        // Address fields
+        addressStreet: schema.addresses.street,
+        addressCity: schema.addresses.city,
+        addressZipCode: schema.addresses.zipCode,
+        addressCountry: schema.addresses.country,
       })
       .from(schema.reservations)
       .leftJoin(
@@ -1365,6 +1383,10 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservationRooms.roomId, schema.rooms.id),
       )
       .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .leftJoin(
         schema.properties,
         eq(schema.rooms.propertyId, schema.properties.id),
       )
@@ -1373,6 +1395,7 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
       .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .leftJoin(schema.addresses, eq(schema.users.addressId, schema.addresses.id))
       .where(
         inArray(
           schema.reservations.id,
@@ -1386,6 +1409,12 @@ export class ReservationsService implements OnModuleInit {
         userEmail?: string;
         userFirstName?: string;
         userLastName?: string;
+        userPhone?: string;
+        userNif?: string;
+        userAddress?: string;
+        userCity?: string;
+        userPostalCode?: string;
+        userCountry?: string;
       }
     >();
     for (const row of results) {
@@ -1404,9 +1433,18 @@ export class ReservationsService implements OnModuleInit {
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           invoiceUrl: row.invoiceUrl || null,
+          invoiceTotalAmount: row.invoiceTotalAmount || null,
+          // User info
           userEmail: row.userEmail || undefined,
           userFirstName: row.userFirstName || undefined,
           userLastName: row.userLastName || undefined,
+          userPhone: row.userPhone || undefined,
+          userNif: row.userNif || undefined,
+          // User address
+          userAddress: row.addressStreet || undefined,
+          userCity: row.addressCity || undefined,
+          userPostalCode: row.addressZipCode || undefined,
+          userCountry: row.addressCountry || undefined,
           rooms: [],
         });
       }
@@ -1422,8 +1460,13 @@ export class ReservationsService implements OnModuleInit {
               checkIn: row.checkIn,
               checkOut: row.checkOut,
               guestsCount: row.guestsCount,
+              accessCode: row.accessCode || null,
               roomName: row.roomName,
               roomDescription: row.roomDescription,
+              bedCount: row.bedCount || null,
+              bathroomCount: row.bathroomCount || null,
+              roomTypeName: row.roomTypeName || null,
+              maxCapacity: row.maxCapacity || null,
               propertyId: row.propertyId || null,
               propertyName: row.propertyName || null,
             });

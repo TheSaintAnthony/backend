@@ -155,12 +155,12 @@ export class ImagesController {
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
-    const imagePath = `images/${entityType}/${filename}`;
-    const desktopPath = this.configService.get<string>('IMAGES_PATH') || '/Users/luismiranda/Desktop';
-    const fullPath = path.join(desktopPath, imagePath);
+    const imagePath = `${entityType}/${filename}`;
+    const imagesPath = this.configService.get<string>('IMAGES_PATH') || '/Users/luismiranda/Desktop';
+    const fullPath = path.join(imagesPath, imagePath);
     const resolvedPath = path.resolve(fullPath);
-    const resolvedDesktop = path.resolve(desktopPath);
-    if (!resolvedPath.startsWith(resolvedDesktop)) {
+    const resolvedImagesPath = path.resolve(imagesPath);
+    if (!resolvedPath.startsWith(resolvedImagesPath)) {
       return res.status(403).send('Forbidden');
     }
     if (!fs.existsSync(resolvedPath)) {

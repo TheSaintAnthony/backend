@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -22,6 +22,7 @@ import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
 @Injectable()
 export class RoomsService {
+  private readonly logger = new Logger(RoomsService.name);
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -91,7 +92,7 @@ export class RoomsService {
         })
         .where(eq(schema.rooms.id, createdRoom.id));
     } catch (error) {
-      console.error('Failed to create Stripe product for room:', error);
+      this.logger.error('Failed to create Stripe product for room:', error);
     }
     return this.getRoomById(createdRoom.id);
   }
@@ -513,7 +514,7 @@ export class RoomsService {
           images: imageUrls.length > 0 ? imageUrls : undefined,
         });
       } catch (error) {
-        console.error('Failed to update Stripe product:', error);
+        this.logger.error('Failed to update Stripe product:', error);
       }
     }
     return this.getRoomById(id);
@@ -538,7 +539,7 @@ export class RoomsService {
       try {
         await this.stripeService.archiveProduct(room.stripeProductId);
       } catch (error) {
-        console.error('Failed to archive Stripe product:', error);
+        this.logger.error('Failed to archive Stripe product:', error);
       }
     }
     return result;
