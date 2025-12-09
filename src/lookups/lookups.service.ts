@@ -89,6 +89,22 @@ export class LookupsService {
     await this.ensureExistsById(table, id);
     return this.db.delete(table).where(eq(table.id, id));
   }
+  async getAllLookups() {
+    const [amenities, roomTypes, highlights, activities, activityCategories, menuCategories, occurrenceStatuses, reservationStatuses, paymentStatuses, invoiceStatuses, roles] = await Promise.all([
+      this.getAmenities(),
+      this.getRoomTypes(),
+      this.getHighlights(),
+      this.getActivities(),
+      this.getActivityCategories(),
+      this.getMenuCategories(),
+      this.getOccurrenceStatus(),
+      this.getReservationStatus(),
+      this.getPaymentStatus(),
+      this.getInvoiceStatus(),
+      this.getRoles(),
+    ]);
+    return { amenities, roomTypes, highlights, activities, activityCategories, menuCategories, occurrenceStatuses, reservationStatuses, paymentStatuses, invoiceStatuses, roles };
+  }
   addAmenity(value: string) {
     return this.addValue(schema.amenities, { name: value });
   }

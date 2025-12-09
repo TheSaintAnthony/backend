@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 @Injectable()
 export class RoomPricesService {
+  private readonly logger = new Logger(RoomPricesService.name);
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -40,7 +41,7 @@ export class RoomPricesService {
             .where(eq(schema.rooms.id, data.roomId));
         }
       } catch (error) {
-        console.error('Failed to create Stripe price:', error);
+        this.logger.error('Failed to create Stripe price:', error);
       }
     }
     return roomPrice;
@@ -101,7 +102,7 @@ export class RoomPricesService {
               .where(eq(schema.rooms.id, roomPrice.roomId));
           }
         } catch (error) {
-          console.error('Failed to update Stripe price:', error);
+          this.logger.error('Failed to update Stripe price:', error);
         }
       }
     }

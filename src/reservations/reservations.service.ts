@@ -641,7 +641,7 @@ export class ReservationsService implements OnModuleInit {
           })
           .where(eq(schema.invoices.id, invoice.id));
       } catch (error) {
-        console.error('Failed to create Stripe invoice:', error);
+        this.logger.error('Failed to create Stripe invoice:', error);
       }
     }
     return invoice;
@@ -1030,7 +1030,7 @@ export class ReservationsService implements OnModuleInit {
             })
             .where(eq(schema.invoices.id, invoice.id));
         } catch (error) {
-          console.error('Failed to pay Stripe invoice:', error);
+          this.logger.error('Failed to pay Stripe invoice:', error);
           let invoiceUrl = invoice.externalInvoiceUrl;
           if (!invoiceUrl && invoice.externalInvoiceId) {
             try {
@@ -1038,7 +1038,7 @@ export class ReservationsService implements OnModuleInit {
                 invoice.externalInvoiceId,
               );
             } catch (urlError) {
-              console.error('Failed to retrieve invoice URL:', urlError);
+              this.logger.error('Failed to retrieve invoice URL:', urlError);
             }
           }
           await tx
