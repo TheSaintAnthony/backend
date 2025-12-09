@@ -38,6 +38,7 @@ import { ResidenceUnitsModule } from './residence-units/residence-units.module';
 import { ResidenceContactsModule } from './residence-contacts/residence-contacts.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
+import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -89,6 +90,7 @@ import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.modul
     ResidenceContactsModule,
     RestaurantsModule,
     RestaurantMenusModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [

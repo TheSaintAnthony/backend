@@ -291,6 +291,7 @@ export class ReservationsService implements OnModuleInit {
     for (const room of validatedRooms) {
       const quantity = room.quantity || 1;
       for (let i = 0; i < quantity; i++) {
+        const now = new Date();
         roomsWithAccessCodes.push({
           reservationId: reservation.id,
           roomId: room.roomId,
@@ -301,7 +302,8 @@ export class ReservationsService implements OnModuleInit {
             room.checkIn,
             room.checkOut,
           ),
-          deletedAt: null,
+          createdAt: now,
+          updatedAt: now,
         });
       }
     }

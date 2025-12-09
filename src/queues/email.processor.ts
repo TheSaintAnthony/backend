@@ -3,6 +3,11 @@ import { BadRequestException, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EmailService } from 'src/email/email.service';
 import { EmailConfirmation } from 'src/reservations/interfaces';
+import {
+  CheckInReminderEmail,
+  CheckOutReminderEmail,
+  PostStayEmail,
+} from 'src/notifications/interfaces';
 import { EmailJobData } from './interfaces';
 @Processor('email')
 export class EmailConsumer extends WorkerHost {
@@ -31,6 +36,19 @@ export class EmailConsumer extends WorkerHost {
           await this.emailsService.sendVerifyUserLink(
             jobData as { id: string; email: string },
           );
+          break;
+        case 'sendCheckInReminderEmail':
+          await this.emailsService.sendCheckInReminderEmail(
+            jobData as CheckInReminderEmail,
+          );
+          break;
+        case 'sendCheckOutReminderEmail':
+          await this.emailsService.sendCheckOutReminderEmail(
+            jobData as CheckOutReminderEmail,
+          );
+          break;
+        case 'sendPostStayEmail':
+          await this.emailsService.sendPostStayEmail(jobData as PostStayEmail);
           break;
         default:
           this.logger.warn(`Unknown job type: ${name}`);
