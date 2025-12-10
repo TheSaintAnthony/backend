@@ -25,7 +25,10 @@ export class ResidenceUnitsController {
   @Get()
   async getResidenceUnits(@Query() query: GetResidenceUnitsDto) {
     const { residenceId, ...pagination } = query;
-    return this.residenceUnitsService.getResidenceUnits(pagination, residenceId);
+    return this.residenceUnitsService.getResidenceUnits(
+      pagination,
+      residenceId,
+    );
   }
   @Public()
   @Get(':id')

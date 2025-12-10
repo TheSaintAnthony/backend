@@ -30,10 +30,8 @@ export const EMAIL_STYLES = {
   },
   // Typography
   fonts: {
-    primary:
-      "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
-    heading:
-      "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
+    primary: "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
+    heading: "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
   },
 } as const;
 

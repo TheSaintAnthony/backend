@@ -38,7 +38,10 @@ export class RestaurantsController {
   }
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async editRestaurant(@Param('id') id: string, @Body() dto: EditRestaurantDto) {
+  async editRestaurant(
+    @Param('id') id: string,
+    @Body() dto: EditRestaurantDto,
+  ) {
     return await this.restaurantsService.editRestaurant(id, dto);
   }
   @Roles(UserRole.ADMIN)

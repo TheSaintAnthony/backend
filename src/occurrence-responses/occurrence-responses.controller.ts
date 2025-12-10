@@ -15,9 +15,7 @@ export class OccurrenceResponsesController {
     return await this.occurrenceResponsesService.createResponse(body);
   }
   @Get()
-  async getResponsesByOccurrence(
-    @Query('occurrenceId') occurrenceId?: string,
-  ) {
+  async getResponsesByOccurrence(@Query('occurrenceId') occurrenceId?: string) {
     if (!occurrenceId) {
       throw new BadRequestException('occurrenceId query parameter is required');
     }

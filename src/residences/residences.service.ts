@@ -64,12 +64,13 @@ export class ResidencesService {
       },
     });
     const residenceIds = data.map((residence) => residence.id);
-    const allImages = residenceIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'residence',
-          residenceIds,
-        )
-      : [];
+    const allImages =
+      residenceIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'residence',
+            residenceIds,
+          )
+        : [];
     const imagesByResidenceId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByResidenceId.get(image.entityId) || [];

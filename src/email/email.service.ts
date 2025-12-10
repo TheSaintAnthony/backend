@@ -117,8 +117,7 @@ Este é um email automático. Por favor, não responda.`;
     `;
 
     const html = createBaseEmailTemplate(content, {
-      preheaderText:
-        'Redefinir a sua password - The St. Anthony',
+      preheaderText: 'Redefinir a sua password - The St. Anthony',
       showFooterLinks: false,
     });
 
@@ -145,7 +144,8 @@ Este é um email automático. Por favor, não responda.`;
     const url = `${verifyUrl}?token=${token}`;
 
     const expirationTime =
-      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') || '24h';
+      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
+      '24h';
 
     // Plain text version
     const text = `The St. Anthony

@@ -17,7 +17,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, status))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.reservationStatus).values({
         name: status,
@@ -35,7 +35,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.paymentStatus)
       .where(eq(schema.paymentStatus.name, status))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.paymentStatus).values({
         name: status,
@@ -53,7 +53,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.invoiceStatus)
       .where(eq(schema.invoiceStatus.name, status))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.invoiceStatus).values({
         name: status,
@@ -75,7 +75,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.invoiceTypes)
       .where(eq(schema.invoiceTypes.name, type.name))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.invoiceTypes).values({
         ...type,
@@ -93,7 +93,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.occurrenceStatus)
       .where(eq(schema.occurrenceStatus.name, status))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.occurrenceStatus).values({
         name: status,
@@ -111,7 +111,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       .from(schema.roles)
       .where(eq(schema.roles.name, role))
       .limit(1);
-    
+
     if (existing.length === 0) {
       await db.insert(schema.roles).values({
         name: role,
@@ -123,4 +123,3 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
 
   console.log('✓ Static lookup tables seeded successfully!');
 }
-
