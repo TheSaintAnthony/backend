@@ -1,10 +1,4 @@
-import {
-  pgTable,
-  uuid,
-  varchar,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
 import { residences } from './residences.schema';
 import { residenceUnits } from './residence-units.schema';
 export const residenceContacts = pgTable('residence_contacts', {
@@ -12,9 +6,12 @@ export const residenceContacts = pgTable('residence_contacts', {
   residenceId: uuid('residence_id').references(() => residences.id, {
     onDelete: 'set null',
   }),
-  residenceUnitId: uuid('residence_unit_id').references(() => residenceUnits.id, {
-    onDelete: 'set null',
-  }),
+  residenceUnitId: uuid('residence_unit_id').references(
+    () => residenceUnits.id,
+    {
+      onDelete: 'set null',
+    },
+  ),
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 20 }),

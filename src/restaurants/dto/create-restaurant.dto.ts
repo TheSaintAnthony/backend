@@ -14,7 +14,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateAddressDto } from 'src/addresses/dto';
 import { NestedImageDto } from 'src/images/dto/nested-image.dto';
 export class CreateRestaurantDto {
-  @ApiProperty({ description: 'Restaurant name', example: 'Restaurante do Mar' })
+  @ApiProperty({
+    description: 'Restaurant name',
+    example: 'Restaurante do Mar',
+  })
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -25,7 +28,10 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsString()
   description?: string;
-  @ApiPropertyOptional({ description: 'Restaurant address', type: CreateAddressDto })
+  @ApiPropertyOptional({
+    description: 'Restaurant address',
+    type: CreateAddressDto,
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => CreateAddressDto)
@@ -37,7 +43,10 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsEmail()
   email?: string;
-  @ApiPropertyOptional({ description: 'Contact phone number', example: '+1234567890' })
+  @ApiPropertyOptional({
+    description: 'Contact phone number',
+    example: '+1234567890',
+  })
   @IsOptional()
   @IsString()
   phoneNumber?: string;

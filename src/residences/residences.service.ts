@@ -64,12 +64,13 @@ export class ResidencesService {
       },
     });
     const residenceIds = data.map((residence) => residence.id);
-    const allImages = residenceIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'residence',
-          residenceIds,
-        )
-      : [];
+    const allImages =
+      residenceIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'residence',
+            residenceIds,
+          )
+        : [];
     const imagesByResidenceId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByResidenceId.get(image.entityId) || [];
@@ -105,7 +106,7 @@ export class ResidencesService {
       throw new NotFoundException('Residence', id);
     }
     const { address, images, ...residenceData } = data;
-    const addressId: string | undefined = residence.addressId || undefined;
+    let addressId: string | undefined = residence.addressId || undefined;
     if (address && addressId) {
       await this.db
         .update(schema.addresses)
@@ -116,19 +117,15 @@ export class ResidencesService {
         .insert(schema.addresses)
         .values({ ...address })
         .returning({ id: schema.addresses.id });
-      await this.db
-        .update(schema.residences)
-        .set({
-          ...residenceData,
-          addressId: createdAddress.id,
-        })
-        .where(eq(schema.residences.id, id));
-    } else {
-      await this.db
-        .update(schema.residences)
-        .set({ ...residenceData })
-        .where(eq(schema.residences.id, id));
+      addressId = createdAddress.id;
     }
+    await this.db
+      .update(schema.residences)
+      .set({
+        ...residenceData,
+        ...(addressId && !residence.addressId ? { addressId } : {}),
+      })
+      .where(eq(schema.residences.id, id));
     if (images !== undefined) {
       const existingImages = await this.imagesService.getImagesByEntity(
         'residence',

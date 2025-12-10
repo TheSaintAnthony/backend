@@ -17,7 +17,9 @@ export const restaurantMenuItems = pgTable('restaurant_menu_items', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   price: numeric('price', { precision: 10, scale: 2 }),
-  categoryId: uuid('category_id').references(() => menuCategories.id, { onDelete: 'set null' }),
+  categoryId: uuid('category_id').references(() => menuCategories.id, {
+    onDelete: 'set null',
+  }),
   displayOrder: integer('display_order').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()

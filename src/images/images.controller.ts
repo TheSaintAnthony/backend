@@ -156,7 +156,9 @@ export class ImagesController {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
     const imagePath = `${entityType}/${filename}`;
-    const imagesPath = this.configService.get<string>('IMAGES_PATH') || '/Users/luismiranda/Desktop';
+    const imagesPath =
+      this.configService.get<string>('IMAGES_PATH') ||
+      '/Users/luismiranda/Desktop';
     const fullPath = path.join(imagesPath, imagePath);
     const resolvedPath = path.resolve(fullPath);
     const resolvedImagesPath = path.resolve(imagesPath);

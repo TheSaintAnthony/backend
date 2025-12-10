@@ -43,7 +43,9 @@ export class NotificationsService {
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED));
+        .where(
+          eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED),
+        );
 
       if (!confirmedStatus) {
         this.logger.warn('Confirmed status not found');
@@ -103,8 +105,14 @@ export class NotificationsService {
             isNull(schema.reservations.checkinReminderSentAt),
             isNull(schema.reservations.deletedAt),
             isNull(schema.reservationRooms.deletedAt),
-            gte(schema.reservationRooms.checkIn, hoursFrom12.toISOString().split('T')[0]),
-            lte(schema.reservationRooms.checkIn, hoursFrom48.toISOString().split('T')[0]),
+            gte(
+              schema.reservationRooms.checkIn,
+              hoursFrom12.toISOString().split('T')[0],
+            ),
+            lte(
+              schema.reservationRooms.checkIn,
+              hoursFrom48.toISOString().split('T')[0],
+            ),
           ),
         );
 
@@ -113,7 +121,10 @@ export class NotificationsService {
       );
 
       // Group by reservation ID to handle multiple rooms
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -156,7 +167,9 @@ export class NotificationsService {
           .set({ checkinReminderSentAt: new Date() })
           .where(eq(schema.reservations.id, reservationId));
 
-        this.logger.log(`Queued check-in reminder for reservation ${reservationId}`);
+        this.logger.log(
+          `Queued check-in reminder for reservation ${reservationId}`,
+        );
       }
 
       this.logger.log('Check-in reminder job completed');
@@ -183,12 +196,19 @@ export class NotificationsService {
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED));
+        .where(
+          eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED),
+        );
 
       const [checkedInStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CHECKED_IN));
+        .where(
+          eq(
+            schema.reservationStatus.name,
+            RESERVATION_STATUS_NAMES.CHECKED_IN,
+          ),
+        );
 
       const validStatusIds = [confirmedStatus?.id, checkedInStatus?.id].filter(
         Boolean,
@@ -253,7 +273,10 @@ export class NotificationsService {
       );
 
       // Group by reservation ID
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -279,7 +302,9 @@ export class NotificationsService {
           .set({ checkoutReminderSentAt: new Date() })
           .where(eq(schema.reservations.id, reservationId));
 
-        this.logger.log(`Queued check-out reminder for reservation ${reservationId}`);
+        this.logger.log(
+          `Queued check-out reminder for reservation ${reservationId}`,
+        );
       }
 
       this.logger.log('Check-out reminder job completed');
@@ -306,23 +331,37 @@ export class NotificationsService {
       const [completedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.COMPLETED));
+        .where(
+          eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.COMPLETED),
+        );
 
       const [checkedOutStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CHECKED_OUT));
+        .where(
+          eq(
+            schema.reservationStatus.name,
+            RESERVATION_STATUS_NAMES.CHECKED_OUT,
+          ),
+        );
 
       // Also include confirmed/checked_in where checkout date was yesterday
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED));
+        .where(
+          eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CONFIRMED),
+        );
 
       const [checkedInStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
-        .where(eq(schema.reservationStatus.name, RESERVATION_STATUS_NAMES.CHECKED_IN));
+        .where(
+          eq(
+            schema.reservationStatus.name,
+            RESERVATION_STATUS_NAMES.CHECKED_IN,
+          ),
+        );
 
       const validStatusIds = [
         completedStatus?.id,
@@ -373,10 +412,7 @@ export class NotificationsService {
             isNull(schema.reservations.postStayEmailSentAt),
             isNull(schema.reservations.deletedAt),
             isNull(schema.reservationRooms.deletedAt),
-            eq(
-              sql`${schema.reservationRooms.checkOut}::date`,
-              yesterdayStr,
-            ),
+            eq(sql`${schema.reservationRooms.checkOut}::date`, yesterdayStr),
           ),
         );
 
@@ -385,7 +421,10 @@ export class NotificationsService {
       );
 
       // Group by reservation ID
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -411,7 +450,9 @@ export class NotificationsService {
           .set({ postStayEmailSentAt: new Date() })
           .where(eq(schema.reservations.id, reservationId));
 
-        this.logger.log(`Queued post-stay email for reservation ${reservationId}`);
+        this.logger.log(
+          `Queued post-stay email for reservation ${reservationId}`,
+        );
       }
 
       this.logger.log('Post-stay email job completed');

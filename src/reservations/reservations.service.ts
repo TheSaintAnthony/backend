@@ -478,7 +478,8 @@ export class ReservationsService implements OnModuleInit {
         const nights = this.calculateNights(checkIn, checkOut);
         const guestsCount = parseInt(roomValidation.guestsCount);
         const tourismFeePerPersonPerNight = parseFloat(
-          ((property as { tourismFee?: string | null }).tourismFee as string) || '0',
+          ((property as { tourismFee?: string | null }).tourismFee as string) ||
+            '0',
         );
         const tourismFeeTotal =
           tourismFeePerPersonPerNight * guestsCount * nights;
@@ -1397,7 +1398,10 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
       .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
-      .leftJoin(schema.addresses, eq(schema.users.addressId, schema.addresses.id))
+      .leftJoin(
+        schema.addresses,
+        eq(schema.users.addressId, schema.addresses.id),
+      )
       .where(
         inArray(
           schema.reservations.id,

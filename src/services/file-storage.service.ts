@@ -46,8 +46,7 @@ export class FileStorageService {
       if (fs.existsSync(filePath)) {
         await fs.promises.unlink(filePath);
       }
-    } catch {
-    }
+    } catch {}
   }
   getFullPath(relativePath: string): string {
     return path.join(this.imagesPath, relativePath);
