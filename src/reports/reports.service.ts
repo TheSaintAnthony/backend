@@ -2,8 +2,26 @@ import { Injectable, Inject } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { DateRangeDto, GroupByPeriod } from './dto';
-import { sql, and, gte, lte, eq, count, sum, desc } from 'drizzle-orm';
+import {
+  DateRangeDto,
+  GroupByPeriod,
+  DailyOperationsDto,
+  MonthlyReservationsDto,
+  FinancialSummaryDto,
+  OccurrencesReportDto,
+} from './dto';
+import {
+  sql,
+  and,
+  gte,
+  lte,
+  eq,
+  count,
+  sum,
+  desc,
+  asc,
+  isNull,
+} from 'drizzle-orm';
 @Injectable()
 export class ReportsService {
   constructor(
@@ -26,11 +44,11 @@ export class ReportsService {
     const [confirmedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
-      .where(eq(schema.reservationStatus.name, 'confirmed'));
+      .where(eq(schema.reservationStatus.name, 'Confirmed'));
     const [completedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
-      .where(eq(schema.reservationStatus.name, 'completed'));
+      .where(eq(schema.reservationStatus.name, 'Checked Out'));
     const validStatusIds = [confirmedStatus?.id, completedStatus?.id].filter(
       Boolean,
     );
@@ -107,7 +125,7 @@ export class ReportsService {
     const [pendingInvoiceStatus] = await this.db
       .select()
       .from(schema.invoiceStatus)
-      .where(eq(schema.invoiceStatus.name, 'pending'));
+      .where(eq(schema.invoiceStatus.name, 'Pending'));
     const outstandingResult = await this.db
       .select({
         outstandingAmount: sum(schema.invoices.totalAmount),
@@ -189,7 +207,7 @@ export class ReportsService {
     const [cancelledStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
-      .where(eq(schema.reservationStatus.name, 'cancelled'));
+      .where(eq(schema.reservationStatus.name, 'Cancelled'));
     const totalBookings = bookingsByStatus.reduce(
       (acc, curr) => acc + curr.count,
       0,
@@ -267,7 +285,7 @@ export class ReportsService {
         and(
           gte(schema.reservationRooms.checkIn, startDateStr),
           lte(schema.reservationRooms.checkOut, endDateStr),
-          sql`${schema.reservations.statusId} IN (SELECT id FROM ${schema.reservationStatus} WHERE name IN ('confirmed', 'completed'))`,
+          sql`${schema.reservations.statusId} IN (SELECT id FROM ${schema.reservationStatus} WHERE name IN ('Confirmed', 'In Progress', 'Checked Out'))`,
         ),
       )
       .groupBy(schema.reservationRooms.roomId);
@@ -537,6 +555,445 @@ export class ReportsService {
       bookings,
       occupancy,
       customers,
+    };
+  }
+
+  async getDailyOperations(filters: DailyOperationsDto) {
+    const targetDate = filters.date || new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(targetDate);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    // Get status IDs
+    const [confirmedStatus] = await this.db
+      .select()
+      .from(schema.reservationStatus)
+      .where(eq(schema.reservationStatus.name, 'Confirmed'));
+
+    const [checkedInStatus] = await this.db
+      .select()
+      .from(schema.reservationStatus)
+      .where(eq(schema.reservationStatus.name, 'In Progress'));
+
+    const [completedStatus] = await this.db
+      .select()
+      .from(schema.reservationStatus)
+      .where(eq(schema.reservationStatus.name, 'Checked Out'));
+
+    // Base query for reservation details
+    const getReservationDetails = async (conditions: any[]) => {
+      return this.db
+        .select({
+          reservationId: schema.reservations.id,
+          checkIn: schema.reservationRooms.checkIn,
+          checkOut: schema.reservationRooms.checkOut,
+          guestsCount: schema.reservationRooms.guestsCount,
+          accessCode: schema.reservationRooms.accessCode,
+          roomId: schema.rooms.id,
+          roomName: schema.rooms.name,
+          propertyId: schema.properties.id,
+          propertyName: schema.properties.name,
+          userId: schema.users.id,
+          userFirstName: schema.users.firstName,
+          userLastName: schema.users.lastName,
+          userEmail: schema.users.email,
+          userPhone: schema.users.phone,
+          statusId: schema.reservations.statusId,
+          statusName: schema.reservationStatus.name,
+          totalPrice: schema.reservations.totalPrice,
+          specialRequests: schema.reservations.specialRequests,
+        })
+        .from(schema.reservationRooms)
+        .innerJoin(
+          schema.reservations,
+          eq(schema.reservationRooms.reservationId, schema.reservations.id),
+        )
+        .innerJoin(
+          schema.rooms,
+          eq(schema.reservationRooms.roomId, schema.rooms.id),
+        )
+        .innerJoin(
+          schema.properties,
+          eq(schema.rooms.propertyId, schema.properties.id),
+        )
+        .innerJoin(
+          schema.users,
+          eq(schema.reservations.userId, schema.users.id),
+        )
+        .innerJoin(
+          schema.reservationStatus,
+          eq(schema.reservations.statusId, schema.reservationStatus.id),
+        )
+        .where(and(...conditions, isNull(schema.reservations.deletedAt)));
+    };
+
+    // Today's Check-ins (confirmed reservations with check-in today)
+    const todayCheckIns = confirmedStatus
+      ? await getReservationDetails([
+          eq(schema.reservationRooms.checkIn, targetDate),
+          eq(schema.reservations.statusId, confirmedStatus.id),
+          ...(filters.propertyId
+            ? [eq(schema.properties.id, filters.propertyId)]
+            : []),
+        ])
+      : [];
+
+    // Today's Check-outs (checked-in reservations with check-out today)
+    const todayCheckOuts = checkedInStatus
+      ? await getReservationDetails([
+          eq(schema.reservationRooms.checkOut, targetDate),
+          eq(schema.reservations.statusId, checkedInStatus.id),
+          ...(filters.propertyId
+            ? [eq(schema.properties.id, filters.propertyId)]
+            : []),
+        ])
+      : [];
+
+    // Tomorrow's Check-ins
+    const tomorrowCheckIns = confirmedStatus
+      ? await getReservationDetails([
+          eq(schema.reservationRooms.checkIn, tomorrowStr),
+          eq(schema.reservations.statusId, confirmedStatus.id),
+          ...(filters.propertyId
+            ? [eq(schema.properties.id, filters.propertyId)]
+            : []),
+        ])
+      : [];
+
+    // In Progress (currently checked-in guests)
+    const inProgress = checkedInStatus
+      ? await getReservationDetails([
+          eq(schema.reservations.statusId, checkedInStatus.id),
+          ...(filters.propertyId
+            ? [eq(schema.properties.id, filters.propertyId)]
+            : []),
+        ])
+      : [];
+
+    // Overdue Check-outs (checked-in with check-out date in the past)
+    const overdueCheckOuts = checkedInStatus
+      ? await getReservationDetails([
+          lte(schema.reservationRooms.checkOut, targetDate),
+          eq(schema.reservations.statusId, checkedInStatus.id),
+          ...(filters.propertyId
+            ? [eq(schema.properties.id, filters.propertyId)]
+            : []),
+        ])
+      : [];
+
+    return {
+      date: targetDate,
+      summary: {
+        todayCheckInsCount: todayCheckIns.length,
+        todayCheckOutsCount: todayCheckOuts.length,
+        tomorrowCheckInsCount: tomorrowCheckIns.length,
+        inProgressCount: inProgress.length,
+        overdueCheckOutsCount: overdueCheckOuts.length,
+      },
+      todayCheckIns,
+      todayCheckOuts,
+      tomorrowCheckIns,
+      inProgress,
+      overdueCheckOuts,
+    };
+  }
+
+  async getMonthlyReservations(filters: MonthlyReservationsDto) {
+    const now = new Date();
+    const startDate =
+      filters.startDate ||
+      new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0];
+    const endDate =
+      filters.endDate ||
+      new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        .toISOString()
+        .split('T')[0];
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const offset = (page - 1) * limit;
+
+    const conditions = [
+      gte(schema.reservationRooms.checkIn, startDate),
+      lte(schema.reservationRooms.checkIn, endDate),
+      isNull(schema.reservations.deletedAt),
+    ];
+
+    if (filters.propertyId) {
+      conditions.push(eq(schema.properties.id, filters.propertyId));
+    }
+
+    if (filters.statusId) {
+      conditions.push(eq(schema.reservations.statusId, filters.statusId));
+    }
+
+    // Get total count
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.reservationRooms)
+      .innerJoin(
+        schema.reservations,
+        eq(schema.reservationRooms.reservationId, schema.reservations.id),
+      )
+      .innerJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .innerJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .where(and(...conditions));
+
+    // Get paginated data
+    const reservations = await this.db
+      .select({
+        reservationId: schema.reservations.id,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        roomId: schema.rooms.id,
+        roomName: schema.rooms.name,
+        propertyId: schema.properties.id,
+        propertyName: schema.properties.name,
+        userId: schema.users.id,
+        userFirstName: schema.users.firstName,
+        userLastName: schema.users.lastName,
+        userEmail: schema.users.email,
+        statusId: schema.reservations.statusId,
+        statusName: schema.reservationStatus.name,
+        totalPrice: schema.reservations.totalPrice,
+        createdAt: schema.reservations.createdAt,
+      })
+      .from(schema.reservationRooms)
+      .innerJoin(
+        schema.reservations,
+        eq(schema.reservationRooms.reservationId, schema.reservations.id),
+      )
+      .innerJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .innerJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .innerJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
+      .where(and(...conditions))
+      .orderBy(asc(schema.reservationRooms.checkIn))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      data: reservations,
+      meta: {
+        total: totalResult.count,
+        page,
+        limit,
+        totalPages: Math.ceil(totalResult.count / limit),
+      },
+      dateRange: { startDate, endDate },
+    };
+  }
+
+  async getFinancialSummary(filters: FinancialSummaryDto) {
+    const now = new Date();
+    const startDate =
+      filters.startDate ||
+      new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0];
+    const endDate =
+      filters.endDate ||
+      new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        .toISOString()
+        .split('T')[0];
+
+    // Get status IDs
+    const [pendingInvoiceStatus] = await this.db
+      .select()
+      .from(schema.invoiceStatus)
+      .where(eq(schema.invoiceStatus.name, 'Pending'));
+
+    const [paidInvoiceStatus] = await this.db
+      .select()
+      .from(schema.invoiceStatus)
+      .where(eq(schema.invoiceStatus.name, 'Paid'));
+
+    // Pending invoices
+    const pendingInvoices = pendingInvoiceStatus
+      ? await this.db
+          .select({
+            invoiceId: schema.invoices.id,
+            invoiceNumber: schema.invoices.invoiceNumber,
+            totalAmount: schema.invoices.totalAmount,
+            dueDate: schema.invoices.dueDate,
+            reservationId: schema.reservations.id,
+            userFirstName: schema.users.firstName,
+            userLastName: schema.users.lastName,
+            userEmail: schema.users.email,
+            createdAt: schema.invoices.createdAt,
+          })
+          .from(schema.invoices)
+          .innerJoin(
+            schema.reservations,
+            eq(schema.invoices.reservationId, schema.reservations.id),
+          )
+          .innerJoin(
+            schema.users,
+            eq(schema.reservations.userId, schema.users.id),
+          )
+          .where(
+            and(
+              eq(schema.invoices.statusId, pendingInvoiceStatus.id),
+              isNull(schema.invoices.deletedAt),
+            ),
+          )
+          .orderBy(asc(schema.invoices.dueDate))
+      : [];
+
+    // Calculate overdue invoices (due date in the past)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdueInvoices = pendingInvoices.filter(
+      (inv) => inv.dueDate && new Date(inv.dueDate) < today,
+    );
+
+    // Revenue collected in date range
+    const revenueResult = paidInvoiceStatus
+      ? await this.db
+          .select({
+            totalCollected: sum(schema.invoices.totalAmount),
+            invoiceCount: count(schema.invoices.id),
+          })
+          .from(schema.invoices)
+          .where(
+            and(
+              eq(schema.invoices.statusId, paidInvoiceStatus.id),
+              gte(schema.invoices.createdAt, new Date(startDate)),
+              lte(schema.invoices.createdAt, new Date(endDate)),
+            ),
+          )
+      : [{ totalCollected: '0', invoiceCount: 0 }];
+
+    // Outstanding amount
+    const outstandingResult = pendingInvoiceStatus
+      ? await this.db
+          .select({
+            totalOutstanding: sum(schema.invoices.totalAmount),
+            count: count(schema.invoices.id),
+          })
+          .from(schema.invoices)
+          .where(eq(schema.invoices.statusId, pendingInvoiceStatus.id))
+      : [{ totalOutstanding: '0', count: 0 }];
+
+    return {
+      dateRange: { startDate, endDate },
+      summary: {
+        totalCollected: revenueResult[0]?.totalCollected || '0',
+        paidInvoicesCount: revenueResult[0]?.invoiceCount || 0,
+        totalOutstanding: outstandingResult[0]?.totalOutstanding || '0',
+        pendingInvoicesCount: outstandingResult[0]?.count || 0,
+        overdueInvoicesCount: overdueInvoices.length,
+        overdueAmount: overdueInvoices
+          .reduce((acc, inv) => acc + parseFloat(inv.totalAmount || '0'), 0)
+          .toFixed(2),
+      },
+      pendingInvoices,
+      overdueInvoices,
+    };
+  }
+
+  async getOccurrencesReport(filters: OccurrencesReportDto) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const offset = (page - 1) * limit;
+
+    const conditions = [isNull(schema.occurrences.deletedAt)];
+
+    if (filters.startDate) {
+      conditions.push(
+        gte(schema.occurrences.createdAt, new Date(filters.startDate)),
+      );
+    }
+
+    if (filters.endDate) {
+      conditions.push(
+        lte(schema.occurrences.createdAt, new Date(filters.endDate)),
+      );
+    }
+
+    if (filters.statusId) {
+      conditions.push(eq(schema.occurrences.statusId, filters.statusId));
+    }
+
+    // Get total count
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.occurrences)
+      .where(and(...conditions));
+
+    // Get paginated data
+    const occurrences = await this.db
+      .select({
+        id: schema.occurrences.id,
+        description: schema.occurrences.description,
+        statusId: schema.occurrences.statusId,
+        statusName: schema.occurrenceStatus.name,
+        reservationId: schema.occurrences.reservationId,
+        createdAt: schema.occurrences.createdAt,
+        updatedAt: schema.occurrences.updatedAt,
+        userFirstName: schema.users.firstName,
+        userLastName: schema.users.lastName,
+        userEmail: schema.users.email,
+      })
+      .from(schema.occurrences)
+      .innerJoin(
+        schema.reservations,
+        eq(schema.occurrences.reservationId, schema.reservations.id),
+      )
+      .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .leftJoin(
+        schema.occurrenceStatus,
+        eq(schema.occurrences.statusId, schema.occurrenceStatus.id),
+      )
+      .where(and(...conditions))
+      .orderBy(desc(schema.occurrences.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get summary by status
+    const byStatus = await this.db
+      .select({
+        statusId: schema.occurrenceStatus.id,
+        statusName: schema.occurrenceStatus.name,
+        count: count(schema.occurrences.id),
+      })
+      .from(schema.occurrences)
+      .leftJoin(
+        schema.occurrenceStatus,
+        eq(schema.occurrences.statusId, schema.occurrenceStatus.id),
+      )
+      .where(and(...conditions))
+      .groupBy(schema.occurrenceStatus.id, schema.occurrenceStatus.name);
+
+    return {
+      data: occurrences,
+      meta: {
+        total: totalResult.count,
+        page,
+        limit,
+        totalPages: Math.ceil(totalResult.count / limit),
+      },
+      summary: {
+        total: totalResult.count,
+        byStatus,
+      },
     };
   }
 }

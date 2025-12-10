@@ -5,9 +5,20 @@ import {
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
-import { DateRangeDto } from './dto';
+import {
+  DateRangeDto,
+  DailyOperationsDto,
+  MonthlyReservationsDto,
+  FinancialSummaryDto,
+  OccurrencesReportDto,
+} from './dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/user-roles/roles.guard';
 import { Roles } from 'src/decorators';
@@ -73,5 +84,136 @@ export class ReportsController {
     @Query(new ValidationPipe({ transform: true })) filters: DateRangeDto,
   ) {
     return this.reportsService.getAllReports(filters);
+  }
+
+  @Get('daily-operations')
+  @ApiOperation({
+    summary: 'Get daily operations report',
+    description:
+      "Returns today's check-ins, check-outs, in-progress stays, and overdue check-outs. Admin only.",
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Target date (YYYY-MM-DD), defaults to today',
+  })
+  @ApiQuery({
+    name: 'propertyId',
+    required: false,
+    description: 'Filter by property ID',
+  })
+  async getDailyOperations(
+    @Query(new ValidationPipe({ transform: true })) filters: DailyOperationsDto,
+  ) {
+    return this.reportsService.getDailyOperations(filters);
+  }
+
+  @Get('monthly-reservations')
+  @ApiOperation({
+    summary: 'Get monthly reservations with pagination',
+    description:
+      'Returns paginated list of reservations for a month with filtering options. Admin only.',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'propertyId',
+    required: false,
+    description: 'Filter by property ID',
+  })
+  @ApiQuery({
+    name: 'statusId',
+    required: false,
+    description: 'Filter by status ID',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 20)',
+  })
+  async getMonthlyReservations(
+    @Query(new ValidationPipe({ transform: true }))
+    filters: MonthlyReservationsDto,
+  ) {
+    return this.reportsService.getMonthlyReservations(filters);
+  }
+
+  @Get('financial-summary')
+  @ApiOperation({
+    summary: 'Get financial summary report',
+    description:
+      'Returns pending invoices, overdue payments, and revenue collected. Admin only.',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'propertyId',
+    required: false,
+    description: 'Filter by property ID',
+  })
+  async getFinancialSummary(
+    @Query(new ValidationPipe({ transform: true }))
+    filters: FinancialSummaryDto,
+  ) {
+    return this.reportsService.getFinancialSummary(filters);
+  }
+
+  @Get('occurrences')
+  @ApiOperation({
+    summary: 'Get occurrences report',
+    description:
+      'Returns paginated list of incidents, maintenance, and notes with status summary. Admin only.',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End of date range (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'statusId',
+    required: false,
+    description: 'Filter by status ID',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 20)',
+  })
+  async getOccurrencesReport(
+    @Query(new ValidationPipe({ transform: true }))
+    filters: OccurrencesReportDto,
+  ) {
+    return this.reportsService.getOccurrencesReport(filters);
   }
 }
