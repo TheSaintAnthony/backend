@@ -291,6 +291,7 @@ export class ReservationsService implements OnModuleInit {
     for (const room of validatedRooms) {
       const quantity = room.quantity || 1;
       for (let i = 0; i < quantity; i++) {
+        const now = new Date();
         roomsWithAccessCodes.push({
           reservationId: reservation.id,
           roomId: room.roomId,
@@ -301,7 +302,8 @@ export class ReservationsService implements OnModuleInit {
             room.checkIn,
             room.checkOut,
           ),
-          deletedAt: null,
+          createdAt: now,
+          updatedAt: now,
         });
       }
     }
@@ -476,7 +478,8 @@ export class ReservationsService implements OnModuleInit {
         const nights = this.calculateNights(checkIn, checkOut);
         const guestsCount = parseInt(roomValidation.guestsCount);
         const tourismFeePerPersonPerNight = parseFloat(
-          ((property as { tourismFee?: string | null }).tourismFee as string) || '0',
+          ((property as { tourismFee?: string | null }).tourismFee as string) ||
+            '0',
         );
         const tourismFeeTotal =
           tourismFeePerPersonPerNight * guestsCount * nights;
@@ -1395,7 +1398,10 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
       .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
-      .leftJoin(schema.addresses, eq(schema.users.addressId, schema.addresses.id))
+      .leftJoin(
+        schema.addresses,
+        eq(schema.users.addressId, schema.addresses.id),
+      )
       .where(
         inArray(
           schema.reservations.id,

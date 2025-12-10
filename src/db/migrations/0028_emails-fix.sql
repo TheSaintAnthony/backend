@@ -1,0 +1,1 @@
+ALTER TABLE "reservation_rooms" ALTER COLUMN "updated_at" SET DEFAULT now();

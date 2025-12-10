@@ -64,12 +64,13 @@ export class RestaurantsService {
       },
     });
     const restaurantIds = data.map((restaurant) => restaurant.id);
-    const allImages = restaurantIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'restaurant',
-          restaurantIds,
-        )
-      : [];
+    const allImages =
+      restaurantIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'restaurant',
+            restaurantIds,
+          )
+        : [];
     const imagesByRestaurantId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByRestaurantId.get(image.entityId) || [];

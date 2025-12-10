@@ -32,6 +32,15 @@ export const reservations = pgTable(
       scale: 2,
     }).generatedAlwaysAs(`total_price - deposit_amout`),
     specialRequests: text('special_requests'),
+    checkinReminderSentAt: timestamp('checkin_reminder_sent_at', {
+      withTimezone: true,
+    }),
+    checkoutReminderSentAt: timestamp('checkout_reminder_sent_at', {
+      withTimezone: true,
+    }),
+    postStayEmailSentAt: timestamp('post_stay_email_sent_at', {
+      withTimezone: true,
+    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

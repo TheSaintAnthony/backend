@@ -72,12 +72,13 @@ export class RestaurantMenusService {
       orderBy: (menus, { asc }) => [asc(menus.displayOrder)],
     });
     const menuIds = data.map((menu) => menu.id);
-    const allImages = menuIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'restaurant_menu',
-          menuIds,
-        )
-      : [];
+    const allImages =
+      menuIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'restaurant_menu',
+            menuIds,
+          )
+        : [];
     const imagesByMenuId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByMenuId.get(image.entityId) || [];

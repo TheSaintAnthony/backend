@@ -155,10 +155,7 @@ export class RoomsService {
         eq(schema.highlights.id, schema.roomHighlights.highlightId),
       )
       .where(
-        and(
-          inArray(schema.rooms.id, roomIds),
-          isNull(schema.rooms.deletedAt),
-        ),
+        and(inArray(schema.rooms.id, roomIds), isNull(schema.rooms.deletedAt)),
       );
     const roomsMap = new Map<string, RoomWithDetails>();
     for (const row of roomsData) {
@@ -199,9 +196,13 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
     const roomIdStrings = data.map((room) => room.id);
-    const allImages = roomIdStrings.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities('room', roomIdStrings)
-      : [];
+    const allImages =
+      roomIdStrings.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'room',
+            roomIdStrings,
+          )
+        : [];
     const imagesByRoomId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByRoomId.get(image.entityId) || [];

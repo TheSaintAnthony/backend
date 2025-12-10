@@ -65,6 +65,13 @@ export class CreatePropertyDto {
   @IsNumberString()
   tourismFee: string;
   @ApiPropertyOptional({
+    description: 'Arrival instructions for guests',
+    example: 'Park in the underground garage. The entrance code is 1234.',
+  })
+  @IsOptional()
+  @IsString()
+  arrivalInstructions?: string;
+  @ApiPropertyOptional({
     description: 'Images for the property',
     type: [NestedImageDto],
   })

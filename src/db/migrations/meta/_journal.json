@@ -190,6 +190,20 @@
       "when": 1764846195525,
       "tag": "0026_is-system-managed",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1765296418518,
+      "tag": "0027_emails-integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1765296659830,
+      "tag": "0028_emails-fix",
+      "breakpoints": true
     }
   ]
 }

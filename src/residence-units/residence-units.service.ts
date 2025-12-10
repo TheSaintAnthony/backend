@@ -38,10 +38,7 @@ export class ResidenceUnitsService {
     }
     return this.getResidenceUnitById(createdUnit.id);
   }
-  async getResidenceUnits(
-    pagination?: PaginationDto,
-    residenceId?: string,
-  ) {
+  async getResidenceUnits(pagination?: PaginationDto, residenceId?: string) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
@@ -67,12 +64,13 @@ export class ResidenceUnitsService {
       },
     });
     const unitIds = data.map((unit) => unit.id);
-    const allImages = unitIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'residence_unit',
-          unitIds,
-        )
-      : [];
+    const allImages =
+      unitIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'residence_unit',
+            unitIds,
+          )
+        : [];
     const imagesByUnitId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByUnitId.get(image.entityId) || [];

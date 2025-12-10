@@ -5,6 +5,11 @@ import * as Mail from 'nodemailer/lib/mailer';
 import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
 import { EmailConfirmation } from 'src/reservations/interfaces';
+import {
+  CheckInReminderEmail,
+  CheckOutReminderEmail,
+  PostStayEmail,
+} from 'src/notifications/interfaces';
 import ical from 'ical-generator';
 import {
   createBaseEmailTemplate,
@@ -117,8 +122,7 @@ Este é um email automático. Por favor, não responda.`;
     `;
 
     const html = createBaseEmailTemplate(content, {
-      preheaderText:
-        'Redefinir a sua password - The St. Anthony',
+      preheaderText: 'Redefinir a sua password - The St. Anthony',
       showFooterLinks: false,
     });
 
@@ -145,7 +149,8 @@ Este é um email automático. Por favor, não responda.`;
     const url = `${verifyUrl}?token=${token}`;
 
     const expirationTime =
-      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') || '24h';
+      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
+      '24h';
 
     // Plain text version
     const text = `The St. Anthony
@@ -384,6 +389,300 @@ Este é um email automático. Por favor, não responda.`;
       subject: 'Confirmação de Reserva - The St. Anthony',
       text,
       attachments: calendarEvents,
+      html,
+    });
+  }
+
+  /**
+   * Sends a check-in reminder email with arrival instructions
+   */
+  async sendCheckInReminderEmail(
+    emailPayload: CheckInReminderEmail,
+  ): Promise<void> {
+    const checkInDate = this.formatDate(emailPayload.checkInDate);
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+
+    // Plain text version
+    const text = `The St. Anthony
+
+Lembrete de Check-in
+
+Olá ${emailPayload.userName},
+
+A sua estadia no ${emailPayload.propertyName} aproxima-se! Estamos ansiosos por recebê-lo.
+
+Detalhes da Reserva:
+- Check-in: ${checkInDate}
+- Check-out: ${checkOutDate}
+- Quarto: ${emailPayload.roomName}
+- Hóspedes: ${emailPayload.guestsCount}
+
+Informações de Check-in:
+- Horário: ${emailPayload.checkInTime}
+- Morada: ${emailPayload.propertyAddress}
+- Código de Acesso: ${emailPayload.accessCode}
+
+${emailPayload.arrivalInstructions ? `Instruções de Chegada:\n${emailPayload.arrivalInstructions}\n` : ''}
+Contactos:
+- Telefone: ${emailPayload.propertyPhone}
+- Email: ${emailPayload.propertyEmail}
+
+${emailPayload.specialRequests ? `Pedidos Especiais: ${emailPayload.specialRequests}\n` : ''}
+Se tiver alguma questão, não hesite em contactar-nos.
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Lembrete de Check-in')}
+      
+      ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
+      
+      ${createParagraph(`A sua estadia no <strong>${emailPayload.propertyName}</strong> aproxima-se! Estamos ansiosos por recebê-lo.`)}
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Detalhes da Reserva')}
+      
+      <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; margin-bottom: 20px; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
+        ${createDetailsTable(`
+          ${createDetailRow('Check-in', checkInDate)}
+          ${createDetailRow('Check-out', checkOutDate)}
+          ${createDetailRow('Quarto', emailPayload.roomName)}
+          ${createDetailRow('Hóspedes', `${emailPayload.guestsCount} ${emailPayload.guestsCount === 1 ? 'pessoa' : 'pessoas'}`)}
+        `)}
+      </div>
+      
+      ${createSectionHeading('Informações de Check-in')}
+      
+      ${createInfoBox(`
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>🕐 Horário de Check-in:</strong> ${emailPayload.checkInTime}
+        </p>
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>📍 Morada:</strong> ${emailPayload.propertyAddress}
+        </p>
+        <p style="margin: 0; font-size: 18px; color: ${EMAIL_STYLES.colors.accent};">
+          <strong>🔑 Código de Acesso: ${emailPayload.accessCode}</strong>
+        </p>
+      `)}
+      
+      ${
+        emailPayload.arrivalInstructions
+          ? `
+        <div style="margin-top: 25px;">
+          ${createSectionHeading('Instruções de Chegada')}
+          <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
+            <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark}; line-height: 1.7; white-space: pre-line;">
+              ${emailPayload.arrivalInstructions}
+            </p>
+          </div>
+        </div>
+      `
+          : ''
+      }
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Contactos')}
+      
+      ${createDetailsTable(`
+        ${createDetailRow('Telefone', emailPayload.propertyPhone)}
+        ${createDetailRow('Email', emailPayload.propertyEmail)}
+      `)}
+      
+      ${
+        emailPayload.specialRequests
+          ? `
+        <div style="margin-top: 25px;">
+          ${createSectionHeading('Os Seus Pedidos Especiais')}
+          ${createParagraph(emailPayload.specialRequests, 'muted')}
+        </div>
+      `
+          : ''
+      }
+      
+      ${createDivider()}
+      
+      <div style="text-align: center; margin: 30px 0;">
+        ${createEmailButton('Ver a Minha Reserva', `${this.frontendUrl}/account`, 'secondary')}
+      </div>
+      
+      ${createParagraph('Se tiver alguma questão ou precisar de alterar a sua reserva, não hesite em contactar-nos.', 'muted')}
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Lembrete: Check-in em ${emailPayload.propertyName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Lembrete de Check-in - ${emailPayload.propertyName}`,
+      text,
+      html,
+    });
+  }
+
+  /**
+   * Sends a check-out reminder email
+   */
+  async sendCheckOutReminderEmail(
+    emailPayload: CheckOutReminderEmail,
+  ): Promise<void> {
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+
+    // Plain text version
+    const text = `The St. Anthony
+
+Lembrete de Check-out
+
+Olá ${emailPayload.userName},
+
+Esperamos que esteja a desfrutar da sua estadia no ${emailPayload.propertyName}!
+
+Lembre-se que o check-out é hoje:
+- Data: ${checkOutDate}
+- Horário: até às ${emailPayload.checkOutTime}
+- Quarto: ${emailPayload.roomName}
+
+Obrigado por ter escolhido o The St. Anthony. Esperamos vê-lo novamente em breve!
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Lembrete de Check-out')}
+      
+      ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
+      
+      ${createParagraph(`Esperamos que esteja a desfrutar da sua estadia no <strong>${emailPayload.propertyName}</strong>!`)}
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Informações de Check-out')}
+      
+      ${createInfoBox(`
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>📅 Data:</strong> ${checkOutDate}
+        </p>
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>🕐 Horário:</strong> até às ${emailPayload.checkOutTime}
+        </p>
+        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>🛏️ Quarto:</strong> ${emailPayload.roomName}
+        </p>
+      `)}
+      
+      ${createDivider()}
+      
+      ${createParagraph('Obrigado por ter escolhido o <strong>The St. Anthony</strong>. Esperamos vê-lo novamente em breve!')}
+      
+      <div style="text-align: center; margin: 30px 0;">
+        ${createEmailButton('Ver a Minha Conta', `${this.frontendUrl}/account`, 'secondary')}
+      </div>
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Lembrete: Check-out hoje em ${emailPayload.propertyName}`,
+      showFooterLinks: true,
+    });
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Lembrete de Check-out - ${emailPayload.propertyName}`,
+      text,
+      html,
+    });
+  }
+
+  /**
+   * Sends a post-stay thank you email
+   */
+  async sendPostStayEmail(emailPayload: PostStayEmail): Promise<void> {
+    const checkInDate = this.formatDate(emailPayload.checkInDate);
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+
+    // Plain text version
+    const text = `The St. Anthony
+
+Obrigado pela sua estadia!
+
+Olá ${emailPayload.userName},
+
+Obrigado por ter escolhido o ${emailPayload.propertyName} para a sua estadia de ${checkInDate} a ${checkOutDate}.
+
+Esperamos que tenha desfrutado de cada momento connosco. A sua opinião é muito importante para nós!
+
+Se tiver algum comentário ou sugestão, gostaríamos muito de o ouvir. Pode partilhar a sua experiência através da sua área de cliente.
+
+Esperamos vê-lo novamente em breve!
+
+Com os melhores cumprimentos,
+The St. Anthony Collection
+
+---
+Este é um email automático. Por favor, não responda.`;
+
+    // HTML content
+    const content = `
+      ${createMainTitle('Obrigado pela sua estadia!')}
+      
+      ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
+      
+      ${createParagraph(`Obrigado por ter escolhido o <strong>${emailPayload.propertyName}</strong> para a sua estadia.`)}
+      
+      <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; margin: 25px 0; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
+        ${createDetailsTable(`
+          ${createDetailRow('Check-in', checkInDate)}
+          ${createDetailRow('Check-out', checkOutDate)}
+        `)}
+      </div>
+      
+      ${createParagraph('Esperamos que tenha desfrutado de cada momento connosco. A sua opinião é muito importante para nós!')}
+      
+      ${createDivider()}
+      
+      ${createSectionHeading('Partilhe a sua experiência')}
+      
+      ${createParagraph('Se tiver algum comentário, sugestão ou quiser reportar algo sobre a sua estadia, gostaríamos muito de o ouvir.', 'muted')}
+      
+      <div style="text-align: center; margin: 35px 0;">
+        ${createEmailButton('Partilhar Feedback', emailPayload.feedbackUrl || `${this.frontendUrl}/account/problems`)}
+      </div>
+      
+      ${createDivider()}
+      
+      ${createInfoBox(`
+        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          <strong>🌟 Esperamos vê-lo novamente em breve!</strong>
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted};">
+          Como nosso hóspede, terá sempre acesso a ofertas exclusivas nas suas próximas estadias.
+        </p>
+      `)}
+    `;
+
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Obrigado pela sua estadia em ${emailPayload.propertyName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Obrigado pela sua estadia - ${emailPayload.propertyName}`,
+      text,
       html,
     });
   }

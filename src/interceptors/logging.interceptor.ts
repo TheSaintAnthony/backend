@@ -30,7 +30,8 @@ export class LoggingInterceptor implements NestInterceptor {
     );
     res.setHeader('X-Correlation-Id', correlationId);
     // Skip detailed logging for file/image serving endpoints
-    const isFileEndpoint = url.includes('/images/serve/') || url.includes('/images/entity/');
+    const isFileEndpoint =
+      url.includes('/images/serve/') || url.includes('/images/entity/');
     return new Observable((subscriber) => {
       this.correlationIdService.run(correlationId, () => {
         if (req.body && typeof req.body === 'object' && !isFileEndpoint) {
@@ -56,7 +57,9 @@ export class LoggingInterceptor implements NestInterceptor {
                 // These objects contain circular references and cannot be stringified
                 if (
                   'sendFile' in response ||
-                  ('setHeader' in response && 'status' in response && 'send' in response)
+                  ('setHeader' in response &&
+                    'status' in response &&
+                    'send' in response)
                 ) {
                   this.log('Response: [File/Stream Response]');
                   return;
@@ -71,15 +74,18 @@ export class LoggingInterceptor implements NestInterceptor {
                   this.sensitiveFields.forEach((field) => {
                     if (maskedResponse[field]) maskedResponse[field] = '*****';
                   });
-                  const jsonString = JSON.stringify(maskedResponse, (key, value) => {
-                    if (typeof value === 'object' && value !== null) {
-                      if (seen.has(value)) {
-                        return '[Circular]';
+                  const jsonString = JSON.stringify(
+                    maskedResponse,
+                    (key, value) => {
+                      if (typeof value === 'object' && value !== null) {
+                        if (seen.has(value)) {
+                          return '[Circular]';
+                        }
+                        seen.add(value);
                       }
-                      seen.add(value);
-                    }
-                    return value;
-                  });
+                      return value;
+                    },
+                  );
                   this.log(`Response: ${jsonString}`);
                 } catch (err) {
                   // Handle circular references or other serialization errors

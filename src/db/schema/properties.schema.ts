@@ -19,6 +19,7 @@ export const properties = pgTable('properties', {
   checkInTime: time('check_in_time').default('15:00').notNull(),
   checkOutTime: time('check_out_time').default('11:00').notNull(),
   tourismFee: numeric('tourism_fee', { precision: 10, scale: 2 }).notNull(),
+  arrivalInstructions: text('arrival_instructions'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
