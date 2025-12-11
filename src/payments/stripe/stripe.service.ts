@@ -234,14 +234,22 @@ export class StripeService {
       description: string;
     }>;
     autoAdvance?: boolean;
+    discounts?: Array<{ coupon?: string; promotion_code?: string }>;
   }): Promise<Stripe.Invoice> {
     try {
-      const invoice = await this.stripe.invoices.create({
+      const invoiceCreateParams: Stripe.InvoiceCreateParams = {
         customer: params.customerId,
         description: params.description,
         metadata: params.metadata,
         auto_advance: params.autoAdvance ?? false,
-      });
+      };
+
+      // Add discounts if provided
+      if (params.discounts && params.discounts.length > 0) {
+        invoiceCreateParams.discounts = params.discounts;
+      }
+
+      const invoice = await this.stripe.invoices.create(invoiceCreateParams);
       for (const item of params.lineItems) {
         if (
           item.priceId &&
@@ -256,17 +264,29 @@ export class StripeService {
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
         } else if (item.priceData) {
-          await this.stripe.invoiceItems.create({
-            customer: params.customerId,
-            invoice: invoice.id,
-            price_data: {
+          // Check if this is a negative amount (discount)
+          if (item.priceData.unitAmount < 0) {
+            // For negative amounts (discounts), use the amount parameter directly
+            await this.stripe.invoiceItems.create({
+              customer: params.customerId,
+              invoice: invoice.id,
+              amount: item.priceData.unitAmount * item.quantity,
               currency: item.priceData.currency,
-              product: item.priceData.product,
-              unit_amount: item.priceData.unitAmount,
-            },
-            quantity: item.quantity,
-            description: item.description,
-          } as Stripe.InvoiceItemCreateParams);
+              description: item.description,
+            });
+          } else {
+            await this.stripe.invoiceItems.create({
+              customer: params.customerId,
+              invoice: invoice.id,
+              price_data: {
+                currency: item.priceData.currency,
+                product: item.priceData.product,
+                unit_amount: item.priceData.unitAmount,
+              },
+              quantity: item.quantity,
+              description: item.description,
+            } as Stripe.InvoiceItemCreateParams);
+          }
         } else {
           this.logger.warn(
             `Skipping invoice item with invalid price configuration: ${item.description}`,
@@ -386,6 +406,177 @@ export class StripeService {
       throw error;
     }
   }
+  // ==================== COUPON & PROMO CODE METHODS ====================
+
+  async createCoupon(params: {
+    name: string;
+    discountType: 'percentage' | 'fixed_amount';
+    discountValue: number;
+    currency?: string;
+    maxRedemptions?: number;
+    expiresAt?: Date;
+    metadata?: Record<string, string>;
+  }): Promise<Stripe.Coupon> {
+    try {
+      const couponParams: Stripe.CouponCreateParams = {
+        name: params.name,
+        metadata: params.metadata,
+      };
+
+      if (params.discountType === 'percentage') {
+        couponParams.percent_off = params.discountValue;
+      } else {
+        couponParams.amount_off = Math.round(params.discountValue * 100);
+        couponParams.currency = params.currency || 'eur';
+      }
+
+      if (params.maxRedemptions) {
+        couponParams.max_redemptions = params.maxRedemptions;
+      }
+
+      if (params.expiresAt) {
+        couponParams.redeem_by = Math.floor(params.expiresAt.getTime() / 1000);
+      }
+
+      const coupon = await this.stripe.coupons.create(couponParams);
+      this.logger.log(`Stripe coupon created: ${coupon.id}`);
+      return coupon;
+    } catch (error) {
+      this.logger.error(`Failed to create Stripe coupon: ${error}`);
+      throw error;
+    }
+  }
+
+  async createPromotionCode(params: {
+    couponId: string;
+    code: string;
+    maxRedemptions?: number;
+    expiresAt?: Date;
+  }): Promise<Stripe.PromotionCode> {
+    try {
+      const promoParams: Stripe.PromotionCodeCreateParams = {
+        promotion: {
+          type: 'coupon',
+          coupon: params.couponId,
+        },
+        code: params.code.toUpperCase(),
+      };
+
+      if (params.maxRedemptions) {
+        promoParams.max_redemptions = params.maxRedemptions;
+      }
+
+      if (params.expiresAt) {
+        promoParams.expires_at = Math.floor(params.expiresAt.getTime() / 1000);
+      }
+
+      const promotionCode =
+        await this.stripe.promotionCodes.create(promoParams);
+      this.logger.log(`Stripe promotion code created: ${promotionCode.id}`);
+      return promotionCode;
+    } catch (error) {
+      this.logger.error(`Failed to create Stripe promotion code: ${error}`);
+      throw error;
+    }
+  }
+
+  async validatePromotionCode(
+    code: string,
+  ): Promise<Stripe.PromotionCode | null> {
+    try {
+      const promoCodes = await this.stripe.promotionCodes.list({
+        code: code.toUpperCase(),
+        active: true,
+        limit: 1,
+      });
+
+      if (promoCodes.data.length === 0) {
+        return null;
+      }
+
+      const promoCode = promoCodes.data[0];
+
+      // Check if expired
+      if (promoCode.expires_at && promoCode.expires_at * 1000 < Date.now()) {
+        return null;
+      }
+
+      // Check redemption limits
+      if (
+        promoCode.max_redemptions &&
+        promoCode.times_redeemed >= promoCode.max_redemptions
+      ) {
+        return null;
+      }
+
+      return promoCode;
+    } catch (error) {
+      this.logger.error(`Failed to validate promotion code: ${error}`);
+      return null;
+    }
+  }
+
+  async getPromotionCodeWithCoupon(
+    stripePromoCodeId: string,
+  ): Promise<Stripe.PromotionCode> {
+    try {
+      return await this.stripe.promotionCodes.retrieve(stripePromoCodeId, {
+        expand: ['coupon'],
+      });
+    } catch (error) {
+      this.logger.error(`Failed to get promotion code: ${error}`);
+      throw error;
+    }
+  }
+
+  async deactivatePromotionCode(
+    stripePromoCodeId: string,
+  ): Promise<Stripe.PromotionCode> {
+    try {
+      const promoCode = await this.stripe.promotionCodes.update(
+        stripePromoCodeId,
+        {
+          active: false,
+        },
+      );
+      this.logger.log(`Stripe promotion code deactivated: ${promoCode.id}`);
+      return promoCode;
+    } catch (error) {
+      this.logger.error(`Failed to deactivate promotion code: ${error}`);
+      throw error;
+    }
+  }
+
+  async deleteCoupon(stripeCouponId: string): Promise<Stripe.DeletedCoupon> {
+    try {
+      const deleted = await this.stripe.coupons.del(stripeCouponId);
+      this.logger.log(`Stripe coupon deleted: ${stripeCouponId}`);
+      return deleted;
+    } catch (error) {
+      this.logger.error(`Failed to delete Stripe coupon: ${error}`);
+      throw error;
+    }
+  }
+
+  async updatePaymentIntentAmount(
+    paymentIntentId: string,
+    newAmount: number,
+    metadata?: Record<string, string>,
+  ): Promise<Stripe.PaymentIntent> {
+    try {
+      const amountInCents = Math.round(newAmount * 100);
+      return await this.stripe.paymentIntents.update(paymentIntentId, {
+        amount: amountInCents,
+        metadata,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to update PaymentIntent amount: ${error}`);
+      throw error;
+    }
+  }
+
+  // ==================== END COUPON & PROMO CODE METHODS ====================
+
   private mapStripeStatusToPaymentStatus(
     stripeStatus: string,
   ): PaymentStatusResult['status'] {
