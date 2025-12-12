@@ -600,7 +600,7 @@ export class RoomsService {
     };
   }
   async getPriceQuote(data: GetPriceQuoteDto) {
-    const { rooms } = data;
+    const { rooms, promoCodeId } = data;
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
     }
@@ -687,13 +687,41 @@ export class RoomsService {
     }));
 
     const pricingBreakdown =
-      await this.pricingEngine.calculatePricing(pricingInput);
+      await this.pricingEngine.calculatePricing(pricingInput, promoCodeId);
+
+    const roomBreakdownMap = new Map(
+      pricingBreakdown.breakdown.rooms.map((room) => [room.roomId, room]),
+    );
+
+    const roomsWithPricing = roomQuotes.map((roomQuote) => {
+      const breakdown = roomBreakdownMap.get(roomQuote.roomId);
+      if (breakdown) {
+        const roomDiscountProportion =
+          pricingBreakdown.basePrice > 0
+            ? breakdown.basePrice / pricingBreakdown.basePrice
+            : 0;
+        const roomDiscountAmount =
+          pricingBreakdown.discountAmount * roomDiscountProportion;
+        const roomDiscountedBase = breakdown.basePrice - roomDiscountAmount;
+        const roomVatAmount = roomDiscountedBase * 0.23;
+        const roomTotalWithDiscount =
+          roomDiscountedBase + breakdown.tourismFee + roomVatAmount;
+
+        return {
+          ...roomQuote,
+          roomTotal: roomTotalWithDiscount.toFixed(2),
+        };
+      }
+      return roomQuote;
+    });
 
     return {
-      rooms: roomQuotes,
+      rooms: roomsWithPricing,
       totalPrice: pricingBreakdown.totalPrice.toFixed(2),
       pricing: {
         basePrice: pricingBreakdown.basePrice.toFixed(2),
+        discountAmount: pricingBreakdown.discountAmount.toFixed(2),
+        discountedBasePrice: pricingBreakdown.discountedBasePrice.toFixed(2),
         tourismFee: pricingBreakdown.tourismFee.toFixed(2),
         vatPercentage: '23',
         vatValue: pricingBreakdown.vatAmount.toFixed(2),
