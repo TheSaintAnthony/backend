@@ -707,7 +707,7 @@ export class RoomsService {
         const roomTotalWithDiscount =
           roomDiscountedBase + breakdown.tourismFee + roomVatAmount;
 
-        return {
+    return {
           ...roomQuote,
           roomTotal: roomTotalWithDiscount.toFixed(2),
         };
