@@ -131,4 +131,8 @@ export class ReservationsController {
   ) {
     return this.reservationsService.retryPayment(id, req.user.sub);
   }
+  @Post('bookings/clear-holds')
+  async clearUserHolds(@Request() req: AuthenticatedRequest) {
+    return this.reservationsService.clearUserHolds(req.user.sub);
+  }
 }

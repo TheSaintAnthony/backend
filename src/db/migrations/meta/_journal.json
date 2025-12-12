@@ -225,6 +225,20 @@
       "when": 1765465237623,
       "tag": "0031_promo-codes-fix",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1765471202115,
+      "tag": "0032_booking-intents",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1765539426553,
+      "tag": "0033_reservation-rooms",
+      "breakpoints": true
     }
   ]
 }

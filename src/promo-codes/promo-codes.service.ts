@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common'
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { eq, and, gte, or, isNull, count } from 'drizzle-orm';
+import { eq, and, gte, or, isNull, count, sql } from 'drizzle-orm';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import {
   CreatePromoCodeDto,
@@ -24,10 +24,8 @@ export class PromoCodesService {
     private stripeService: StripeService,
   ) {}
 
-  // Admin: Create a new promo code
   async createPromoCode(data: CreatePromoCodeDto) {
     return this.db.transaction(async (tx) => {
-      // 1. Create coupon in Stripe
       const stripeCoupon = await this.stripeService.createCoupon({
         name: data.name,
         discountType: data.discountType,
@@ -37,7 +35,6 @@ export class PromoCodesService {
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       });
 
-      // 2. Create coupon in local database
       const [coupon] = await tx
         .insert(schema.coupons)
         .values({
@@ -51,7 +48,6 @@ export class PromoCodesService {
         })
         .returning();
 
-      // 3. Create promotion code in Stripe
       const stripePromoCode = await this.stripeService.createPromotionCode({
         couponId: stripeCoupon.id,
         code: data.code,
@@ -59,7 +55,6 @@ export class PromoCodesService {
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       });
 
-      // 4. Create promo code in local database
       const [promoCode] = await tx
         .insert(schema.promoCodes)
         .values({
@@ -81,7 +76,6 @@ export class PromoCodesService {
     });
   }
 
-  // Get all promo codes for admin
   async getPromoCodes(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
@@ -113,7 +107,6 @@ export class PromoCodesService {
     return createPaginatedResponse(formattedData, totalResult.count, page, limit);
   }
 
-  // Get promo code by ID
   async getPromoCodeById(id: string) {
     const [result] = await this.db
       .select({
@@ -135,11 +128,9 @@ export class PromoCodesService {
     return { ...result.promoCode, coupon: result.coupon };
   }
 
-  // Get visible promo codes for users
   async getVisiblePromoCodesForUser(userId: string) {
     const now = new Date();
 
-    // Get active, visible promo codes
     const promoCodes = await this.db
       .select({
         promoCode: schema.promoCodes,
@@ -161,7 +152,6 @@ export class PromoCodesService {
         ),
       );
 
-    // Filter out codes that user has maxed out
     const result = await Promise.all(
       promoCodes.map(async ({ promoCode, coupon }) => {
         if (promoCode.maxRedemptionsPerUser) {
@@ -180,7 +170,6 @@ export class PromoCodesService {
           }
         }
 
-        // Check global max redemptions
         if (
           promoCode.maxRedemptions &&
           promoCode.timesRedeemed >= promoCode.maxRedemptions
@@ -203,11 +192,9 @@ export class PromoCodesService {
     return result.filter(Boolean);
   }
 
-  // Validate a promo code
   async validatePromoCode(data: ValidatePromoCodeDto) {
     const { code, userId, amount } = data;
 
-    // 1. Check local database first
     const [localPromoCode] = await this.db
       .select({
         promoCode: schema.promoCodes,
@@ -227,19 +214,16 @@ export class PromoCodesService {
 
     const { promoCode, coupon } = localPromoCode;
 
-    // 2. Check if active
     if (!promoCode.isActive) {
       throw new BadRequestException(
         'Este código promocional não está mais ativo',
       );
     }
 
-    // 3. Check expiration
     if (promoCode.expiresAt && new Date(promoCode.expiresAt) < new Date()) {
       throw new BadRequestException('Este código promocional expirou');
     }
 
-    // 4. Check global redemption limit
     if (
       promoCode.maxRedemptions &&
       promoCode.timesRedeemed >= promoCode.maxRedemptions
@@ -249,7 +233,6 @@ export class PromoCodesService {
       );
     }
 
-    // 5. Check per-user redemption limit
     if (promoCode.maxRedemptionsPerUser && userId) {
       const [userRedemptions] = await this.db
         .select({ count: count() })
@@ -268,7 +251,6 @@ export class PromoCodesService {
       }
     }
 
-    // 6. Validate with Stripe
     const stripeValidation = await this.stripeService.validatePromotionCode(
       code,
     );
@@ -278,7 +260,6 @@ export class PromoCodesService {
       );
     }
 
-    // 7. Calculate discount
     let discountAmount = 0;
     if (coupon?.discountType === 'percentage') {
       discountAmount = (amount * parseFloat(coupon.discountValue)) / 100;
@@ -297,7 +278,6 @@ export class PromoCodesService {
     };
   }
 
-  // Apply promo code (record redemption)
   async applyPromoCode(
     promoCodeId: string,
     userId: string,
@@ -305,7 +285,6 @@ export class PromoCodesService {
     discountAmount: string,
   ) {
     return this.db.transaction(async (tx) => {
-      // Record redemption
       const [redemption] = await tx
         .insert(schema.promoCodeRedemptions)
         .values({
@@ -316,7 +295,6 @@ export class PromoCodesService {
         })
         .returning();
 
-      // Update times redeemed
       await tx
         .update(schema.promoCodes)
         .set({
@@ -332,7 +310,6 @@ export class PromoCodesService {
     });
   }
 
-  // Admin: Deactivate promo code
   async deactivatePromoCode(id: string) {
     const [promoCode] = await this.db
       .select()
@@ -344,12 +321,10 @@ export class PromoCodesService {
       throw new NotFoundException('PromoCode', id);
     }
 
-    // Deactivate in Stripe
     await this.stripeService.deactivatePromotionCode(
       promoCode.stripePromoCodeId,
     );
 
-    // Deactivate locally
     const [updated] = await this.db
       .update(schema.promoCodes)
       .set({ isActive: false, updatedAt: new Date() })
@@ -360,7 +335,6 @@ export class PromoCodesService {
     return updated;
   }
 
-  // Admin: Update visibility
   async updateVisibility(id: string, isVisible: boolean) {
     const [promoCode] = await this.db
       .select()
@@ -384,7 +358,6 @@ export class PromoCodesService {
     return updated;
   }
 
-  // Get redemption history for a promo code
   async getRedemptionHistory(promoCodeId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);

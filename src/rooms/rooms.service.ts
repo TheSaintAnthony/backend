@@ -20,6 +20,7 @@ import {
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
+import { PricingEngineService } from 'src/pricing/pricing-engine.service';
 @Injectable()
 export class RoomsService {
   private readonly logger = new Logger(RoomsService.name);
@@ -32,6 +33,7 @@ export class RoomsService {
     private stripeService: StripeService,
     @Inject(forwardRef(() => PropertiesService))
     private propertiesService: PropertiesService,
+    private pricingEngine: PricingEngineService,
   ) {}
   async createRoom(data: CreateRoomDto) {
     const { images, ...roomData } = data;
@@ -602,10 +604,10 @@ export class RoomsService {
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
     }
-    let totalBasePrice = 0;
-    let totalTourismFee = 0;
+
     const roomQuotes: RoomQuote[] = [];
     let allAvailable = true;
+
     for (const roomRequest of rooms) {
       const {
         roomId,
@@ -636,7 +638,6 @@ export class RoomsService {
       );
       let roomPrice = 0;
       let avgPricePerNight = 0;
-      let tourismFee = 0;
       let nightlyBreakdown: { price: string; nights: number }[] = [];
       if (isAvailable) {
         try {
@@ -649,20 +650,7 @@ export class RoomsService {
           const singleRoomPrice = totalPrice;
           roomPrice = singleRoomPrice * quantity;
           avgPricePerNight = singleRoomPrice / nights;
-          totalBasePrice += roomPrice;
           nightlyBreakdown = breakdown;
-          if (room.propertyId) {
-            const property = await this.propertiesService.getPropertyById(
-              room.propertyId,
-            );
-            const propertyWithFee = property as { tourismFee?: string | null };
-            const tourismFeePerPersonPerNight = parseFloat(
-              (propertyWithFee.tourismFee as string) || '0',
-            );
-            tourismFee =
-              tourismFeePerPersonPerNight * guestsCount * nights * quantity;
-            totalTourismFee += tourismFee;
-          }
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -689,18 +677,28 @@ export class RoomsService {
         available: isAvailable,
       });
     }
-    const vatPercentage = 23;
-    const vatValue = totalBasePrice * (vatPercentage / 100);
-    const totalPrice = totalBasePrice + totalTourismFee + vatValue;
+
+    const pricingInput = rooms.map((room) => ({
+      roomId: room.roomId,
+      checkIn: room.checkIn,
+      checkOut: room.checkOut,
+      guestsCount: room.guestsCount || 1,
+      quantity: room.quantity || 1,
+    }));
+
+    const pricingBreakdown = await this.pricingEngine.calculatePricing(
+      pricingInput,
+    );
+
     return {
       rooms: roomQuotes,
-      totalPrice: totalPrice.toFixed(2),
+      totalPrice: pricingBreakdown.totalPrice.toFixed(2),
       pricing: {
-        basePrice: totalBasePrice.toFixed(2),
-        tourismFee: totalTourismFee.toFixed(2),
-        vatPercentage: vatPercentage.toString(),
-        vatValue: vatValue.toFixed(2),
-        totalPrice: totalPrice.toFixed(2),
+        basePrice: pricingBreakdown.basePrice.toFixed(2),
+        tourismFee: pricingBreakdown.tourismFee.toFixed(2),
+        vatPercentage: '23',
+        vatValue: pricingBreakdown.vatAmount.toFixed(2),
+        totalPrice: pricingBreakdown.totalPrice.toFixed(2),
       },
       allAvailable,
       message: allAvailable

@@ -219,6 +219,23 @@ export class StripeService {
       throw error;
     }
   }
+
+  async getPaymentIntentWithMetadata(
+    paymentIntentId: string,
+  ): Promise<{ id: string; metadata: Record<string, string> }> {
+    try {
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      return {
+        id: paymentIntent.id,
+        metadata: (paymentIntent.metadata as Record<string, string>) || {},
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get PaymentIntent with metadata: ${error}`);
+      throw error;
+    }
+  }
+
   async createInvoice(params: {
     customerId: string;
     description?: string;
@@ -244,7 +261,6 @@ export class StripeService {
         auto_advance: params.autoAdvance ?? false,
       };
 
-      // Add discounts if provided
       if (params.discounts && params.discounts.length > 0) {
         invoiceCreateParams.discounts = params.discounts;
       }
@@ -264,9 +280,7 @@ export class StripeService {
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
         } else if (item.priceData) {
-          // Check if this is a negative amount (discount)
           if (item.priceData.unitAmount < 0) {
-            // For negative amounts (discounts), use the amount parameter directly
             await this.stripe.invoiceItems.create({
               customer: params.customerId,
               invoice: invoice.id,
@@ -319,12 +333,159 @@ export class StripeService {
   }
   async payInvoice(invoiceId: string): Promise<Stripe.Invoice> {
     try {
-      const invoice = await this.stripe.invoices.pay(invoiceId, {
+      let invoice = await this.stripe.invoices.retrieve(invoiceId);
+      this.logger.log(
+        `[STRIPE INVOICE] Paying invoice ${invoiceId}. Current status: ${invoice.status}`,
+      );
+
+      if (invoice.status === 'paid') {
+        this.logger.log(`[STRIPE INVOICE] Invoice ${invoiceId} is already paid`);
+        return invoice;
+      }
+
+      if (invoice.status === 'draft') {
+        this.logger.log(
+          `[STRIPE INVOICE] Invoice ${invoiceId} is in draft status. Finalizing first...`,
+        );
+        invoice = await this.stripe.invoices.finalizeInvoice(invoiceId);
+        this.logger.log(
+          `[STRIPE INVOICE] Invoice ${invoiceId} finalized. New status: ${invoice.status}`,
+        );
+      }
+
+      if (invoice.status !== 'open' && invoice.status !== 'uncollectible') {
+        this.logger.warn(
+          `[STRIPE INVOICE] Invoice ${invoiceId} is in status '${invoice.status}', expected 'open'. Attempting to pay anyway.`,
+        );
+      }
+
+      this.logger.log(
+        `[STRIPE INVOICE] Calling pay() with paid_out_of_band=true for invoice ${invoiceId}`,
+      );
+      
+      invoice = await this.stripe.invoices.pay(invoiceId, {
         paid_out_of_band: true,
       });
+
+      this.logger.log(
+        `[STRIPE INVOICE] Invoice ${invoiceId} pay() call completed. Status: ${invoice.status}`,
+      );
+
+      if (invoice.status !== 'paid') {
+        this.logger.warn(
+          `[STRIPE INVOICE] Invoice ${invoiceId} status is '${invoice.status}' after pay() call. Waiting and re-checking...`,
+        );
+        
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          
+          const recheckedInvoice = await this.stripe.invoices.retrieve(
+            invoiceId,
+          );
+          
+          this.logger.log(
+            `[STRIPE INVOICE] Re-check attempt ${attempt}/5 for invoice ${invoiceId}. Status: ${recheckedInvoice.status}`,
+          );
+          
+          if (recheckedInvoice.status === 'paid') {
+            this.logger.log(
+              `[STRIPE INVOICE] Invoice ${invoiceId} confirmed as paid after re-check attempt ${attempt}.`,
+            );
+            return recheckedInvoice;
+          }
+          
+          if (recheckedInvoice.status === 'open' && attempt < 5) {
+            this.logger.warn(
+              `[STRIPE INVOICE] Invoice ${invoiceId} still open. Retrying pay() call...`,
+            );
+            try {
+              invoice = await this.stripe.invoices.pay(invoiceId, {
+                paid_out_of_band: true,
+              });
+              this.logger.log(
+                `[STRIPE INVOICE] Retry pay() call completed. Status: ${invoice.status}`,
+              );
+              if (invoice.status === 'paid') {
+                return invoice;
+              }
+            } catch (retryError: any) {
+              this.logger.warn(
+                `[STRIPE INVOICE] Retry pay() call failed: ${retryError.message}`,
+              );
+            }
+          }
+        }
+        
+        const finalCheck = await this.stripe.invoices.retrieve(invoiceId);
+        if (finalCheck.status !== 'paid') {
+          this.logger.error(
+            `[STRIPE INVOICE] CRITICAL: Invoice ${invoiceId} still not paid after all attempts. Final status: '${finalCheck.status}'. Invoice details: ${JSON.stringify({
+              id: finalCheck.id,
+              status: finalCheck.status,
+              amount_paid: finalCheck.amount_paid,
+              amount_due: finalCheck.amount_due,
+              total: finalCheck.total,
+              auto_advance: finalCheck.auto_advance,
+            })}`,
+          );
+          throw new Error(
+            `Invoice payment failed. Invoice status: ${finalCheck.status}. Expected: 'paid'. Invoice ID: ${invoiceId}`,
+          );
+        }
+        
+        return finalCheck;
+      }
+
+      this.logger.log(
+        `[STRIPE INVOICE] Invoice ${invoiceId} paid successfully. Status: ${invoice.status}`,
+      );
+
       return invoice;
-    } catch (error) {
-      this.logger.error(`Failed to pay Stripe invoice: ${error}`);
+    } catch (error: any) {
+      this.logger.error(
+        `[STRIPE INVOICE] Failed to pay Stripe invoice ${invoiceId}: ${error.message}`,
+        error,
+      );
+      
+      if (error.type === 'StripeInvalidRequestError') {
+        const invoice = await this.stripe.invoices.retrieve(invoiceId).catch(
+          () => null,
+        );
+        if (invoice) {
+          this.logger.error(
+            `[STRIPE INVOICE] Invoice ${invoiceId} current state: ${JSON.stringify({
+              status: invoice.status,
+              amount_paid: invoice.amount_paid,
+              amount_due: invoice.amount_due,
+              total: invoice.total,
+            })}`,
+          );
+        }
+      }
+      
+      throw error;
+    }
+  }
+  async attachPaymentIntentToInvoice(
+    invoiceId: string,
+    paymentIntentId: string,
+  ): Promise<Stripe.Invoice> {
+    try {
+      this.logger.log(
+        `[STRIPE] Attaching PaymentIntent ${paymentIntentId} to Invoice ${invoiceId}`,
+      );
+      const invoice = await this.stripe.invoices.attachPayment(invoiceId, {
+        payment_intent: paymentIntentId,
+      });
+      this.logger.log(
+        `[STRIPE] PaymentIntent ${paymentIntentId} attached to Invoice ${invoiceId}. Invoice status: ${invoice.status}`,
+      );
+      return invoice;
+    } catch (error: any) {
+      this.logger.error(
+        `[STRIPE] Failed to attach PaymentIntent ${paymentIntentId} to Invoice ${invoiceId}: ${error.message}`,
+        error,
+      );
       throw error;
     }
   }
@@ -406,8 +567,6 @@ export class StripeService {
       throw error;
     }
   }
-  // ==================== COUPON & PROMO CODE METHODS ====================
-
   async createCoupon(params: {
     name: string;
     discountType: 'percentage' | 'fixed_amount';
@@ -496,12 +655,10 @@ export class StripeService {
 
       const promoCode = promoCodes.data[0];
 
-      // Check if expired
       if (promoCode.expires_at && promoCode.expires_at * 1000 < Date.now()) {
         return null;
       }
 
-      // Check redemption limits
       if (
         promoCode.max_redemptions &&
         promoCode.times_redeemed >= promoCode.max_redemptions
@@ -574,8 +731,6 @@ export class StripeService {
       throw error;
     }
   }
-
-  // ==================== END COUPON & PROMO CODE METHODS ====================
 
   private mapStripeStatusToPaymentStatus(
     stripeStatus: string,
