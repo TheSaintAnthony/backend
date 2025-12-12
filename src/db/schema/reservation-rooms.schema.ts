@@ -31,10 +31,9 @@ export const reservationRooms = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => ({
-    uniqueReservationRoom: uniqueIndex('unique_reservation_room').on(
-      table.roomId,
-      table.reservationId,
-    ),
+    uniqueReservationRoomAccessCode: uniqueIndex(
+      'unique_reservation_room_access_code',
+    ).on(table.roomId, table.reservationId, table.accessCode),
     uniqueAccessCodeWithinDates: uniqueIndex(
       'unique_access_code_within_date',
     ).on(table.accessCode, table.checkIn, table.checkOut),

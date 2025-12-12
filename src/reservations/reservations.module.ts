@@ -15,6 +15,9 @@ import { StatusLookupService } from 'src/services/lookups/status-lookup.service'
 import { QueuesModule } from 'src/queues/queues.module';
 import { InvoicesModule } from 'src/invoices/invoices.module';
 import { UserRolesModule } from 'src/user-roles/user-roles.module';
+import { PromoCodesModule } from 'src/promo-codes/promo-codes.module';
+import { RoomHoldsModule } from 'src/room-holds/room-holds.module';
+import { PricingModule } from 'src/pricing/pricing.module';
 @Module({
   imports: [
     RoomsModule,
@@ -27,6 +30,9 @@ import { UserRolesModule } from 'src/user-roles/user-roles.module';
     QueuesModule,
     InvoicesModule,
     UserRolesModule,
+    PromoCodesModule,
+    RoomHoldsModule,
+    PricingModule,
   ],
   providers: [
     ReservationsService,

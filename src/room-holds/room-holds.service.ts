@@ -7,7 +7,7 @@ import { eq, and, gte, lte, or, lt, ne } from 'drizzle-orm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class RoomHoldsService {
-  private readonly HOLD_DURATION_MINUTES = 10;
+  private readonly HOLD_DURATION_MINUTES = 5;
   private readonly logger = new Logger(RoomHoldsService.name);
   constructor(
     @Inject(DB_PROVIDER)

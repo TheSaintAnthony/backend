@@ -39,6 +39,7 @@ import { ResidenceContactsModule } from './residence-contacts/residence-contacts
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -91,6 +92,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     RestaurantsModule,
     RestaurantMenusModule,
     NotificationsModule,
+    PromoCodesModule,
   ],
   controllers: [],
   providers: [

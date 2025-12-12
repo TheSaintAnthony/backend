@@ -27,4 +27,6 @@ export * from './residence-contacts.schema';
 export * from './restaurants.schema';
 export * from './restaurant-menus.schema';
 export * from './restaurant-menu-items.schema';
+export * from './promo-codes.schema';
+export * from './booking-intents.schema';
 export * from './relations.schema';

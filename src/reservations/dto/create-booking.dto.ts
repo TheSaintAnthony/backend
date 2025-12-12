@@ -83,6 +83,14 @@ export class CreateBookingDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, string>;
+
+  @ApiPropertyOptional({
+    description: 'Promo code ID to apply discount',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  promoCodeId?: string;
   @ApiPropertyOptional({
     description: 'Custom invoice data (overrides user profile data)',
     type: 'object',
