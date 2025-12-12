@@ -134,7 +134,11 @@ export class PaymentsService {
       .delete(schema.roomHolds)
       .where(lt(schema.roomHolds.expiresAt, now));
 
-    if (roomHoldsResult && roomHoldsResult.rowCount && roomHoldsResult.rowCount > 0) {
+    if (
+      roomHoldsResult &&
+      roomHoldsResult.rowCount &&
+      roomHoldsResult.rowCount > 0
+    ) {
       this.logger.log(
         `${roomHoldsResult.rowCount} expired room holds cleaned up successfully`,
       );
@@ -149,7 +153,11 @@ export class PaymentsService {
         ),
       );
 
-    if (bookingIntentsResult && bookingIntentsResult.rowCount && bookingIntentsResult.rowCount > 0) {
+    if (
+      bookingIntentsResult &&
+      bookingIntentsResult.rowCount &&
+      bookingIntentsResult.rowCount > 0
+    ) {
       this.logger.log(
         `${bookingIntentsResult.rowCount} expired booking intents cleaned up successfully`,
       );

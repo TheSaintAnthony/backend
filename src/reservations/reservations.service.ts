@@ -343,16 +343,16 @@ export class ReservationsService implements OnModuleInit {
       .returning();
     const roomsWithAccessCodes = [];
     const usedAccessCodesInBatch = new Map<string, Set<number>>();
-    
+
     for (const room of validatedRooms) {
       const quantity = room.quantity || 1;
       const dateKey = `${room.checkIn}_${room.checkOut}`;
-      
+
       if (!usedAccessCodesInBatch.has(dateKey)) {
         usedAccessCodesInBatch.set(dateKey, new Set());
       }
       const usedCodesForDates = usedAccessCodesInBatch.get(dateKey)!;
-      
+
       for (let i = 0; i < quantity; i++) {
         const accessCode = await this.generateUniqueAccessCode(
           room.checkIn,
@@ -361,7 +361,7 @@ export class ReservationsService implements OnModuleInit {
           usedCodesForDates,
         );
         usedCodesForDates.add(accessCode);
-        
+
         roomsWithAccessCodes.push({
           reservationId: reservation.id,
           roomId: room.roomId,
@@ -374,7 +374,7 @@ export class ReservationsService implements OnModuleInit {
     }
     if (roomsWithAccessCodes.length > 0) {
       try {
-    await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
+        await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
       } catch (error: any) {
         const pgError = error.cause || error;
         const errorCode = pgError.code || error.code;
@@ -382,39 +382,49 @@ export class ReservationsService implements OnModuleInit {
         const detail = pgError.detail || error.detail;
         const message = pgError.message || error.message;
 
-        this.logger.error(
-          `Failed to insert reservation rooms: ${message}`,
-          {
-            error: message,
-            stack: error.stack,
-            code: errorCode,
-            constraint,
-            detail,
-            pgError: pgError,
-            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
-            roomsCount: roomsWithAccessCodes.length,
-            rooms: roomsWithAccessCodes.map((r) => ({
-              roomId: r.roomId,
-              reservationId: r.reservationId,
-              checkIn: r.checkIn,
-              checkOut: r.checkOut,
-              accessCode: r.accessCode,
-            })),
-          },
-        );
+        this.logger.error(`Failed to insert reservation rooms: ${message}`, {
+          error: message,
+          stack: error.stack,
+          code: errorCode,
+          constraint,
+          detail,
+          pgError: pgError,
+          fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+          roomsCount: roomsWithAccessCodes.length,
+          rooms: roomsWithAccessCodes.map((r) => ({
+            roomId: r.roomId,
+            reservationId: r.reservationId,
+            checkIn: r.checkIn,
+            checkOut: r.checkOut,
+            accessCode: r.accessCode,
+          })),
+        });
 
-        if (errorCode === '23505' || message?.includes('unique') || message?.includes('duplicate')) {
-          if (constraint === 'unique_reservation_room' || message?.includes('unique_reservation_room')) {
+        if (
+          errorCode === '23505' ||
+          message?.includes('unique') ||
+          message?.includes('duplicate')
+        ) {
+          if (
+            constraint === 'unique_reservation_room' ||
+            message?.includes('unique_reservation_room')
+          ) {
             throw new BadRequestException(
               'This room is already added to this reservation. The database migration may not have been run. Please contact support.',
             );
           }
-          if (constraint === 'unique_access_code_within_date' || message?.includes('unique_access_code_within_date')) {
+          if (
+            constraint === 'unique_access_code_within_date' ||
+            message?.includes('unique_access_code_within_date')
+          ) {
             throw new BadRequestException(
               'Access code conflict. Please try again.',
             );
           }
-          if (constraint === 'unique_reservation_room_access_code' || message?.includes('unique_reservation_room_access_code')) {
+          if (
+            constraint === 'unique_reservation_room_access_code' ||
+            message?.includes('unique_reservation_room_access_code')
+          ) {
             throw new BadRequestException(
               'Room and access code combination already exists. Please try again.',
             );
@@ -457,33 +467,33 @@ export class ReservationsService implements OnModuleInit {
     let exists = true;
     let attempts = 0;
     const maxAttempts = 1000;
-    
+
     while (exists && attempts < maxAttempts) {
       const isUsedInBatch = usedCodesInBatch?.has(code) || false;
-      
+
       if (!isUsedInBatch) {
         const [result] = await db
-        .select({ count: count() })
-        .from(schema.reservationRooms)
-        .where(
-          and(
-            eq(schema.reservationRooms.accessCode, code),
-            eq(schema.reservationRooms.checkIn, checkIn),
-            eq(schema.reservationRooms.checkOut, checkOut),
-            isNull(schema.reservationRooms.deletedAt),
-          ),
-        );
-      exists = result.count > 0;
+          .select({ count: count() })
+          .from(schema.reservationRooms)
+          .where(
+            and(
+              eq(schema.reservationRooms.accessCode, code),
+              eq(schema.reservationRooms.checkIn, checkIn),
+              eq(schema.reservationRooms.checkOut, checkOut),
+              isNull(schema.reservationRooms.deletedAt),
+            ),
+          );
+        exists = result.count > 0;
       } else {
         exists = true;
       }
-      
+
       if (exists) {
         code = this.generateAccessCode();
         attempts++;
       }
     }
-    
+
     if (attempts >= maxAttempts) {
       this.logger.error(
         `Failed to generate unique access code after ${maxAttempts} attempts for dates ${checkIn} to ${checkOut}`,
@@ -492,7 +502,7 @@ export class ReservationsService implements OnModuleInit {
         'Failed to generate unique access code. Please try again.',
       );
     }
-    
+
     return code;
   }
   private async createInvoiceAndPayment(
@@ -790,7 +800,9 @@ export class ReservationsService implements OnModuleInit {
           return {
             invoiceId: invoice.id,
             description:
-              discountInfo && discountInfo.discountAmount > 0 && item.itemType === 'accommodation'
+              discountInfo &&
+              discountInfo.discountAmount > 0 &&
+              item.itemType === 'accommodation'
                 ? `${item.description} (Código: ${discountInfo.promoCode || 'Desconto'})`
                 : item.description,
             productCode: item.productCode,
@@ -805,7 +817,7 @@ export class ReservationsService implements OnModuleInit {
         }),
       );
     }
-    
+
     if (transactionId) {
       const [existingPayment] = await tx
         .select()
@@ -817,9 +829,12 @@ export class ReservationsService implements OnModuleInit {
           ),
         )
         .limit(1);
-      
+
       if (existingPayment) {
-        if (existingPayment.invoiceId && existingPayment.invoiceId !== invoice.id) {
+        if (
+          existingPayment.invoiceId &&
+          existingPayment.invoiceId !== invoice.id
+        ) {
           this.logger.error(
             `[INVOICE] CRITICAL: Payment ${existingPayment.id} with transactionId ${transactionId} is already associated with invoice ${existingPayment.invoiceId}. Cannot associate with new invoice ${invoice.id}.`,
           );
@@ -827,14 +842,17 @@ export class ReservationsService implements OnModuleInit {
             `Payment with transaction ${transactionId} is already associated with another invoice.`,
           );
         }
-        
+
         this.logger.log(
           `[INVOICE] Payment with transactionId ${transactionId} already exists (ID: ${existingPayment.id}). Updating to associate with invoice ${invoice.id}`,
         );
-        
-        const paidAtValue = existingPayment.paidAt || 
-          (paymentStatusId === this.completedPaymentStatusId ? new Date() : undefined);
-        
+
+        const paidAtValue =
+          existingPayment.paidAt ||
+          (paymentStatusId === this.completedPaymentStatusId
+            ? new Date()
+            : undefined);
+
         await tx
           .update(schema.payments)
           .set({
@@ -852,7 +870,7 @@ export class ReservationsService implements OnModuleInit {
           .from(schema.payments)
           .where(eq(schema.payments.invoiceId, invoice.id))
           .limit(1);
-        
+
         if (existingPaymentForInvoice) {
           this.logger.error(
             `[INVOICE] CRITICAL: Invoice ${invoice.id} already has a payment record (ID: ${existingPaymentForInvoice.id}, transactionId: ${existingPaymentForInvoice.transactionId}) but we're trying to create/update with transactionId ${transactionId}. This should not happen.`,
@@ -861,7 +879,7 @@ export class ReservationsService implements OnModuleInit {
             `Invoice ${invoice.id} already has a payment record. Cannot create duplicate.`,
           );
         }
-        
+
         this.logger.log(
           `[INVOICE] Creating payment record for invoice ${invoice.id} with transactionId ${transactionId} (PaymentIntent ID)`,
         );
@@ -1282,8 +1300,11 @@ export class ReservationsService implements OnModuleInit {
   async createBooking(userId: string, data: CreateBookingDto) {
     const { rooms, specialRequests, metadata, invoiceData, promoCodeId } = data;
     return this.db.transaction(async (tx) => {
-      const { validatedRooms } =
-        await this.validateRoomsAndCalculatePrice(tx, userId, rooms);
+      const { validatedRooms } = await this.validateRoomsAndCalculatePrice(
+        tx,
+        userId,
+        rooms,
+      );
 
       const pricingInput = validatedRooms.map((room) => ({
         roomId: room.roomId,
@@ -1312,16 +1333,16 @@ export class ReservationsService implements OnModuleInit {
           const promoCode =
             await this.promoCodesService.getPromoCodeById(promoCodeId);
           if (promoCode && promoCode.isActive && promoCode.coupon) {
-              promoCodeValidation = {
-                promoCodeId: promoCode.id,
-                discountType: promoCode.coupon.discountType as
-                  | 'percentage'
-                  | 'fixed_amount',
-                discountValue: promoCode.coupon.discountValue || '0',
-                stripePromoCodeId: promoCode.stripePromoCodeId,
-                stripeCouponId: promoCode.coupon.stripeCouponId,
-                code: promoCode.code,
-              };
+            promoCodeValidation = {
+              promoCodeId: promoCode.id,
+              discountType: promoCode.coupon.discountType as
+                | 'percentage'
+                | 'fixed_amount',
+              discountValue: promoCode.coupon.discountValue || '0',
+              stripePromoCodeId: promoCode.stripePromoCodeId,
+              stripeCouponId: promoCode.coupon.stripeCouponId,
+              code: promoCode.code,
+            };
           }
         } catch (error) {
           this.logger.warn(`Promo code validation failed: ${error}`);
@@ -1343,15 +1364,15 @@ export class ReservationsService implements OnModuleInit {
           ? invoiceData.customerPhone
           : user.phone || undefined;
       const stripeCustomer = await this.stripeService.getOrCreateCustomer(
+        userId,
+        invoiceCustomerEmail,
+        invoiceCustomerName,
+        invoiceCustomerPhone,
+        {
           userId,
-          invoiceCustomerEmail,
-          invoiceCustomerName,
-          invoiceCustomerPhone,
-          {
-            userId,
-            invoiceCustomer: 'true',
-          },
-        );
+          invoiceCustomer: 'true',
+        },
+      );
       const userStripeCustomer = await this.stripeService.getOrCreateCustomer(
         userId,
         user.email,
@@ -1411,7 +1432,7 @@ export class ReservationsService implements OnModuleInit {
         );
         throw new BadRequestException(
           'Payment amount calculation error. Please try again.',
-      );
+        );
       }
 
       const paymentResult = await this.stripeService.createPaymentIntent({
@@ -1479,13 +1500,13 @@ export class ReservationsService implements OnModuleInit {
   }
   async completeBooking(transactionId: string) {
     const paymentStatus =
-            await this.stripeService.getPaymentIntentStatus(transactionId);
+      await this.stripeService.getPaymentIntentStatus(transactionId);
 
     if (paymentStatus.status !== 'completed') {
-          throw new BadRequestException(
-            `Payment is not completed. Current status: ${paymentStatus.status}`,
-          );
-        }
+      throw new BadRequestException(
+        `Payment is not completed. Current status: ${paymentStatus.status}`,
+      );
+    }
 
     return this.db.transaction(async (tx) => {
       const existingReservation = await this.findReservationByPaymentIntent(
@@ -1494,12 +1515,12 @@ export class ReservationsService implements OnModuleInit {
       );
 
       if (existingReservation) {
-            return {
-              success: true,
+        return {
+          success: true,
           reservation: existingReservation,
-              message: 'Payment already completed',
-            };
-          }
+          message: 'Payment already completed',
+        };
+      }
 
       const [bookingIntent] = await tx
         .select()
@@ -1564,7 +1585,8 @@ export class ReservationsService implements OnModuleInit {
         bookingIntentData.rooms,
         bookingIntentData.invoiceData,
         bookingIntentData.stripeCustomerId,
-        bookingIntentData.promoCode && bookingIntentData.pricing.discountAmount > 0
+        bookingIntentData.promoCode &&
+          bookingIntentData.pricing.discountAmount > 0
           ? {
               discountAmount: bookingIntentData.pricing.discountAmount,
               promoCode: bookingIntentData.promoCode.code,
@@ -1575,7 +1597,7 @@ export class ReservationsService implements OnModuleInit {
             }
           : undefined,
         bookingIntentData.pricing,
-        );
+      );
 
       await tx
         .update(schema.bookingIntents)
@@ -1589,7 +1611,9 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.payments.invoiceId, invoice.id));
 
-      const user = await this.usersService.getUserById(bookingIntentData.userId);
+      const user = await this.usersService.getUserById(
+        bookingIntentData.userId,
+      );
       const stripeCustomerIdToUse =
         bookingIntentData.stripeCustomerId || user.stripeCustomerId;
       if (stripeCustomerIdToUse && transactionId) {
@@ -1601,13 +1625,15 @@ export class ReservationsService implements OnModuleInit {
           const stripeLineItems = await this.prepareStripeInvoiceLineItems(
             bookingIntentData.rooms,
             bookingIntentData.pricing,
-            bookingIntentData.promoCode && bookingIntentData.pricing.discountAmount > 0
+            bookingIntentData.promoCode &&
+              bookingIntentData.pricing.discountAmount > 0
               ? {
                   discountAmount: bookingIntentData.pricing.discountAmount,
                   promoCode: bookingIntentData.promoCode.code,
                   discountType: bookingIntentData.promoCode.discountType,
                   discountValue: bookingIntentData.promoCode.discountValue,
-                  stripePromoCodeId: bookingIntentData.promoCode.stripePromoCodeId,
+                  stripePromoCodeId:
+                    bookingIntentData.promoCode.stripePromoCodeId,
                   stripeCouponId: bookingIntentData.promoCode.stripeCouponId,
                 }
               : undefined,
@@ -1628,9 +1654,8 @@ export class ReservationsService implements OnModuleInit {
             paymentIntentId: transactionId,
           };
 
-          const stripeInvoice = await this.stripeService.createInvoice(
-            stripeInvoiceParams,
-          );
+          const stripeInvoice =
+            await this.stripeService.createInvoice(stripeInvoiceParams);
 
           this.logger.log(
             `[INVOICE] Stripe invoice created: ${stripeInvoice.id}, Status: ${stripeInvoice.status}, PaymentIntent ${transactionId} attached`,

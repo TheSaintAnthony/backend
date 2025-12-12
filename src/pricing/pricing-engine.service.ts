@@ -102,8 +102,9 @@ export class PricingEngineService {
       let roomTourismFee = 0;
 
       if (room.propertyId) {
-        const property =
-          await this.propertiesService.getPropertyById(room.propertyId);
+        const property = await this.propertiesService.getPropertyById(
+          room.propertyId,
+        );
         const propertyWithFee = property as { tourismFee?: string | null };
         const tourismFeePerPersonPerNight = parseFloat(
           (propertyWithFee.tourismFee as string) || '0',
@@ -205,7 +206,7 @@ export class PricingEngineService {
       `[PRICING ENGINE] Pricing calculated for ${rooms.length} room(s): basePrice=${breakdown.basePrice.toFixed(2)}, discount=${breakdown.discountAmount.toFixed(2)}, discountedBase=${breakdown.discountedBasePrice.toFixed(2)}, tourismFee=${breakdown.tourismFee.toFixed(2)}, vat=${breakdown.vatAmount.toFixed(2)}, total=${breakdown.totalPrice.toFixed(2)}`,
     );
     this.logger.log(
-      `[PRICING ENGINE] Room breakdown: ${JSON.stringify(breakdown.breakdown.rooms.map(r => ({ roomId: r.roomId, basePrice: r.basePrice.toFixed(2), tourismFee: r.tourismFee.toFixed(2), guests: r.guestsCount, nights: r.nights })))}`,
+      `[PRICING ENGINE] Room breakdown: ${JSON.stringify(breakdown.breakdown.rooms.map((r) => ({ roomId: r.roomId, basePrice: r.basePrice.toFixed(2), tourismFee: r.tourismFee.toFixed(2), guests: r.guestsCount, nights: r.nights })))}`,
     );
 
     return breakdown;
@@ -241,10 +242,7 @@ export class PricingEngineService {
     if (promoCode.discountType === 'percentage') {
       discountAmount = (basePrice * parseFloat(promoCode.discountValue)) / 100;
     } else {
-      discountAmount = Math.min(
-        parseFloat(promoCode.discountValue),
-        basePrice,
-      );
+      discountAmount = Math.min(parseFloat(promoCode.discountValue), basePrice);
     }
 
     const discountedPrice = Math.max(0, basePrice - discountAmount);

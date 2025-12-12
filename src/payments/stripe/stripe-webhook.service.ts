@@ -25,22 +25,22 @@ export class StripeWebhookService {
     );
 
     const [existingPayment] = await this.db
-        .select()
-        .from(schema.payments)
+      .select()
+      .from(schema.payments)
       .where(
         or(
           eq(schema.payments.transactionId, paymentIntent.id),
           eq(schema.payments.externalReferenceId, paymentIntent.id),
         ),
       )
-        .limit(1);
+      .limit(1);
 
     if (existingPayment) {
       this.logger.log(
         `Payment already processed for PaymentIntent ${paymentIntent.id}`,
-        );
-        return;
-      }
+      );
+      return;
+    }
 
     const userId = paymentIntent.metadata?.userId;
     if (userId) {
@@ -65,7 +65,9 @@ export class StripeWebhookService {
       await this.db
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, userId));
-      this.logger.log(`Room holds cleared for user ${userId} after payment failure`);
+      this.logger.log(
+        `Room holds cleared for user ${userId} after payment failure`,
+      );
     }
 
     const [payment] = await this.db
@@ -118,7 +120,9 @@ export class StripeWebhookService {
       await this.db
         .delete(schema.roomHolds)
         .where(eq(schema.roomHolds.userId, userId));
-      this.logger.log(`Room holds cleared for user ${userId} after payment cancellation`);
+      this.logger.log(
+        `Room holds cleared for user ${userId} after payment cancellation`,
+      );
     }
 
     const [payment] = await this.db

@@ -311,7 +311,7 @@ export class StripeService {
       const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
         invoice.id,
       );
-      
+
       if (params.paymentIntentId) {
         try {
           this.logger.log(
@@ -335,7 +335,7 @@ export class StripeService {
           throw error;
         }
       }
-      
+
       return finalizedInvoice;
     } catch (error) {
       this.logger.error(`Failed to create Stripe invoice: ${error}`);
@@ -365,7 +365,9 @@ export class StripeService {
       );
 
       if (invoice.status === 'paid') {
-        this.logger.log(`[STRIPE INVOICE] Invoice ${invoiceId} is already paid`);
+        this.logger.log(
+          `[STRIPE INVOICE] Invoice ${invoiceId} is already paid`,
+        );
         return invoice;
       }
 
@@ -388,7 +390,7 @@ export class StripeService {
       this.logger.log(
         `[STRIPE INVOICE] Calling pay() with paid_out_of_band=true for invoice ${invoiceId}`,
       );
-      
+
       invoice = await this.stripe.invoices.pay(invoiceId, {
         paid_out_of_band: true,
       });
@@ -401,25 +403,24 @@ export class StripeService {
         this.logger.warn(
           `[STRIPE INVOICE] Invoice ${invoiceId} status is '${invoice.status}' after pay() call. Waiting and re-checking...`,
         );
-        
+
         for (let attempt = 1; attempt <= 5; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-          
-          const recheckedInvoice = await this.stripe.invoices.retrieve(
-            invoiceId,
-          );
-          
+
+          const recheckedInvoice =
+            await this.stripe.invoices.retrieve(invoiceId);
+
           this.logger.log(
             `[STRIPE INVOICE] Re-check attempt ${attempt}/5 for invoice ${invoiceId}. Status: ${recheckedInvoice.status}`,
           );
-          
+
           if (recheckedInvoice.status === 'paid') {
             this.logger.log(
               `[STRIPE INVOICE] Invoice ${invoiceId} confirmed as paid after re-check attempt ${attempt}.`,
             );
             return recheckedInvoice;
           }
-          
+
           if (recheckedInvoice.status === 'open' && attempt < 5) {
             this.logger.warn(
               `[STRIPE INVOICE] Invoice ${invoiceId} still open. Retrying pay() call...`,
@@ -441,24 +442,26 @@ export class StripeService {
             }
           }
         }
-        
+
         const finalCheck = await this.stripe.invoices.retrieve(invoiceId);
         if (finalCheck.status !== 'paid') {
           this.logger.error(
-            `[STRIPE INVOICE] CRITICAL: Invoice ${invoiceId} still not paid after all attempts. Final status: '${finalCheck.status}'. Invoice details: ${JSON.stringify({
-              id: finalCheck.id,
-              status: finalCheck.status,
-              amount_paid: finalCheck.amount_paid,
-              amount_due: finalCheck.amount_due,
-              total: finalCheck.total,
-              auto_advance: finalCheck.auto_advance,
-            })}`,
+            `[STRIPE INVOICE] CRITICAL: Invoice ${invoiceId} still not paid after all attempts. Final status: '${finalCheck.status}'. Invoice details: ${JSON.stringify(
+              {
+                id: finalCheck.id,
+                status: finalCheck.status,
+                amount_paid: finalCheck.amount_paid,
+                amount_due: finalCheck.amount_due,
+                total: finalCheck.total,
+                auto_advance: finalCheck.auto_advance,
+              },
+            )}`,
           );
           throw new Error(
             `Invoice payment failed. Invoice status: ${finalCheck.status}. Expected: 'paid'. Invoice ID: ${invoiceId}`,
           );
         }
-        
+
         return finalCheck;
       }
 
@@ -472,23 +475,25 @@ export class StripeService {
         `[STRIPE INVOICE] Failed to pay Stripe invoice ${invoiceId}: ${error.message}`,
         error,
       );
-      
+
       if (error.type === 'StripeInvalidRequestError') {
-        const invoice = await this.stripe.invoices.retrieve(invoiceId).catch(
-          () => null,
-        );
+        const invoice = await this.stripe.invoices
+          .retrieve(invoiceId)
+          .catch(() => null);
         if (invoice) {
           this.logger.error(
-            `[STRIPE INVOICE] Invoice ${invoiceId} current state: ${JSON.stringify({
-              status: invoice.status,
-              amount_paid: invoice.amount_paid,
-              amount_due: invoice.amount_due,
-              total: invoice.total,
-            })}`,
+            `[STRIPE INVOICE] Invoice ${invoiceId} current state: ${JSON.stringify(
+              {
+                status: invoice.status,
+                amount_paid: invoice.amount_paid,
+                amount_due: invoice.amount_due,
+                total: invoice.total,
+              },
+            )}`,
           );
         }
       }
-      
+
       throw error;
     }
   }

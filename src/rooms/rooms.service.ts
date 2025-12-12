@@ -686,9 +686,8 @@ export class RoomsService {
       quantity: room.quantity || 1,
     }));
 
-    const pricingBreakdown = await this.pricingEngine.calculatePricing(
-      pricingInput,
-    );
+    const pricingBreakdown =
+      await this.pricingEngine.calculatePricing(pricingInput);
 
     return {
       rooms: roomQuotes,

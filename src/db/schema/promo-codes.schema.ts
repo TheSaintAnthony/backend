@@ -30,8 +30,10 @@ export const coupons = pgTable(
       .unique(),
     name: varchar('name', { length: 255 }).notNull(),
     discountType: discountTypeEnum('discount_type').notNull(),
-    discountValue: numeric('discount_value', { precision: 10, scale: 2 })
-      .notNull(),
+    discountValue: numeric('discount_value', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
     currency: varchar('currency', { length: 3 }).default('EUR').notNull(),
     maxRedemptions: integer('max_redemptions'),
     timesRedeemed: integer('times_redeemed').default(0).notNull(),
@@ -99,8 +101,10 @@ export const promoCodeRedemptions = pgTable('promo_code_redemptions', {
   reservationId: uuid('reservation_id').references(() => reservations.id, {
     onDelete: 'set null',
   }),
-  discountAmount: numeric('discount_amount', { precision: 10, scale: 2 })
-    .notNull(),
+  discountAmount: numeric('discount_amount', {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   redeemedAt: timestamp('redeemed_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

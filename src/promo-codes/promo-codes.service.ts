@@ -1,13 +1,15 @@
-import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import { eq, and, gte, or, isNull, count, sql } from 'drizzle-orm';
 import { StripeService } from 'src/payments/stripe/stripe.service';
-import {
-  CreatePromoCodeDto,
-  ValidatePromoCodeDto,
-} from './dto';
+import { CreatePromoCodeDto, ValidatePromoCodeDto } from './dto';
 import {
   PaginationDto,
   createPaginatedResponse,
@@ -104,7 +106,12 @@ export class PromoCodesService {
       coupon: d.coupon,
     }));
 
-    return createPaginatedResponse(formattedData, totalResult.count, page, limit);
+    return createPaginatedResponse(
+      formattedData,
+      totalResult.count,
+      page,
+      limit,
+    );
   }
 
   async getPromoCodeById(id: string) {
@@ -251,9 +258,8 @@ export class PromoCodesService {
       }
     }
 
-    const stripeValidation = await this.stripeService.validatePromotionCode(
-      code,
-    );
+    const stripeValidation =
+      await this.stripeService.validatePromotionCode(code);
     if (!stripeValidation) {
       throw new BadRequestException(
         'Código promocional inválido no sistema de pagamentos',
@@ -393,6 +399,11 @@ export class PromoCodesService {
       user: d.user,
     }));
 
-    return createPaginatedResponse(formattedData, totalResult.count, page, limit);
+    return createPaginatedResponse(
+      formattedData,
+      totalResult.count,
+      page,
+      limit,
+    );
   }
 }
