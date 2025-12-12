@@ -252,6 +252,7 @@ export class StripeService {
     }>;
     autoAdvance?: boolean;
     discounts?: Array<{ coupon?: string; promotion_code?: string }>;
+    paymentIntentId?: string;
   }): Promise<Stripe.Invoice> {
     try {
       const invoiceCreateParams: Stripe.InvoiceCreateParams = {
@@ -310,6 +311,31 @@ export class StripeService {
       const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
         invoice.id,
       );
+      
+      if (params.paymentIntentId) {
+        try {
+          this.logger.log(
+            `[STRIPE INVOICE] Attaching PaymentIntent ${params.paymentIntentId} to Invoice ${finalizedInvoice.id}`,
+          );
+          const invoiceWithPayment = await this.stripe.invoices.attachPayment(
+            finalizedInvoice.id,
+            {
+              payment_intent: params.paymentIntentId,
+            },
+          );
+          this.logger.log(
+            `[STRIPE INVOICE] PaymentIntent ${params.paymentIntentId} attached to Invoice ${finalizedInvoice.id}. Invoice status: ${invoiceWithPayment.status}`,
+          );
+          return invoiceWithPayment;
+        } catch (error: any) {
+          this.logger.error(
+            `[STRIPE INVOICE] Failed to attach PaymentIntent ${params.paymentIntentId} to Invoice ${finalizedInvoice.id}: ${error.message}`,
+            error,
+          );
+          throw error;
+        }
+      }
+      
       return finalizedInvoice;
     } catch (error) {
       this.logger.error(`Failed to create Stripe invoice: ${error}`);

@@ -885,198 +885,164 @@ export class ReservationsService implements OnModuleInit {
         externalReferenceId: null,
       });
     }
-    const stripeCustomerIdToUse = stripeCustomerId || user.stripeCustomerId;
-    if (stripeCustomerIdToUse) {
-      try {
-        if (!storedPricing) {
-          this.logger.error(
-            'CRITICAL: Stripe invoice creation called without stored pricing',
-          );
-          throw new BadRequestException(
-            'Stripe invoice generation failed: pricing data missing',
-          );
-        }
-
-        const storedPricingBreakdown = storedPricing.breakdown.rooms;
-        const roomBreakdownMap = new Map(
-          storedPricingBreakdown.map((room) => [room.roomId, room]),
-        );
-
-        const stripeLineItems = await Promise.all(
-          validatedRooms.map(async (roomValidation) => {
-            const room = await this.roomsService.getRoomById(
-              roomValidation.roomId,
-            );
-            const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
-            const checkIn = new Date(roomValidation.checkIn);
-            const checkOut = new Date(roomValidation.checkOut);
-            const nights = roomBreakdown
-              ? roomBreakdown.nights
-              : this.calculateNights(checkIn, checkOut);
-            const roomBasePrice = roomBreakdown
-              ? roomBreakdown.basePrice
-              : Number(roomValidation.price);
-            const basePricePerNight = roomBasePrice / nights;
-
-            if (basePricePerNight <= 0) {
-              throw new BadRequestException(
-                `Invalid price for room ${roomValidation.roomId}: ${roomBasePrice}`,
-              );
-            }
-            if (!room.stripePriceId && !room.stripeProductId) {
-              throw new BadRequestException(
-                `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
-              );
-            }
-
-            if (room.stripeProductId) {
-              return {
-                priceId: undefined,
-                priceData: {
-                  currency: 'eur',
-                  product: room.stripeProductId,
-                  unitAmount: Math.round(basePricePerNight * 100),
-                },
-                quantity: nights,
-                description: `${room.name} - ${nights} night(s)`,
-              };
-            } else {
-              throw new BadRequestException(
-                `Room ${roomValidation.roomId} is missing Stripe product configuration`,
-              );
-            }
-          }),
-        );
-
-        const firstRoom = await this.roomsService.getRoomById(
-          validatedRooms[0].roomId,
-        );
-
-        const storedDiscountAmount = storedPricing.discountAmount;
-        const storedVatAmount = storedPricing.vatAmount;
-
-        if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
-          const discountDescription = discountInfo?.promoCode
-            ? `Desconto - Código ${discountInfo.promoCode}`
-            : 'Desconto';
-
-          stripeLineItems.push({
-            priceId: undefined,
-            priceData: {
-              currency: 'eur',
-              product: firstRoom.stripeProductId,
-              unitAmount: -Math.round(storedDiscountAmount * 100),
-            },
-            quantity: 1,
-            description: discountDescription,
-          });
-        }
-
-        if (firstRoom.stripeProductId && storedVatAmount > 0) {
-          stripeLineItems.push({
-            priceId: undefined,
-            priceData: {
-              currency: 'eur',
-              product: firstRoom.stripeProductId,
-              unitAmount: Math.round(storedVatAmount * 100),
-            },
-            quantity: 1,
-            description: 'IVA (23%)',
-          });
-        }
-
-        const tourismFeeStripeItems = await Promise.all(
-          validatedRooms.map(async (roomValidation) => {
-            const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
-            if (!roomBreakdown || roomBreakdown.tourismFee <= 0) {
-              return null;
-            }
-            const room = await this.roomsService.getRoomById(
-              roomValidation.roomId,
-            );
-            if (!room.stripeProductId) {
-              return null;
-            }
-            const checkIn = new Date(roomValidation.checkIn);
-            const checkOut = new Date(roomValidation.checkOut);
-            const nights = roomBreakdown.nights;
-            const guestsCount = roomBreakdown.guestsCount;
-            const tourismFeeTotal = roomBreakdown.tourismFee;
-            const tourismFeePerPersonPerNight =
-              nights > 0 && guestsCount > 0
-                ? tourismFeeTotal / (guestsCount * nights)
-                : 0;
-            return {
-              priceId: undefined,
-              priceData: {
-                currency: 'eur',
-                product: room.stripeProductId,
-                unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
-              },
-              quantity: guestsCount * nights,
-              description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
-            };
-          }),
-        );
-        const validTourismFeeItems = tourismFeeStripeItems.filter(
-          (item) => item !== null,
-        );
-        stripeLineItems.push(...validTourismFeeItems);
-
-        const stripeInvoiceParams: Parameters<
-          typeof this.stripeService.createInvoice
-        >[0] = {
-          customerId: stripeCustomerIdToUse,
-          description: `Invoice ${invoiceNumber} for reservation ${reservationId}`,
-          metadata: {
-            reservationId,
-            invoiceId: invoice.id,
-            invoiceNumber,
-          },
-          lineItems: stripeLineItems,
-          autoAdvance: false,
-        };
-
-        const stripeInvoice =
-          await this.stripeService.createInvoice(stripeInvoiceParams);
-        
-        if (transactionId) {
-          try {
-            this.logger.log(
-              `[INVOICE] Attaching PaymentIntent ${transactionId} to Stripe Invoice ${stripeInvoice.id}`,
-            );
-            await this.stripeService.attachPaymentIntentToInvoice(
-              stripeInvoice.id,
-              transactionId,
-            );
-            this.logger.log(
-              `[INVOICE] PaymentIntent ${transactionId} successfully attached to Stripe Invoice ${stripeInvoice.id}`,
-            );
-          } catch (error: any) {
-            this.logger.error(
-              `[INVOICE] Failed to attach PaymentIntent ${transactionId} to Stripe Invoice ${stripeInvoice.id}: ${error.message}`,
-              error,
-            );
-          }
-        }
-        
-        await tx
-          .update(schema.invoices)
-          .set({
-            externalInvoiceId: stripeInvoice.id,
-            externalInvoiceNumber: stripeInvoice.number || undefined,
-            externalInvoiceUrl: stripeInvoice.hosted_invoice_url || undefined,
-          })
-          .where(eq(schema.invoices.id, invoice.id));
-      } catch (error) {
-        this.logger.error('Failed to create Stripe invoice:', error);
-      }
-    }
     return invoice;
   }
   private calculateNights(checkIn: Date, checkOut: Date): number {
     const diffTime = checkOut.getTime() - checkIn.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+  private async prepareStripeInvoiceLineItems(
+    validatedRooms: RoomValidation[],
+    storedPricing: {
+      basePrice: number;
+      discountAmount: number;
+      discountedBasePrice: number;
+      tourismFee: number;
+      vatAmount: number;
+      totalPrice: number;
+      breakdown: {
+        rooms: Array<{
+          roomId: string;
+          basePrice: number;
+          tourismFee: number;
+          guestsCount: number;
+          nights: number;
+          quantity: number;
+        }>;
+      };
+    },
+    discountInfo?: {
+      discountAmount: number;
+      promoCode?: string;
+      discountType?: 'percentage' | 'fixed_amount';
+      discountValue?: string;
+      stripePromoCodeId?: string;
+      stripeCouponId?: string;
+    },
+  ) {
+    const storedPricingBreakdown = storedPricing.breakdown.rooms;
+    const roomBreakdownMap = new Map(
+      storedPricingBreakdown.map((room) => [room.roomId, room]),
+    );
+
+    const stripeLineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = roomBreakdown
+          ? roomBreakdown.nights
+          : this.calculateNights(checkIn, checkOut);
+        const roomBasePrice = roomBreakdown
+          ? roomBreakdown.basePrice
+          : Number(roomValidation.price);
+        const basePricePerNight = roomBasePrice / nights;
+
+        if (basePricePerNight <= 0) {
+          throw new BadRequestException(
+            `Invalid price for room ${roomValidation.roomId}: ${roomBasePrice}`,
+          );
+        }
+        if (!room.stripePriceId && !room.stripeProductId) {
+          throw new BadRequestException(
+            `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
+          );
+        }
+
+        if (room.stripeProductId) {
+          return {
+            priceId: undefined,
+            priceData: {
+              currency: 'eur',
+              product: room.stripeProductId,
+              unitAmount: Math.round(basePricePerNight * 100),
+            },
+            quantity: nights,
+            description: `${room.name} - ${nights} night(s)`,
+          };
+        } else {
+          throw new BadRequestException(
+            `Room ${roomValidation.roomId} is missing Stripe product configuration`,
+          );
+        }
+      }),
+    );
+
+    const firstRoom = await this.roomsService.getRoomById(
+      validatedRooms[0].roomId,
+    );
+
+    const storedDiscountAmount = storedPricing.discountAmount;
+    const storedVatAmount = storedPricing.vatAmount;
+
+    if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
+      const discountDescription = discountInfo?.promoCode
+        ? `Desconto - Código ${discountInfo.promoCode}`
+        : 'Desconto';
+
+      stripeLineItems.push({
+        priceId: undefined,
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: -Math.round(storedDiscountAmount * 100),
+        },
+        quantity: 1,
+        description: discountDescription,
+      });
+    }
+
+    if (firstRoom.stripeProductId && storedVatAmount > 0) {
+      stripeLineItems.push({
+        priceId: undefined,
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: Math.round(storedVatAmount * 100),
+        },
+        quantity: 1,
+        description: 'IVA (23%)',
+      });
+    }
+
+    const tourismFeeStripeItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        if (!roomBreakdown || roomBreakdown.tourismFee <= 0) {
+          return null;
+        }
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.stripeProductId) {
+          return null;
+        }
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = roomBreakdown.nights;
+        const guestsCount = roomBreakdown.guestsCount;
+        const tourismFeeTotal = roomBreakdown.tourismFee;
+        const tourismFeePerPersonPerNight =
+          nights > 0 && guestsCount > 0
+            ? tourismFeeTotal / (guestsCount * nights)
+            : 0;
+        return {
+          priceId: undefined,
+          priceData: {
+            currency: 'eur',
+            product: room.stripeProductId,
+            unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
+          },
+          quantity: guestsCount * nights,
+          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+        };
+      }),
+    );
+    const validTourismFeeItems = tourismFeeStripeItems.filter(
+      (item) => item !== null,
+    );
+    stripeLineItems.push(...validTourismFeeItems);
+
+    return stripeLineItems;
   }
   async getReservationById(id: string): Promise<ReservationWithRooms> {
     const results = await this.db
@@ -1623,63 +1589,81 @@ export class ReservationsService implements OnModuleInit {
         })
         .where(eq(schema.payments.invoiceId, invoice.id));
 
-      if (invoice.externalInvoiceId) {
+      const user = await this.usersService.getUserById(bookingIntentData.userId);
+      const stripeCustomerIdToUse =
+        bookingIntentData.stripeCustomerId || user.stripeCustomerId;
+      if (stripeCustomerIdToUse && transactionId) {
         try {
           this.logger.log(
-            `[INVOICE] Paying Stripe invoice: ${invoice.externalInvoiceId}`,
+            `[INVOICE] Creating Stripe invoice for reservation ${reservation.id} with PaymentIntent ${transactionId} attached`,
           );
-          
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          
-          const paidInvoice = await this.stripeService.payInvoice(
-            invoice.externalInvoiceId,
+
+          const stripeLineItems = await this.prepareStripeInvoiceLineItems(
+            bookingIntentData.rooms,
+            bookingIntentData.pricing,
+            bookingIntentData.promoCode && bookingIntentData.pricing.discountAmount > 0
+              ? {
+                  discountAmount: bookingIntentData.pricing.discountAmount,
+                  promoCode: bookingIntentData.promoCode.code,
+                  discountType: bookingIntentData.promoCode.discountType,
+                  discountValue: bookingIntentData.promoCode.discountValue,
+                  stripePromoCodeId: bookingIntentData.promoCode.stripePromoCodeId,
+                  stripeCouponId: bookingIntentData.promoCode.stripeCouponId,
+                }
+              : undefined,
           );
-          
+
+          const stripeInvoiceParams: Parameters<
+            typeof this.stripeService.createInvoice
+          >[0] = {
+            customerId: stripeCustomerIdToUse,
+            description: `Invoice ${invoice.invoiceNumber || invoice.id} for reservation ${reservation.id}`,
+            metadata: {
+              reservationId: reservation.id,
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoiceNumber || invoice.id,
+            },
+            lineItems: stripeLineItems,
+            autoAdvance: false,
+            paymentIntentId: transactionId,
+          };
+
+          const stripeInvoice = await this.stripeService.createInvoice(
+            stripeInvoiceParams,
+          );
+
           this.logger.log(
-            `[INVOICE] Stripe invoice payment completed. Final status: ${paidInvoice.status}`,
+            `[INVOICE] Stripe invoice created: ${stripeInvoice.id}, Status: ${stripeInvoice.status}, PaymentIntent ${transactionId} attached`,
           );
-          
+
           const invoiceUrl =
-            paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
+            stripeInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
           let finalUrl = invoiceUrl;
           if (!finalUrl) {
-            finalUrl = await this.stripeService.getInvoiceUrl(
-              invoice.externalInvoiceId,
-            );
+            finalUrl = await this.stripeService.getInvoiceUrl(stripeInvoice.id);
           }
+
           await tx
             .update(schema.invoices)
             .set({
               issuedAt: new Date(),
+              externalInvoiceId: stripeInvoice.id,
+              externalInvoiceNumber: stripeInvoice.number || undefined,
               externalInvoiceUrl: finalUrl || invoice.externalInvoiceUrl,
             })
             .where(eq(schema.invoices.id, invoice.id));
-        } catch (error) {
+
+          this.logger.log(
+            `[INVOICE] Stripe invoice ${stripeInvoice.id} linked to database invoice ${invoice.id}. Invoice status: ${stripeInvoice.status}`,
+          );
+        } catch (error: any) {
           this.logger.error(
-            `[INVOICE] Failed to pay Stripe invoice ${invoice.externalInvoiceId}:`,
+            `[INVOICE] Failed to create Stripe invoice for reservation ${reservation.id}: ${error.message}`,
             error,
           );
-          this.logger.error(
-            `[INVOICE] CRITICAL: Payment failed for invoice ${invoice.id}. The reservation should not be completed. Rolling back transaction.`,
+          this.logger.warn(
+            `[INVOICE] Continuing without Stripe invoice. Database invoice ${invoice.id} created successfully.`,
           );
-          let invoiceUrl = invoice.externalInvoiceUrl;
-          if (!invoiceUrl && invoice.externalInvoiceId) {
-            try {
-              invoiceUrl = await this.stripeService.getInvoiceUrl(
-                invoice.externalInvoiceId,
-              );
-            } catch (urlError) {
-              this.logger.error('Failed to retrieve invoice URL:', urlError);
-            }
-          }
-          await tx
-            .update(schema.invoices)
-            .set({
-              issuedAt: new Date(),
-              externalInvoiceUrl: invoiceUrl || invoice.externalInvoiceUrl,
-            })
-            .where(eq(schema.invoices.id, invoice.id));
-          throw error;
         }
       }
 
