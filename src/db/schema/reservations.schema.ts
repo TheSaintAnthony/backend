@@ -9,6 +9,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { users } from './users.schema';
 import { paymentStatus, reservationStatus } from './lookup-tables.schema';
+// Note: promoCodeId references promo_codes table but we don't import it here
+// to avoid circular dependency. The FK is defined in the migration.
 export const reservations = pgTable(
   'reservations',
   {
@@ -31,7 +33,19 @@ export const reservations = pgTable(
       precision: 10,
       scale: 2,
     }).generatedAlwaysAs(`total_price - deposit_amout`),
+    // FK to promo_codes defined in migration to avoid circular import
+    promoCodeId: uuid('promo_code_id'),
+    discountAmount: numeric('discount_amount', { precision: 10, scale: 2 }),
     specialRequests: text('special_requests'),
+    checkinReminderSentAt: timestamp('checkin_reminder_sent_at', {
+      withTimezone: true,
+    }),
+    checkoutReminderSentAt: timestamp('checkout_reminder_sent_at', {
+      withTimezone: true,
+    }),
+    postStayEmailSentAt: timestamp('post_stay_email_sent_at', {
+      withTimezone: true,
+    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

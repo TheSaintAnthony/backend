@@ -41,12 +41,59 @@ import { Queue } from 'bullmq';
 import { InvoicesService } from 'src/invoices/invoices.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PaymentsService } from 'src/payments/payments.service';
+import { PromoCodesService } from 'src/promo-codes/promo-codes.service';
+import { RoomHoldsService } from 'src/room-holds/room-holds.service';
+import { PricingEngineService } from 'src/pricing/pricing-engine.service';
+
+interface BookingIntentData {
+  userId: string;
+  rooms: RoomValidation[];
+  specialRequests?: string;
+  invoiceData?: {
+    customerName?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    customerCity?: string;
+    customerZipCode?: string;
+    customerCountry?: string;
+    customerTaxId?: string;
+    customerCompanyName?: string;
+  };
+  promoCode?: {
+    promoCodeId: string;
+    discountType: 'percentage' | 'fixed_amount';
+    discountValue: string;
+    stripePromoCodeId?: string;
+    stripeCouponId?: string;
+    code?: string;
+  };
+  pricing: {
+    basePrice: number;
+    discountAmount: number;
+    discountedBasePrice: number;
+    tourismFee: number;
+    vatAmount: number;
+    totalPrice: number;
+    breakdown: {
+      rooms: Array<{
+        roomId: string;
+        basePrice: number;
+        tourismFee: number;
+        guestsCount: number;
+        nights: number;
+        quantity: number;
+      }>;
+    };
+  };
+  stripeCustomerId: string;
+}
 @Injectable()
 export class ReservationsService implements OnModuleInit {
   private readonly logger = new Logger(ReservationsService.name);
   private completedPaymentStatusId: string;
   private pendingPaymentStatusId: string;
-  private readonly HOLD_DURATION_MINUTES = 10;
+  private readonly HOLD_DURATION_MINUTES = 5;
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -58,6 +105,9 @@ export class ReservationsService implements OnModuleInit {
     private invoicesService: InvoicesService,
     private stripeService: StripeService,
     private _paymentsService: PaymentsService,
+    private promoCodesService: PromoCodesService,
+    private roomHoldsService: RoomHoldsService,
+    private pricingEngine: PricingEngineService,
   ) {}
   async onModuleInit() {
     const [completedStatus] = await this.db
@@ -275,6 +325,8 @@ export class ReservationsService implements OnModuleInit {
     totalPrice: string,
     validatedRooms: RoomValidation[],
     specialRequests?: string,
+    promoCodeId?: string,
+    discountAmount?: string,
   ) {
     const [reservation] = await tx
       .insert(schema.reservations)
@@ -285,27 +337,120 @@ export class ReservationsService implements OnModuleInit {
         paymentStatusId,
         depositAmount: DEFAULT_DEPOSIT_AMOUNT,
         specialRequests,
+        promoCodeId: promoCodeId || null,
+        discountAmount: discountAmount || null,
       })
       .returning();
     const roomsWithAccessCodes = [];
+    const usedAccessCodesInBatch = new Map<string, Set<number>>();
+
     for (const room of validatedRooms) {
       const quantity = room.quantity || 1;
+      const dateKey = `${room.checkIn}_${room.checkOut}`;
+
+      if (!usedAccessCodesInBatch.has(dateKey)) {
+        usedAccessCodesInBatch.set(dateKey, new Set());
+      }
+      const usedCodesForDates = usedAccessCodesInBatch.get(dateKey)!;
+
       for (let i = 0; i < quantity; i++) {
+        const accessCode = await this.generateUniqueAccessCode(
+          room.checkIn,
+          room.checkOut,
+          tx,
+          usedCodesForDates,
+        );
+        usedCodesForDates.add(accessCode);
+
         roomsWithAccessCodes.push({
           reservationId: reservation.id,
           roomId: room.roomId,
           checkIn: room.checkIn,
           checkOut: room.checkOut,
           guestsCount: parseInt(room.guestsCount),
-          accessCode: await this.generateUniqueAccessCode(
-            room.checkIn,
-            room.checkOut,
-          ),
-          deletedAt: null,
+          accessCode,
         });
       }
     }
-    await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
+    if (roomsWithAccessCodes.length > 0) {
+      try {
+        await tx.insert(schema.reservationRooms).values(roomsWithAccessCodes);
+      } catch (error: any) {
+        const pgError = error.cause || error;
+        const errorCode = pgError.code || error.code;
+        const constraint = pgError.constraint || error.constraint;
+        const detail = pgError.detail || error.detail;
+        const message = pgError.message || error.message;
+
+        this.logger.error(`Failed to insert reservation rooms: ${message}`, {
+          error: message,
+          stack: error.stack,
+          code: errorCode,
+          constraint,
+          detail,
+          pgError: pgError,
+          fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+          roomsCount: roomsWithAccessCodes.length,
+          rooms: roomsWithAccessCodes.map((r) => ({
+            roomId: r.roomId,
+            reservationId: r.reservationId,
+            checkIn: r.checkIn,
+            checkOut: r.checkOut,
+            accessCode: r.accessCode,
+          })),
+        });
+
+        if (
+          errorCode === '23505' ||
+          message?.includes('unique') ||
+          message?.includes('duplicate')
+        ) {
+          if (
+            constraint === 'unique_reservation_room' ||
+            message?.includes('unique_reservation_room')
+          ) {
+            throw new BadRequestException(
+              'This room is already added to this reservation. The database migration may not have been run. Please contact support.',
+            );
+          }
+          if (
+            constraint === 'unique_access_code_within_date' ||
+            message?.includes('unique_access_code_within_date')
+          ) {
+            throw new BadRequestException(
+              'Access code conflict. Please try again.',
+            );
+          }
+          if (
+            constraint === 'unique_reservation_room_access_code' ||
+            message?.includes('unique_reservation_room_access_code')
+          ) {
+            throw new BadRequestException(
+              'Room and access code combination already exists. Please try again.',
+            );
+          }
+          throw new BadRequestException(
+            `Database constraint violation: ${constraint || 'unknown constraint'}. ${detail || message || 'Please ensure the database migration has been run.'}`,
+          );
+        }
+
+        if (message?.includes('check_reservation_dates')) {
+          throw new BadRequestException(
+            'Invalid dates: check-out date must be after check-in date.',
+          );
+        }
+
+        if (message?.includes('check_guests_count')) {
+          throw new BadRequestException(
+            'Invalid guest count: must be greater than 0.',
+          );
+        }
+
+        throw new BadRequestException(
+          `Failed to create reservation: ${message || 'Unknown database error'}. Please try again or contact support.`,
+        );
+      }
+    }
     return reservation;
   }
   private generateAccessCode(): number {
@@ -314,26 +459,50 @@ export class ReservationsService implements OnModuleInit {
   private async generateUniqueAccessCode(
     checkIn: string,
     checkOut: string,
+    tx?: NodePgDatabase<typeof schema>,
+    usedCodesInBatch?: Set<number>,
   ): Promise<number> {
+    const db = tx || this.db;
     let code = this.generateAccessCode();
     let exists = true;
-    while (exists) {
-      const [result] = await this.db
-        .select({ count: count() })
-        .from(schema.reservationRooms)
-        .where(
-          and(
-            eq(schema.reservationRooms.accessCode, code),
-            eq(schema.reservationRooms.checkIn, checkIn),
-            eq(schema.reservationRooms.checkOut, checkOut),
-            isNull(schema.reservationRooms.deletedAt),
-          ),
-        );
-      exists = result.count > 0;
+    let attempts = 0;
+    const maxAttempts = 1000;
+
+    while (exists && attempts < maxAttempts) {
+      const isUsedInBatch = usedCodesInBatch?.has(code) || false;
+
+      if (!isUsedInBatch) {
+        const [result] = await db
+          .select({ count: count() })
+          .from(schema.reservationRooms)
+          .where(
+            and(
+              eq(schema.reservationRooms.accessCode, code),
+              eq(schema.reservationRooms.checkIn, checkIn),
+              eq(schema.reservationRooms.checkOut, checkOut),
+              isNull(schema.reservationRooms.deletedAt),
+            ),
+          );
+        exists = result.count > 0;
+      } else {
+        exists = true;
+      }
+
       if (exists) {
         code = this.generateAccessCode();
+        attempts++;
       }
     }
+
+    if (attempts >= maxAttempts) {
+      this.logger.error(
+        `Failed to generate unique access code after ${maxAttempts} attempts for dates ${checkIn} to ${checkOut}`,
+      );
+      throw new BadRequestException(
+        'Failed to generate unique access code. Please try again.',
+      );
+    }
+
     return code;
   }
   private async createInvoiceAndPayment(
@@ -357,6 +526,32 @@ export class ReservationsService implements OnModuleInit {
       customerCompanyName?: string;
     },
     stripeCustomerId?: string,
+    discountInfo?: {
+      discountAmount: number;
+      promoCode?: string;
+      discountType?: 'percentage' | 'fixed_amount';
+      discountValue?: string;
+      stripePromoCodeId?: string;
+      stripeCouponId?: string;
+    },
+    storedPricing?: {
+      basePrice: number;
+      discountAmount: number;
+      discountedBasePrice: number;
+      tourismFee: number;
+      vatAmount: number;
+      totalPrice: number;
+      breakdown: {
+        rooms: Array<{
+          roomId: string;
+          basePrice: number;
+          tourismFee: number;
+          guestsCount: number;
+          nights: number;
+          quantity: number;
+        }>;
+      };
+    },
   ) {
     const user = await this.usersService.getUserById(userId);
     const [address] = user.addressId
@@ -443,18 +638,37 @@ export class ReservationsService implements OnModuleInit {
         : undefined;
     }
     const invoiceTypeId = this.statusLookupService.getInvoiceTypeId('Invoice');
+
+    if (!storedPricing) {
+      this.logger.error(
+        'CRITICAL: createInvoiceAndPayment called without stored pricing breakdown. This should never happen.',
+      );
+      throw new BadRequestException(
+        'Invoice generation failed: pricing data missing',
+      );
+    }
+
+    const storedPricingBreakdown = storedPricing.breakdown.rooms;
+    const roomBreakdownMap = new Map(
+      storedPricingBreakdown.map((room) => [room.roomId, room]),
+    );
+
     const lineItems = await Promise.all(
       validatedRooms.map(async (roomValidation) => {
         const room = await this.roomsService.getRoomById(roomValidation.roomId);
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
         const nights = this.calculateNights(checkIn, checkOut);
-        const totalAmount = Number(roomValidation.price).toFixed(2);
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        const roomBasePrice = roomBreakdown
+          ? roomBreakdown.basePrice
+          : Number(roomValidation.price);
+        const totalAmount = roomBasePrice.toFixed(2);
         return {
           description: `${room.name} - ${nights} night(s)`,
           productCode: `ROOM_${room.id}`,
           quantity: nights.toString(),
-          unitPrice: (Number(roomValidation.price) / nights).toFixed(2),
+          unitPrice: (roomBasePrice / nights).toFixed(2),
           totalAmount: totalAmount,
           itemType: 'accommodation',
           startDate: checkIn.toISOString(),
@@ -462,24 +676,22 @@ export class ReservationsService implements OnModuleInit {
         };
       }),
     );
-    const tourismFeeLineItems = await Promise.all(
-      validatedRooms.map(async (roomValidation) => {
-        const room = await this.roomsService.getRoomById(roomValidation.roomId);
-        if (!room.propertyId) {
+
+    const tourismFeeLineItems = validatedRooms
+      .map((roomValidation) => {
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        if (!roomBreakdown || roomBreakdown.tourismFee <= 0) {
           return null;
         }
-        const property = await this.propertiesService.getPropertyById(
-          room.propertyId,
-        );
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
-        const nights = this.calculateNights(checkIn, checkOut);
-        const guestsCount = parseInt(roomValidation.guestsCount);
-        const tourismFeePerPersonPerNight = parseFloat(
-          ((property as { tourismFee?: string | null }).tourismFee as string) || '0',
-        );
-        const tourismFeeTotal =
-          tourismFeePerPersonPerNight * guestsCount * nights;
+        const nights = roomBreakdown.nights;
+        const guestsCount = roomBreakdown.guestsCount;
+        const tourismFeeTotal = roomBreakdown.tourismFee;
+        const tourismFeePerPersonPerNight =
+          nights > 0 && guestsCount > 0
+            ? tourismFeeTotal / (guestsCount * nights)
+            : 0;
         return {
           description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
           productCode: 'TOURIST_TAX',
@@ -490,12 +702,52 @@ export class ReservationsService implements OnModuleInit {
           startDate: checkIn.toISOString(),
           endDate: checkOut.toISOString(),
         };
-      }),
+      })
+      .filter((item) => item !== null);
+
+    lineItems.push(...tourismFeeLineItems);
+
+    const totalAccommodationPrice = storedPricing.discountedBasePrice;
+    const vatAmount = storedPricing.vatAmount;
+
+    if (vatAmount > 0) {
+      lineItems.push({
+        description: 'IVA (23%)',
+        productCode: 'VAT',
+        quantity: '1',
+        unitPrice: vatAmount.toFixed(2),
+        totalAmount: vatAmount.toFixed(2),
+        itemType: 'tax',
+        startDate: null as unknown as string,
+        endDate: null as unknown as string,
+      });
+    }
+
+    const storedTotalPrice = parseFloat(amount);
+    const calculatedTotalFromLineItems = lineItems.reduce(
+      (sum, item) => sum + parseFloat(item.totalAmount),
+      0,
     );
-    const validTourismFeeLineItems = tourismFeeLineItems.filter(
-      (item) => item !== null,
+    const totalDifference = Math.abs(
+      storedTotalPrice - calculatedTotalFromLineItems,
     );
-    lineItems.push(...validTourismFeeLineItems);
+
+    this.logger.log(
+      `[INVOICE] Generating invoice for reservation ${reservationId}: storedTotal=${storedTotalPrice.toFixed(2)}, calculatedFromLineItems=${calculatedTotalFromLineItems.toFixed(2)}, difference=${totalDifference.toFixed(2)}`,
+    );
+    this.logger.log(
+      `[INVOICE] Using stored pricing: basePrice=${storedPricing.basePrice.toFixed(2)}, discount=${storedPricing.discountAmount.toFixed(2)}, discountedBase=${storedPricing.discountedBasePrice.toFixed(2)}, tourismFee=${storedPricing.tourismFee.toFixed(2)}, vat=${storedPricing.vatAmount.toFixed(2)}, total=${storedPricing.totalPrice.toFixed(2)}`,
+    );
+
+    if (totalDifference > 0.01) {
+      this.logger.error(
+        `[INVOICE] CRITICAL: Invoice total mismatch! Stored: ${storedTotalPrice.toFixed(2)}, Calculated from line items: ${calculatedTotalFromLineItems.toFixed(2)}, Difference: ${totalDifference.toFixed(2)}`,
+      );
+      this.logger.error(
+        `[INVOICE] This should never happen - invoice line items should sum to stored total. Check room breakdown calculations.`,
+      );
+    }
+
     const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
     const [invoice] = await tx
       .insert(schema.invoices)
@@ -517,132 +769,139 @@ export class ReservationsService implements OnModuleInit {
       })
       .returning();
     if (lineItems.length > 0) {
+      const accommodationItems = lineItems.filter(
+        (item) => item.itemType === 'accommodation',
+      );
+      const totalAccommodationPrice = accommodationItems.reduce(
+        (sum, item) => sum + parseFloat(item.totalAmount),
+        0,
+      );
+
+      const storedBasePrice = storedPricing.basePrice;
+      const storedDiscountAmount = storedPricing.discountAmount;
+
       await tx.insert(schema.invoiceLineItems).values(
-        lineItems.map((item) => ({
-          invoiceId: invoice.id,
-          description: item.description,
-          productCode: item.productCode,
-          itemType: item.itemType,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalAmount: item.totalAmount,
-          startDate: item.startDate ? new Date(item.startDate) : undefined,
-          endDate: item.endDate ? new Date(item.endDate) : undefined,
-        })),
+        lineItems.map((item) => {
+          let itemDiscount = '0.00';
+          if (
+            item.itemType === 'accommodation' &&
+            storedDiscountAmount > 0 &&
+            storedBasePrice > 0
+          ) {
+            const itemProportion =
+              parseFloat(item.totalAmount) / storedBasePrice;
+            itemDiscount = (storedDiscountAmount * itemProportion).toFixed(2);
+          }
+
+          const totalAfterDiscount = (
+            parseFloat(item.totalAmount) - parseFloat(itemDiscount)
+          ).toFixed(2);
+
+          return {
+            invoiceId: invoice.id,
+            description:
+              discountInfo &&
+              discountInfo.discountAmount > 0 &&
+              item.itemType === 'accommodation'
+                ? `${item.description} (Código: ${discountInfo.promoCode || 'Desconto'})`
+                : item.description,
+            productCode: item.productCode,
+            itemType: item.itemType,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: itemDiscount,
+            totalAmount: totalAfterDiscount,
+            startDate: item.startDate ? new Date(item.startDate) : undefined,
+            endDate: item.endDate ? new Date(item.endDate) : undefined,
+          };
+        }),
       );
     }
-    await tx.insert(schema.payments).values({
-      invoiceId: invoice.id,
-      amount,
-      paymentStatusId,
-      transactionId,
-    });
-    const stripeCustomerIdToUse = stripeCustomerId || user.stripeCustomerId;
-    if (stripeCustomerIdToUse) {
-      try {
-        const stripeLineItems = await Promise.all(
-          validatedRooms.map(async (roomValidation) => {
-            const room = await this.roomsService.getRoomById(
-              roomValidation.roomId,
-            );
-            const checkIn = new Date(roomValidation.checkIn);
-            const checkOut = new Date(roomValidation.checkOut);
-            const nights = this.calculateNights(checkIn, checkOut);
-            const basePricePerNight = Number(roomValidation.price) / nights;
-            const priceWithVAT = basePricePerNight * 1.23;
-            if (basePricePerNight <= 0) {
-              throw new BadRequestException(
-                `Invalid price for room ${roomValidation.roomId}: ${roomValidation.price}`,
-              );
-            }
-            if (!room.stripePriceId && !room.stripeProductId) {
-              throw new BadRequestException(
-                `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
-              );
-            }
-            if (room.stripeProductId) {
-              return {
-                priceId: undefined,
-                priceData: {
-                  currency: 'eur',
-                  product: room.stripeProductId,
-                  unitAmount: Math.round(priceWithVAT * 100),
-                },
-                quantity: nights,
-                description: `${room.name} - ${nights} night(s)`,
-              };
-            } else {
-              throw new BadRequestException(
-                `Room ${roomValidation.roomId} is missing Stripe product configuration`,
-              );
-            }
-          }),
+
+    if (transactionId) {
+      const [existingPayment] = await tx
+        .select()
+        .from(schema.payments)
+        .where(
+          or(
+            eq(schema.payments.transactionId, transactionId),
+            eq(schema.payments.externalReferenceId, transactionId),
+          ),
+        )
+        .limit(1);
+
+      if (existingPayment) {
+        if (
+          existingPayment.invoiceId &&
+          existingPayment.invoiceId !== invoice.id
+        ) {
+          this.logger.error(
+            `[INVOICE] CRITICAL: Payment ${existingPayment.id} with transactionId ${transactionId} is already associated with invoice ${existingPayment.invoiceId}. Cannot associate with new invoice ${invoice.id}.`,
+          );
+          throw new BadRequestException(
+            `Payment with transaction ${transactionId} is already associated with another invoice.`,
+          );
+        }
+
+        this.logger.log(
+          `[INVOICE] Payment with transactionId ${transactionId} already exists (ID: ${existingPayment.id}). Updating to associate with invoice ${invoice.id}`,
         );
-        const tourismFeeStripeItems = await Promise.all(
-          validatedRooms.map(async (roomValidation) => {
-            const room = await this.roomsService.getRoomById(
-              roomValidation.roomId,
-            );
-            if (!room.propertyId) {
-              return null;
-            }
-            const property = await this.propertiesService.getPropertyById(
-              room.propertyId,
-            );
-            const checkIn = new Date(roomValidation.checkIn);
-            const checkOut = new Date(roomValidation.checkOut);
-            const nights = this.calculateNights(checkIn, checkOut);
-            const guestsCount = parseInt(roomValidation.guestsCount);
-            const propertyWithFee = property as { tourismFee?: string | null };
-            const tourismFeeValue: string =
-              typeof propertyWithFee.tourismFee === 'string'
-                ? propertyWithFee.tourismFee
-                : String(propertyWithFee.tourismFee ?? '0');
-            const tourismFeePerPersonPerNight = parseFloat(tourismFeeValue);
-            if (tourismFeePerPersonPerNight <= 0) {
-              return null;
-            }
-            if (!room.stripeProductId) {
-              return null;
-            }
-            return {
-              priceId: undefined,
-              priceData: {
-                currency: 'eur',
-                product: room.stripeProductId,
-                unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
-              },
-              quantity: guestsCount * nights,
-              description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
-            };
-          }),
-        );
-        const validTourismFeeItems = tourismFeeStripeItems.filter(
-          (item) => item !== null,
-        );
-        stripeLineItems.push(...validTourismFeeItems);
-        const stripeInvoice = await this.stripeService.createInvoice({
-          customerId: stripeCustomerIdToUse,
-          description: `Invoice ${invoiceNumber} for reservation ${reservationId}`,
-          metadata: {
-            reservationId,
-            invoiceId: invoice.id,
-            invoiceNumber,
-          },
-          lineItems: stripeLineItems,
-          autoAdvance: false,
-        });
+
+        const paidAtValue =
+          existingPayment.paidAt ||
+          (paymentStatusId === this.completedPaymentStatusId
+            ? new Date()
+            : undefined);
+
         await tx
-          .update(schema.invoices)
+          .update(schema.payments)
           .set({
-            externalInvoiceId: stripeInvoice.id,
-            externalInvoiceNumber: stripeInvoice.number || undefined,
-            externalInvoiceUrl: stripeInvoice.hosted_invoice_url || undefined,
+            invoiceId: invoice.id,
+            amount,
+            paymentStatusId,
+            paidAt: paidAtValue,
+            transactionId: transactionId,
+            externalReferenceId: transactionId,
           })
-          .where(eq(schema.invoices.id, invoice.id));
-      } catch (error) {
-        console.error('Failed to create Stripe invoice:', error);
+          .where(eq(schema.payments.id, existingPayment.id));
+      } else {
+        const [existingPaymentForInvoice] = await tx
+          .select()
+          .from(schema.payments)
+          .where(eq(schema.payments.invoiceId, invoice.id))
+          .limit(1);
+
+        if (existingPaymentForInvoice) {
+          this.logger.error(
+            `[INVOICE] CRITICAL: Invoice ${invoice.id} already has a payment record (ID: ${existingPaymentForInvoice.id}, transactionId: ${existingPaymentForInvoice.transactionId}) but we're trying to create/update with transactionId ${transactionId}. This should not happen.`,
+          );
+          throw new BadRequestException(
+            `Invoice ${invoice.id} already has a payment record. Cannot create duplicate.`,
+          );
+        }
+
+        this.logger.log(
+          `[INVOICE] Creating payment record for invoice ${invoice.id} with transactionId ${transactionId} (PaymentIntent ID)`,
+        );
+        await tx.insert(schema.payments).values({
+          invoiceId: invoice.id,
+          amount,
+          paymentStatusId,
+          transactionId,
+          externalReferenceId: transactionId,
+        });
       }
+    } else {
+      this.logger.warn(
+        `[INVOICE] No transactionId provided for invoice ${invoice.id}. Creating payment without transactionId.`,
+      );
+      await tx.insert(schema.payments).values({
+        invoiceId: invoice.id,
+        amount,
+        paymentStatusId,
+        transactionId: null,
+        externalReferenceId: null,
+      });
     }
     return invoice;
   }
@@ -650,14 +909,269 @@ export class ReservationsService implements OnModuleInit {
     const diffTime = checkOut.getTime() - checkIn.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
-  async getReservationById(id: string) {
-    const [reservation] = await this.db
-      .select()
+  private async prepareStripeInvoiceLineItems(
+    validatedRooms: RoomValidation[],
+    storedPricing: {
+      basePrice: number;
+      discountAmount: number;
+      discountedBasePrice: number;
+      tourismFee: number;
+      vatAmount: number;
+      totalPrice: number;
+      breakdown: {
+        rooms: Array<{
+          roomId: string;
+          basePrice: number;
+          tourismFee: number;
+          guestsCount: number;
+          nights: number;
+          quantity: number;
+        }>;
+      };
+    },
+    discountInfo?: {
+      discountAmount: number;
+      promoCode?: string;
+      discountType?: 'percentage' | 'fixed_amount';
+      discountValue?: string;
+      stripePromoCodeId?: string;
+      stripeCouponId?: string;
+    },
+  ) {
+    const storedPricingBreakdown = storedPricing.breakdown.rooms;
+    const roomBreakdownMap = new Map(
+      storedPricingBreakdown.map((room) => [room.roomId, room]),
+    );
+
+    const stripeLineItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = roomBreakdown
+          ? roomBreakdown.nights
+          : this.calculateNights(checkIn, checkOut);
+        const roomBasePrice = roomBreakdown
+          ? roomBreakdown.basePrice
+          : Number(roomValidation.price);
+        const basePricePerNight = roomBasePrice / nights;
+
+        if (basePricePerNight <= 0) {
+          throw new BadRequestException(
+            `Invalid price for room ${roomValidation.roomId}: ${roomBasePrice}`,
+          );
+        }
+        if (!room.stripePriceId && !room.stripeProductId) {
+          throw new BadRequestException(
+            `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
+          );
+        }
+
+        if (room.stripeProductId) {
+          return {
+            priceId: undefined,
+            priceData: {
+              currency: 'eur',
+              product: room.stripeProductId,
+              unitAmount: Math.round(basePricePerNight * 100),
+            },
+            quantity: nights,
+            description: `${room.name} - ${nights} night(s)`,
+          };
+        } else {
+          throw new BadRequestException(
+            `Room ${roomValidation.roomId} is missing Stripe product configuration`,
+          );
+        }
+      }),
+    );
+
+    const firstRoom = await this.roomsService.getRoomById(
+      validatedRooms[0].roomId,
+    );
+
+    const storedDiscountAmount = storedPricing.discountAmount;
+    const storedVatAmount = storedPricing.vatAmount;
+
+    if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
+      const discountDescription = discountInfo?.promoCode
+        ? `Desconto - Código ${discountInfo.promoCode}`
+        : 'Desconto';
+
+      stripeLineItems.push({
+        priceId: undefined,
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: -Math.round(storedDiscountAmount * 100),
+        },
+        quantity: 1,
+        description: discountDescription,
+      });
+    }
+
+    if (firstRoom.stripeProductId && storedVatAmount > 0) {
+      stripeLineItems.push({
+        priceId: undefined,
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: Math.round(storedVatAmount * 100),
+        },
+        quantity: 1,
+        description: 'IVA (23%)',
+      });
+    }
+
+    const tourismFeeStripeItems = await Promise.all(
+      validatedRooms.map(async (roomValidation) => {
+        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
+        if (!roomBreakdown || roomBreakdown.tourismFee <= 0) {
+          return null;
+        }
+        const room = await this.roomsService.getRoomById(roomValidation.roomId);
+        if (!room.stripeProductId) {
+          return null;
+        }
+        const checkIn = new Date(roomValidation.checkIn);
+        const checkOut = new Date(roomValidation.checkOut);
+        const nights = roomBreakdown.nights;
+        const guestsCount = roomBreakdown.guestsCount;
+        const tourismFeeTotal = roomBreakdown.tourismFee;
+        const tourismFeePerPersonPerNight =
+          nights > 0 && guestsCount > 0
+            ? tourismFeeTotal / (guestsCount * nights)
+            : 0;
+        return {
+          priceId: undefined,
+          priceData: {
+            currency: 'eur',
+            product: room.stripeProductId,
+            unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
+          },
+          quantity: guestsCount * nights,
+          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+        };
+      }),
+    );
+    const validTourismFeeItems = tourismFeeStripeItems.filter(
+      (item) => item !== null,
+    );
+    stripeLineItems.push(...validTourismFeeItems);
+
+    return stripeLineItems;
+  }
+  async getReservationById(id: string): Promise<ReservationWithRooms> {
+    const results = await this.db
+      .select({
+        reservationId: schema.reservations.id,
+        userId: schema.reservations.userId,
+        statusId: schema.reservations.statusId,
+        statusName: schema.reservationStatus.name,
+        totalPrice: schema.reservations.totalPrice,
+        paymentStatusId: schema.reservations.paymentStatusId,
+        paymentStatusName: schema.paymentStatus.name,
+        depositAmount: schema.reservations.depositAmount,
+        specialRequests: schema.reservations.specialRequests,
+        createdAt: schema.reservations.createdAt,
+        updatedAt: schema.reservations.updatedAt,
+        roomId: schema.reservationRooms.id,
+        roomReservationId: schema.reservationRooms.reservationId,
+        roomRoomId: schema.reservationRooms.roomId,
+        checkIn: schema.reservationRooms.checkIn,
+        checkOut: schema.reservationRooms.checkOut,
+        guestsCount: schema.reservationRooms.guestsCount,
+        accessCode: schema.reservationRooms.accessCode,
+        roomName: schema.rooms.name,
+        roomDescription: schema.rooms.description,
+        bedCount: schema.rooms.bedCount,
+        bathroomCount: schema.rooms.bathroomCount,
+        roomTypeName: schema.roomTypes.name,
+        maxCapacity: schema.roomTypes.maxCapacity,
+        propertyId: schema.properties.id,
+        propertyName: schema.properties.name,
+        invoiceUrl: schema.invoices.externalInvoiceUrl,
+        invoiceTotalAmount: schema.invoices.totalAmount,
+      })
       .from(schema.reservations)
+      .leftJoin(
+        schema.reservationStatus,
+        eq(schema.reservations.statusId, schema.reservationStatus.id),
+      )
+      .leftJoin(
+        schema.paymentStatus,
+        eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
+      )
+      .leftJoin(
+        schema.reservationRooms,
+        and(
+          eq(schema.reservations.id, schema.reservationRooms.reservationId),
+          isNull(schema.reservationRooms.deletedAt),
+        ),
+      )
+      .leftJoin(
+        schema.rooms,
+        eq(schema.reservationRooms.roomId, schema.rooms.id),
+      )
+      .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .leftJoin(
+        schema.properties,
+        eq(schema.rooms.propertyId, schema.properties.id),
+      )
+      .leftJoin(
+        schema.invoices,
+        eq(schema.reservations.id, schema.invoices.reservationId),
+      )
       .where(eq(schema.reservations.id, id));
-    if (!reservation) {
+
+    if (results.length === 0) {
       throw new NotFoundException('Reservation', id);
     }
+
+    const firstRow = results[0];
+    const reservation: ReservationWithRooms = {
+      id: firstRow.reservationId,
+      userId: firstRow.userId,
+      statusId: firstRow.statusId,
+      statusName: firstRow.statusName,
+      totalPrice: firstRow.totalPrice,
+      paymentStatusId: firstRow.paymentStatusId,
+      paymentStatusName: firstRow.paymentStatusName,
+      depositAmount: firstRow.depositAmount,
+      specialRequests: firstRow.specialRequests,
+      createdAt: firstRow.createdAt,
+      updatedAt: firstRow.updatedAt,
+      invoiceUrl: firstRow.invoiceUrl || null,
+      invoiceTotalAmount: firstRow.invoiceTotalAmount || null,
+      rooms: [],
+    };
+
+    for (const row of results) {
+      if (row.roomId !== null) {
+        reservation.rooms.push({
+          id: row.roomId,
+          reservationId: row.roomReservationId,
+          roomId: row.roomRoomId,
+          checkIn: row.checkIn,
+          checkOut: row.checkOut,
+          guestsCount: row.guestsCount,
+          accessCode: row.accessCode,
+          roomName: row.roomName,
+          roomDescription: row.roomDescription,
+          bedCount: row.bedCount,
+          bathroomCount: row.bathroomCount,
+          roomTypeName: row.roomTypeName,
+          maxCapacity: row.maxCapacity,
+          propertyId: row.propertyId,
+          propertyName: row.propertyName,
+        });
+      }
+    }
+
     return reservation;
   }
   async getReservationsByUser(userId: string, pagination?: PaginationDto) {
@@ -784,36 +1298,58 @@ export class ReservationsService implements OnModuleInit {
     return createPaginatedResponse(data, total, page, limit);
   }
   async createBooking(userId: string, data: CreateBookingDto) {
-    const { rooms, specialRequests, metadata, invoiceData } = data;
+    const { rooms, specialRequests, metadata, invoiceData, promoCodeId } = data;
     return this.db.transaction(async (tx) => {
-      const { totalPrice, validatedRooms } =
-        await this.validateRoomsAndCalculatePrice(tx, userId, rooms);
-      let totalTourismFee = 0;
-      for (const roomValidation of validatedRooms) {
-        const room = await this.roomsService.getRoomById(roomValidation.roomId);
-        if (!room.propertyId) continue;
-        const property = await this.propertiesService.getPropertyById(
-          room.propertyId,
-        );
-        const checkIn = new Date(roomValidation.checkIn);
-        const checkOut = new Date(roomValidation.checkOut);
-        const nights = Math.ceil(
-          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        const guestsCount = parseInt(roomValidation.guestsCount);
-        const propertyWithFee = property as { tourismFee?: string | null };
-        const tourismFeePerPersonPerNight = parseFloat(
-          (propertyWithFee.tourismFee as string) || '0',
-        );
-        totalTourismFee += tourismFeePerPersonPerNight * guestsCount * nights;
+      const { validatedRooms } = await this.validateRoomsAndCalculatePrice(
+        tx,
+        userId,
+        rooms,
+      );
+
+      const pricingInput = validatedRooms.map((room) => ({
+        roomId: room.roomId,
+        checkIn: room.checkIn,
+        checkOut: room.checkOut,
+        guestsCount: parseInt(room.guestsCount),
+        quantity: room.quantity || 1,
+      }));
+
+      const pricingBreakdown = await this.pricingEngine.calculatePricing(
+        pricingInput,
+        promoCodeId,
+      );
+
+      let promoCodeValidation: {
+        promoCodeId: string;
+        discountType: 'percentage' | 'fixed_amount';
+        discountValue: string;
+        stripePromoCodeId?: string;
+        stripeCouponId?: string;
+        code?: string;
+      } | null = null;
+
+      if (promoCodeId && pricingBreakdown.discountAmount > 0) {
+        try {
+          const promoCode =
+            await this.promoCodesService.getPromoCodeById(promoCodeId);
+          if (promoCode && promoCode.isActive && promoCode.coupon) {
+            promoCodeValidation = {
+              promoCodeId: promoCode.id,
+              discountType: promoCode.coupon.discountType as
+                | 'percentage'
+                | 'fixed_amount',
+              discountValue: promoCode.coupon.discountValue || '0',
+              stripePromoCodeId: promoCode.stripePromoCodeId,
+              stripeCouponId: promoCode.coupon.stripeCouponId,
+              code: promoCode.code,
+            };
+          }
+        } catch (error) {
+          this.logger.warn(`Promo code validation failed: ${error}`);
+        }
       }
-      const totalPriceStr = totalPrice.toString();
-      const vatAmount = totalPrice * 0.23;
-      const totalPriceWithVAT = (
-        totalPrice +
-        totalTourismFee +
-        vatAmount
-      ).toFixed(2);
+
+      const totalPriceForPayment = pricingBreakdown.totalPrice.toFixed(2);
       const user = await this.usersService.getUserById(userId);
       const invoiceCustomerEmail =
         invoiceData?.customerEmail && invoiceData.customerEmail.trim() !== ''
@@ -827,17 +1363,16 @@ export class ReservationsService implements OnModuleInit {
         invoiceData?.customerPhone && invoiceData.customerPhone.trim() !== ''
           ? invoiceData.customerPhone
           : user.phone || undefined;
-      const invoiceStripeCustomer =
-        await this.stripeService.getOrCreateCustomer(
+      const stripeCustomer = await this.stripeService.getOrCreateCustomer(
+        userId,
+        invoiceCustomerEmail,
+        invoiceCustomerName,
+        invoiceCustomerPhone,
+        {
           userId,
-          invoiceCustomerEmail,
-          invoiceCustomerName,
-          invoiceCustomerPhone,
-          {
-            userId,
-            invoiceCustomer: 'true',
-          },
-        );
+          invoiceCustomer: 'true',
+        },
+      );
       const userStripeCustomer = await this.stripeService.getOrCreateCustomer(
         userId,
         user.email,
@@ -853,61 +1388,87 @@ export class ReservationsService implements OnModuleInit {
           .set({ stripeCustomerId: userStripeCustomer.id })
           .where(eq(schema.users.id, userId));
       }
-      const reservation = await this.createReservationWithRooms(
-        tx,
+
+      const bookingIntentData: BookingIntentData = {
         userId,
-        await this.statusLookupService.getReservationStatusId(
-          RESERVATION_STATUS_NAMES.PENDING,
-        ),
-        this.pendingPaymentStatusId,
-        totalPriceStr,
-        validatedRooms,
+        rooms: validatedRooms,
         specialRequests,
-      );
-      const invoice = await this.createInvoiceAndPayment(
-        tx,
-        reservation.id,
-        userId,
-        totalPriceWithVAT,
-        this.statusLookupService.getInvoiceStatusId(
-          INVOICE_STATUS_NAMES.PENDING,
-        ),
-        this.pendingPaymentStatusId,
-        undefined,
-        validatedRooms,
         invoiceData,
-        invoiceStripeCustomer.id,
+        promoCode: promoCodeValidation || undefined,
+        pricing: {
+          basePrice: pricingBreakdown.basePrice,
+          discountAmount: pricingBreakdown.discountAmount,
+          discountedBasePrice: pricingBreakdown.discountedBasePrice,
+          tourismFee: pricingBreakdown.tourismFee,
+          vatAmount: pricingBreakdown.vatAmount,
+          totalPrice: pricingBreakdown.totalPrice,
+          breakdown: pricingBreakdown.breakdown,
+        },
+        stripeCustomerId: stripeCustomer.id,
+      };
+
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + this.HOLD_DURATION_MINUTES);
+
+      const [bookingIntent] = await tx
+        .insert(schema.bookingIntents)
+        .values({
+          userId,
+          bookingData: bookingIntentData,
+          expiresAt,
+        })
+        .returning();
+
+      const paymentAmountInCents = Math.round(
+        pricingBreakdown.totalPrice * 100,
       );
+      const expectedAmountInCents = Math.round(
+        parseFloat(totalPriceForPayment) * 100,
+      );
+
+      if (paymentAmountInCents !== expectedAmountInCents) {
+        this.logger.error(
+          `CRITICAL: Payment amount calculation error! Expected: ${expectedAmountInCents} cents (${totalPriceForPayment}), Calculated: ${paymentAmountInCents} cents (${pricingBreakdown.totalPrice})`,
+        );
+        throw new BadRequestException(
+          'Payment amount calculation error. Please try again.',
+        );
+      }
+
       const paymentResult = await this.stripeService.createPaymentIntent({
-        amount: totalPriceWithVAT,
+        amount: totalPriceForPayment,
         currency: 'EUR',
-        customerId: invoiceStripeCustomer.id,
-        orderId: reservation.id.toString(),
-        description: `Booking ${reservation.id}`,
+        customerId: stripeCustomer.id,
+        orderId: bookingIntent.id,
+        description: 'ST ANTHONY Booking',
         statementDescriptor: 'ST ANTHONY',
         metadata: {
-          reservationId: reservation.id,
-          invoiceId: invoice.id,
+          bookingIntentId: bookingIntent.id,
           userId,
+          storedTotalPrice: pricingBreakdown.totalPrice.toFixed(2),
+          ...(promoCodeValidation && {
+            promoCodeId: promoCodeValidation.promoCodeId,
+            discountAmount: pricingBreakdown.discountAmount.toFixed(2),
+          }),
           ...metadata,
         },
       });
+
+      this.logger.log(
+        `[BOOKING] Payment intent created: ${paymentResult.transactionId}, Amount: ${totalPriceForPayment} EUR (${paymentAmountInCents} cents), Stored total: ${pricingBreakdown.totalPrice.toFixed(2)}`,
+      );
+      this.logger.log(
+        `[BOOKING] Stored pricing breakdown in booking_intents: basePrice=${pricingBreakdown.basePrice.toFixed(2)}, discount=${pricingBreakdown.discountAmount.toFixed(2)}, tourismFee=${pricingBreakdown.tourismFee.toFixed(2)}, vat=${pricingBreakdown.vatAmount.toFixed(2)}, total=${pricingBreakdown.totalPrice.toFixed(2)}`,
+      );
+
       await tx
-        .update(schema.payments)
-        .set({
-          transactionId: paymentResult.transactionId,
-          externalReferenceId: paymentResult.transactionId,
-        })
-        .where(eq(schema.payments.invoiceId, invoice.id));
-      const basePrice = totalPrice;
-      const tourismFee = totalTourismFee;
-      const vatPercentage = 23;
-      const vatValue = basePrice * 0.23;
-      const finalTotal = basePrice + tourismFee + vatValue;
+        .update(schema.bookingIntents)
+        .set({ paymentIntentId: paymentResult.transactionId })
+        .where(eq(schema.bookingIntents.id, bookingIntent.id));
+
       return {
         success: true,
-        reservation,
-        invoice,
+        bookingIntentId: bookingIntent.id,
         payment: {
           transactionId: paymentResult.transactionId,
           requiresUserAction: paymentResult.requiresUserAction,
@@ -916,180 +1477,249 @@ export class ReservationsService implements OnModuleInit {
           metadata: paymentResult.metadata,
         },
         pricing: {
-          basePrice: basePrice.toFixed(2),
-          tourismFee: tourismFee.toFixed(2),
-          vatPercentage: vatPercentage.toString(),
-          vatValue: vatValue.toFixed(2),
-          totalPrice: finalTotal.toFixed(2),
+          basePrice: pricingBreakdown.basePrice.toFixed(2),
+          tourismFee: pricingBreakdown.tourismFee.toFixed(2),
+          vatPercentage: '23',
+          vatValue: pricingBreakdown.vatAmount.toFixed(2),
+          totalPrice: pricingBreakdown.totalPrice.toFixed(2),
+          discountAmount: pricingBreakdown.discountAmount.toFixed(2),
+          originalBasePrice: pricingBreakdown.basePrice.toFixed(2),
         },
-        totalPrice: totalPriceStr,
-        message: paymentResult.requiresUserAction
-          ? 'Complete payment to confirm booking'
-          : 'Booking completed successfully',
+        promoCode: promoCodeValidation
+          ? {
+              promoCodeId: promoCodeValidation.promoCodeId,
+              discountType: promoCodeValidation.discountType,
+              discountValue: promoCodeValidation.discountValue,
+              discountAmount: pricingBreakdown.discountAmount.toFixed(2),
+            }
+          : null,
+        totalPrice: pricingBreakdown.discountedBasePrice.toFixed(2),
+        message: 'Complete payment to confirm booking',
       };
     });
   }
   async completeBooking(transactionId: string) {
+    const paymentStatus =
+      await this.stripeService.getPaymentIntentStatus(transactionId);
+
+    if (paymentStatus.status !== 'completed') {
+      throw new BadRequestException(
+        `Payment is not completed. Current status: ${paymentStatus.status}`,
+      );
+    }
+
     return this.db.transaction(async (tx) => {
-      const [existingPayment] = await tx
+      const existingReservation = await this.findReservationByPaymentIntent(
+        tx,
+        transactionId,
+      );
+
+      if (existingReservation) {
+        return {
+          success: true,
+          reservation: existingReservation,
+          message: 'Payment already completed',
+        };
+      }
+
+      const [bookingIntent] = await tx
         .select()
-        .from(schema.payments)
-        .where(
-          or(
-            eq(schema.payments.transactionId, transactionId),
-            eq(schema.payments.externalReferenceId, transactionId),
-          ),
-        )
+        .from(schema.bookingIntents)
+        .where(eq(schema.bookingIntents.paymentIntentId, transactionId))
         .limit(1);
-      if (!existingPayment) {
-        let paymentStatus;
-        try {
-          paymentStatus =
-            await this.stripeService.getPaymentIntentStatus(transactionId);
-        } catch {
-          throw new NotFoundException('Payment', transactionId);
-        }
-        if (paymentStatus.status === 'completed') {
-          throw new NotFoundException(
-            'Payment record not found in database. Please contact support.',
-            transactionId,
-          );
-        } else {
-          throw new BadRequestException(
-            `Payment is not completed. Current status: ${paymentStatus.status}`,
-          );
-        }
-      }
-      if (existingPayment.paymentStatusId === this.completedPaymentStatusId) {
-        const [invoice] = await tx
-          .select()
-          .from(schema.invoices)
-          .where(eq(schema.invoices.id, existingPayment.invoiceId))
-          .limit(1);
-        if (invoice) {
-          const [reservation] = await tx
-            .select()
-            .from(schema.reservations)
-            .where(eq(schema.reservations.id, invoice.reservationId))
-            .limit(1);
-          if (reservation) {
-            return {
-              success: true,
-              reservation,
-              message: 'Payment already completed',
-            };
-          }
-        }
-      }
-      const paymentStatus =
-        await this.stripeService.getPaymentIntentStatus(transactionId);
-      if (paymentStatus.status !== 'completed') {
+
+      if (!bookingIntent) {
         throw new BadRequestException(
-          `Payment is not completed. Current status: ${paymentStatus.status}`,
+          'Invalid payment: booking intent not found',
         );
       }
+
+      const bookingIntentData = bookingIntent.bookingData as BookingIntentData;
+
+      const paymentAmount = paymentStatus.amount
+        ? parseFloat(paymentStatus.amount)
+        : 0;
+      const storedTotalPrice = bookingIntentData.pricing.totalPrice;
+      const amountDifference = Math.abs(paymentAmount - storedTotalPrice);
+
+      this.logger.log(
+        `[COMPLETE BOOKING] Payment confirmed: ${transactionId}, Payment amount: ${paymentAmount.toFixed(2)}, Stored total: ${storedTotalPrice.toFixed(2)}, Difference: ${amountDifference.toFixed(2)}`,
+      );
+
+      if (amountDifference > 0.01) {
+        this.logger.error(
+          `[COMPLETE BOOKING] CRITICAL: Payment amount mismatch! Payment: ${paymentAmount.toFixed(2)}, Stored: ${storedTotalPrice.toFixed(2)}, Difference: ${amountDifference.toFixed(2)}`,
+        );
+        throw new BadRequestException(
+          'Payment amount does not match booking total. Please contact support.',
+        );
+      }
+
+      const confirmedStatusId =
+        await this.statusLookupService.getReservationStatusId(
+          RESERVATION_STATUS_NAMES.CONFIRMED,
+        );
+
+      const reservation = await this.createReservationWithRooms(
+        tx,
+        bookingIntentData.userId,
+        confirmedStatusId,
+        this.completedPaymentStatusId,
+        bookingIntentData.pricing.discountedBasePrice.toString(),
+        bookingIntentData.rooms,
+        bookingIntentData.specialRequests,
+        bookingIntentData.promoCode?.promoCodeId,
+        bookingIntentData.pricing.discountAmount > 0
+          ? bookingIntentData.pricing.discountAmount.toFixed(2)
+          : undefined,
+      );
+
+      const invoice = await this.createInvoiceAndPayment(
+        tx,
+        reservation.id,
+        bookingIntentData.userId,
+        bookingIntentData.pricing.totalPrice.toFixed(2),
+        this.statusLookupService.getInvoiceStatusId(INVOICE_STATUS_NAMES.PAID),
+        this.completedPaymentStatusId,
+        transactionId,
+        bookingIntentData.rooms,
+        bookingIntentData.invoiceData,
+        bookingIntentData.stripeCustomerId,
+        bookingIntentData.promoCode &&
+          bookingIntentData.pricing.discountAmount > 0
+          ? {
+              discountAmount: bookingIntentData.pricing.discountAmount,
+              promoCode: bookingIntentData.promoCode.code,
+              discountType: bookingIntentData.promoCode.discountType,
+              discountValue: bookingIntentData.promoCode.discountValue,
+              stripePromoCodeId: bookingIntentData.promoCode.stripePromoCodeId,
+              stripeCouponId: bookingIntentData.promoCode.stripeCouponId,
+            }
+          : undefined,
+        bookingIntentData.pricing,
+      );
+
+      await tx
+        .update(schema.bookingIntents)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(eq(schema.bookingIntents.id, bookingIntent.id));
+
       await tx
         .update(schema.payments)
         .set({
-          paymentStatusId: this.completedPaymentStatusId,
           paidAt: paymentStatus.completedAt || new Date(),
         })
-        .where(eq(schema.payments.id, existingPayment.id));
-      const [invoice] = await tx
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, existingPayment.invoiceId))
-        .limit(1);
-      if (!invoice) {
-        throw new NotFoundException(
-          'Invoice',
-          String(existingPayment.invoiceId),
-        );
-      }
-      if (invoice.externalInvoiceId) {
+        .where(eq(schema.payments.invoiceId, invoice.id));
+
+      const user = await this.usersService.getUserById(
+        bookingIntentData.userId,
+      );
+      const stripeCustomerIdToUse =
+        bookingIntentData.stripeCustomerId || user.stripeCustomerId;
+      if (stripeCustomerIdToUse && transactionId) {
         try {
-          const paidInvoice = await this.stripeService.payInvoice(
-            invoice.externalInvoiceId,
+          this.logger.log(
+            `[INVOICE] Creating Stripe invoice for reservation ${reservation.id} with PaymentIntent ${transactionId} attached`,
           );
+
+          const stripeLineItems = await this.prepareStripeInvoiceLineItems(
+            bookingIntentData.rooms,
+            bookingIntentData.pricing,
+            bookingIntentData.promoCode &&
+              bookingIntentData.pricing.discountAmount > 0
+              ? {
+                  discountAmount: bookingIntentData.pricing.discountAmount,
+                  promoCode: bookingIntentData.promoCode.code,
+                  discountType: bookingIntentData.promoCode.discountType,
+                  discountValue: bookingIntentData.promoCode.discountValue,
+                  stripePromoCodeId:
+                    bookingIntentData.promoCode.stripePromoCodeId,
+                  stripeCouponId: bookingIntentData.promoCode.stripeCouponId,
+                }
+              : undefined,
+          );
+
+          const stripeInvoiceParams: Parameters<
+            typeof this.stripeService.createInvoice
+          >[0] = {
+            customerId: stripeCustomerIdToUse,
+            description: `Invoice ${invoice.invoiceNumber || invoice.id} for reservation ${reservation.id}`,
+            metadata: {
+              reservationId: reservation.id,
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoiceNumber || invoice.id,
+            },
+            lineItems: stripeLineItems,
+            autoAdvance: false,
+            paymentIntentId: transactionId,
+          };
+
+          const stripeInvoice =
+            await this.stripeService.createInvoice(stripeInvoiceParams);
+
+          this.logger.log(
+            `[INVOICE] Stripe invoice created: ${stripeInvoice.id}, Status: ${stripeInvoice.status}, PaymentIntent ${transactionId} attached`,
+          );
+
           const invoiceUrl =
-            paidInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
+            stripeInvoice.hosted_invoice_url || invoice.externalInvoiceUrl;
           let finalUrl = invoiceUrl;
           if (!finalUrl) {
-            finalUrl = await this.stripeService.getInvoiceUrl(
-              invoice.externalInvoiceId,
-            );
+            finalUrl = await this.stripeService.getInvoiceUrl(stripeInvoice.id);
           }
+
           await tx
             .update(schema.invoices)
             .set({
-              statusId: this.statusLookupService.getInvoiceStatusId(
-                INVOICE_STATUS_NAMES.PAID,
-              ),
               issuedAt: new Date(),
+              externalInvoiceId: stripeInvoice.id,
+              externalInvoiceNumber: stripeInvoice.number || undefined,
               externalInvoiceUrl: finalUrl || invoice.externalInvoiceUrl,
             })
             .where(eq(schema.invoices.id, invoice.id));
-        } catch (error) {
-          console.error('Failed to pay Stripe invoice:', error);
-          let invoiceUrl = invoice.externalInvoiceUrl;
-          if (!invoiceUrl && invoice.externalInvoiceId) {
-            try {
-              invoiceUrl = await this.stripeService.getInvoiceUrl(
-                invoice.externalInvoiceId,
-              );
-            } catch (urlError) {
-              console.error('Failed to retrieve invoice URL:', urlError);
-            }
-          }
-          await tx
-            .update(schema.invoices)
-            .set({
-              statusId: this.statusLookupService.getInvoiceStatusId(
-                INVOICE_STATUS_NAMES.PAID,
-              ),
-              issuedAt: new Date(),
-              externalInvoiceUrl: invoiceUrl || invoice.externalInvoiceUrl,
-            })
-            .where(eq(schema.invoices.id, invoice.id));
+
+          this.logger.log(
+            `[INVOICE] Stripe invoice ${stripeInvoice.id} linked to database invoice ${invoice.id}. Invoice status: ${stripeInvoice.status}`,
+          );
+        } catch (error: any) {
+          this.logger.error(
+            `[INVOICE] Failed to create Stripe invoice for reservation ${reservation.id}: ${error.message}`,
+            error,
+          );
+          this.logger.warn(
+            `[INVOICE] Continuing without Stripe invoice. Database invoice ${invoice.id} created successfully.`,
+          );
         }
-      } else {
-        await tx
-          .update(schema.invoices)
-          .set({
-            statusId: this.statusLookupService.getInvoiceStatusId(
-              INVOICE_STATUS_NAMES.PAID,
-            ),
-            issuedAt: new Date(),
-          })
-          .where(eq(schema.invoices.id, invoice.id));
       }
-      const [reservation] = await tx
-        .select()
-        .from(schema.reservations)
-        .where(eq(schema.reservations.id, invoice.reservationId))
-        .limit(1);
-      if (!reservation) {
-        throw new NotFoundException(
-          'Reservation',
-          String(invoice.reservationId),
-        );
+
+      if (
+        bookingIntentData.promoCode?.promoCodeId &&
+        bookingIntentData.pricing.discountAmount > 0
+      ) {
+        try {
+          await this.promoCodesService.applyPromoCode(
+            bookingIntentData.promoCode.promoCodeId,
+            bookingIntentData.userId,
+            reservation.id,
+            bookingIntentData.pricing.discountAmount.toFixed(2),
+          );
+          this.logger.log(
+            `Promo code redemption recorded for reservation ${reservation.id}`,
+          );
+        } catch (error) {
+          this.logger.warn(`Failed to record promo code redemption: ${error}`);
+        }
       }
-      await tx
-        .update(schema.reservations)
-        .set({
-          statusId: await this.statusLookupService.getReservationStatusId(
-            RESERVATION_STATUS_NAMES.CONFIRMED,
-          ),
-          paymentStatusId: this.completedPaymentStatusId,
-        })
-        .where(eq(schema.reservations.id, reservation.id));
+
       await tx
         .delete(schema.roomHolds)
-        .where(eq(schema.roomHolds.userId, reservation.userId));
+        .where(eq(schema.roomHolds.userId, bookingIntentData.userId));
+
       const reservationRooms = await tx
         .select()
         .from(schema.reservationRooms)
         .where(eq(schema.reservationRooms.reservationId, reservation.id));
+
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
@@ -1105,18 +1735,51 @@ export class ReservationsService implements OnModuleInit {
         })),
         reservation.specialRequests || undefined,
       );
+
       return {
         success: true,
-        reservation: {
-          ...reservation,
-          statusId: await this.statusLookupService.getReservationStatusId(
-            RESERVATION_STATUS_NAMES.CONFIRMED,
-          ),
-          paymentStatusId: this.completedPaymentStatusId,
-        },
+        reservation,
         message: 'Payment completed successfully',
       };
     });
+  }
+
+  private async findReservationByPaymentIntent(
+    tx: NodePgDatabase<typeof schema>,
+    transactionId: string,
+  ) {
+    const [payment] = await tx
+      .select()
+      .from(schema.payments)
+      .where(
+        or(
+          eq(schema.payments.transactionId, transactionId),
+          eq(schema.payments.externalReferenceId, transactionId),
+        ),
+      )
+      .limit(1);
+
+    if (!payment) {
+      return null;
+    }
+
+    const [invoice] = await tx
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.id, payment.invoiceId))
+      .limit(1);
+
+    if (!invoice) {
+      return null;
+    }
+
+    const [reservation] = await tx
+      .select()
+      .from(schema.reservations)
+      .where(eq(schema.reservations.id, invoice.reservationId))
+      .limit(1);
+
+    return reservation || null;
   }
   async cancelReservation(reservationId: string, userId: string) {
     return this.db.transaction(async (tx) => {
@@ -1340,12 +2003,23 @@ export class ReservationsService implements OnModuleInit {
         accessCode: schema.reservationRooms.accessCode,
         roomName: schema.rooms.name,
         roomDescription: schema.rooms.description,
+        bedCount: schema.rooms.bedCount,
+        bathroomCount: schema.rooms.bathroomCount,
+        roomTypeName: schema.roomTypes.name,
+        maxCapacity: schema.roomTypes.maxCapacity,
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
         invoiceUrl: schema.invoices.externalInvoiceUrl,
+        invoiceTotalAmount: schema.invoices.totalAmount,
         userEmail: schema.users.email,
         userFirstName: schema.users.firstName,
         userLastName: schema.users.lastName,
+        userPhone: schema.users.phone,
+        userNif: schema.users.nif,
+        addressStreet: schema.addresses.street,
+        addressCity: schema.addresses.city,
+        addressZipCode: schema.addresses.zipCode,
+        addressCountry: schema.addresses.country,
       })
       .from(schema.reservations)
       .leftJoin(
@@ -1365,6 +2039,10 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservationRooms.roomId, schema.rooms.id),
       )
       .leftJoin(
+        schema.roomTypes,
+        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
+      )
+      .leftJoin(
         schema.properties,
         eq(schema.rooms.propertyId, schema.properties.id),
       )
@@ -1373,6 +2051,10 @@ export class ReservationsService implements OnModuleInit {
         eq(schema.reservations.id, schema.invoices.reservationId),
       )
       .leftJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
+      .leftJoin(
+        schema.addresses,
+        eq(schema.users.addressId, schema.addresses.id),
+      )
       .where(
         inArray(
           schema.reservations.id,
@@ -1386,6 +2068,12 @@ export class ReservationsService implements OnModuleInit {
         userEmail?: string;
         userFirstName?: string;
         userLastName?: string;
+        userPhone?: string;
+        userNif?: string;
+        userAddress?: string;
+        userCity?: string;
+        userPostalCode?: string;
+        userCountry?: string;
       }
     >();
     for (const row of results) {
@@ -1404,9 +2092,16 @@ export class ReservationsService implements OnModuleInit {
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           invoiceUrl: row.invoiceUrl || null,
+          invoiceTotalAmount: row.invoiceTotalAmount || null,
           userEmail: row.userEmail || undefined,
           userFirstName: row.userFirstName || undefined,
           userLastName: row.userLastName || undefined,
+          userPhone: row.userPhone || undefined,
+          userNif: row.userNif || undefined,
+          userAddress: row.addressStreet || undefined,
+          userCity: row.addressCity || undefined,
+          userPostalCode: row.addressZipCode || undefined,
+          userCountry: row.addressCountry || undefined,
           rooms: [],
         });
       }
@@ -1422,8 +2117,13 @@ export class ReservationsService implements OnModuleInit {
               checkIn: row.checkIn,
               checkOut: row.checkOut,
               guestsCount: row.guestsCount,
+              accessCode: row.accessCode || null,
               roomName: row.roomName,
               roomDescription: row.roomDescription,
+              bedCount: row.bedCount || null,
+              bathroomCount: row.bathroomCount || null,
+              roomTypeName: row.roomTypeName || null,
+              maxCapacity: row.maxCapacity || null,
               propertyId: row.propertyId || null,
               propertyName: row.propertyName || null,
             });
@@ -1797,5 +2497,10 @@ export class ReservationsService implements OnModuleInit {
       }
     }
     return Array.from(reservationsMap.values());
+  }
+
+  async clearUserHolds(userId: string) {
+    await this.roomHoldsService.releaseAllUserHolds(userId);
+    return { success: true, message: 'Room holds cleared successfully' };
   }
 }

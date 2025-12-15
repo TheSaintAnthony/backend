@@ -35,6 +35,11 @@ import { restaurants } from './restaurants.schema';
 import { restaurantMenus } from './restaurant-menus.schema';
 import { restaurantMenuItems } from './restaurant-menu-items.schema';
 import { menuCategories } from './lookup-tables.schema';
+import {
+  coupons,
+  promoCodes,
+  promoCodeRedemptions,
+} from './promo-codes.schema';
 export const usersRelations = relations(users, ({ one, many }) => ({
   address: one(addresses, {
     fields: [users.addressId],
@@ -115,6 +120,7 @@ export const reservationsRelations = relations(
     }),
     invoices: many(invoices),
     occurrences: many(occurrences),
+    promoCodeRedemptions: many(promoCodeRedemptions),
   }),
 );
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
@@ -277,6 +283,36 @@ export const restaurantMenuItemsRelations = relations(
     category: one(menuCategories, {
       fields: [restaurantMenuItems.categoryId],
       references: [menuCategories.id],
+    }),
+  }),
+);
+
+export const couponsRelations = relations(coupons, ({ many }) => ({
+  promoCodes: many(promoCodes),
+}));
+
+export const promoCodesRelations = relations(promoCodes, ({ one, many }) => ({
+  coupon: one(coupons, {
+    fields: [promoCodes.couponId],
+    references: [coupons.id],
+  }),
+  redemptions: many(promoCodeRedemptions),
+}));
+
+export const promoCodeRedemptionsRelations = relations(
+  promoCodeRedemptions,
+  ({ one }) => ({
+    promoCode: one(promoCodes, {
+      fields: [promoCodeRedemptions.promoCodeId],
+      references: [promoCodes.id],
+    }),
+    user: one(users, {
+      fields: [promoCodeRedemptions.userId],
+      references: [users.id],
+    }),
+    reservation: one(reservations, {
+      fields: [promoCodeRedemptions.reservationId],
+      references: [reservations.id],
     }),
   }),
 );

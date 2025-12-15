@@ -8,6 +8,7 @@ export class StatusLookupService implements OnModuleInit {
   private invoiceStatusCache = new Map<string, string>();
   private invoiceTypeCache = new Map<string, string>();
   private paymentStatusCache = new Map<string, string>();
+  private occurrenceStatusCache = new Map<string, string>();
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -21,11 +22,13 @@ export class StatusLookupService implements OnModuleInit {
       invoiceStatuses,
       invoiceTypes,
       paymentStatuses,
+      occurrenceStatuses,
     ] = await Promise.all([
       this.db.select().from(schema.reservationStatus),
       this.db.select().from(schema.invoiceStatus),
       this.db.select().from(schema.invoiceTypes),
       this.db.select().from(schema.paymentStatus),
+      this.db.select().from(schema.occurrenceStatus),
     ]);
     for (const status of reservationStatuses) {
       this.reservationStatusCache.set(status.name, status.id);
@@ -38,6 +41,9 @@ export class StatusLookupService implements OnModuleInit {
     }
     for (const status of paymentStatuses) {
       this.paymentStatusCache.set(status.name, status.id);
+    }
+    for (const status of occurrenceStatuses) {
+      this.occurrenceStatusCache.set(status.name, status.id);
     }
   }
   async getReservationStatusId(name: string): Promise<string> {
@@ -75,6 +81,19 @@ export class StatusLookupService implements OnModuleInit {
       const retryId = this.paymentStatusCache.get(name);
       if (!retryId) {
         throw new Error(`Payment status '${name}' not found`);
+      }
+      return retryId;
+    }
+    return id;
+  }
+
+  async getOccurrenceStatusId(name: string): Promise<string> {
+    const id = this.occurrenceStatusCache.get(name);
+    if (!id) {
+      await this.loadStatuses();
+      const retryId = this.occurrenceStatusCache.get(name);
+      if (!retryId) {
+        throw new Error(`Occurrence status '${name}' not found`);
       }
       return retryId;
     }

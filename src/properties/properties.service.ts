@@ -63,12 +63,13 @@ export class PropertiesService {
       },
     });
     const propertyIds = data.map((property) => property.id);
-    const allImages = propertyIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'property',
-          propertyIds,
-        )
-      : [];
+    const allImages =
+      propertyIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'property',
+            propertyIds,
+          )
+        : [];
     const imagesByPropertyId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByPropertyId.get(image.entityId) || [];
@@ -162,10 +163,27 @@ export class PropertiesService {
       .select()
       .from(schema.activities)
       .where(inArray(schema.activities.id, activityIds));
+
+    const allImages =
+      activityIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'activity',
+            activityIds,
+          )
+        : [];
+
+    const imagesByActivityId = new Map<string, typeof allImages>();
+    for (const image of allImages) {
+      const existing = imagesByActivityId.get(image.entityId) || [];
+      existing.push(image);
+      imagesByActivityId.set(image.entityId, existing);
+    }
+
     return activities.map((activity) => ({
       id: activity.id,
       name: activity.name || '',
       description: activity.description || '',
+      images: imagesByActivityId.get(activity.id) || [],
     }));
   }
   async editProperty(id: string, data: EditPropertyDto) {

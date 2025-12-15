@@ -77,17 +77,55 @@ export class LookupsService {
   ): Promise<unknown> {
     await this.ensureNotSystemManaged(table, id);
     await this.ensureExistsById(table, id);
-    return (
-      this.db
-        .update(table)
-        .set(value as any)
-        .where(eq(table.id, id))
-    );
+    return this.db
+      .update(table)
+      .set(value as any)
+      .where(eq(table.id, id));
   }
   async deleteValue(table: LookupTable, id: string) {
     await this.ensureNotSystemManaged(table, id);
     await this.ensureExistsById(table, id);
     return this.db.delete(table).where(eq(table.id, id));
+  }
+  async getAllLookups() {
+    const [
+      amenities,
+      roomTypes,
+      highlights,
+      activities,
+      activityCategories,
+      menuCategories,
+      occurrenceStatuses,
+      reservationStatuses,
+      paymentStatuses,
+      invoiceStatuses,
+      roles,
+    ] = await Promise.all([
+      this.getAmenities(),
+      this.getRoomTypes(),
+      this.getHighlights(),
+      this.getActivities(),
+      this.getActivityCategories(),
+      this.getMenuCategories(),
+      this.getOccurrenceStatus(),
+      this.getReservationStatus(),
+      this.getPaymentStatus(),
+      this.getInvoiceStatus(),
+      this.getRoles(),
+    ]);
+    return {
+      amenities,
+      roomTypes,
+      highlights,
+      activities,
+      activityCategories,
+      menuCategories,
+      occurrenceStatuses,
+      reservationStatuses,
+      paymentStatuses,
+      invoiceStatuses,
+      roles,
+    };
   }
   addAmenity(value: string) {
     return this.addValue(schema.amenities, { name: value });
@@ -231,12 +269,13 @@ export class LookupsService {
   async getActivities() {
     const activities = await this.db.query.activities.findMany();
     const activityIds = activities.map((activity) => activity.id);
-    const allImages = activityIds.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities(
-          'activity',
-          activityIds,
-        )
-      : [];
+    const allImages =
+      activityIds.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'activity',
+            activityIds,
+          )
+        : [];
     const imagesByActivityId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByActivityId.get(image.entityId) || [];

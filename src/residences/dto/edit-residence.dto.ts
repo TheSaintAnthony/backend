@@ -11,7 +11,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { EditAddressDto } from 'src/addresses/dto';
 import { NestedImageDto } from 'src/images/dto/nested-image.dto';
 export class EditResidenceDto {
-  @ApiPropertyOptional({ description: 'Residence name', example: 'Ocean View Residences' })
+  @ApiPropertyOptional({
+    description: 'Residence name',
+    example: 'Ocean View Residences',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()

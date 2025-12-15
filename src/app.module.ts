@@ -38,6 +38,8 @@ import { ResidenceUnitsModule } from './residence-units/residence-units.module';
 import { ResidenceContactsModule } from './residence-contacts/residence-contacts.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -78,8 +80,8 @@ import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.modul
     ReservationRoomsModule,
     InvoicesModule,
     PaymentsModule,
-    OccurrencesModule,
     OccurrenceResponsesModule,
+    OccurrencesModule,
     ImagesModule,
     HealthModule,
     QueuesModule,
@@ -89,6 +91,8 @@ import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.modul
     ResidenceContactsModule,
     RestaurantsModule,
     RestaurantMenusModule,
+    NotificationsModule,
+    PromoCodesModule,
   ],
   controllers: [],
   providers: [

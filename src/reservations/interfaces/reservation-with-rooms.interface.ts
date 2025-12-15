@@ -5,11 +5,15 @@ export interface ReservationRoom {
   checkIn: string | null;
   checkOut: string | null;
   guestsCount: number | null;
+  accessCode?: number | null;
   roomName: string | null;
   roomDescription: string | null;
+  bedCount?: number | null;
+  bathroomCount?: number | null;
+  roomTypeName?: string | null;
+  maxCapacity?: number | null;
   propertyId: string | null;
   propertyName: string | null;
-  accessCode?: number | null;
 }
 export interface ReservationWithRooms {
   id: string | null;

@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -20,8 +20,10 @@ import {
 import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
+import { PricingEngineService } from 'src/pricing/pricing-engine.service';
 @Injectable()
 export class RoomsService {
+  private readonly logger = new Logger(RoomsService.name);
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
@@ -31,6 +33,7 @@ export class RoomsService {
     private stripeService: StripeService,
     @Inject(forwardRef(() => PropertiesService))
     private propertiesService: PropertiesService,
+    private pricingEngine: PricingEngineService,
   ) {}
   async createRoom(data: CreateRoomDto) {
     const { images, ...roomData } = data;
@@ -91,7 +94,7 @@ export class RoomsService {
         })
         .where(eq(schema.rooms.id, createdRoom.id));
     } catch (error) {
-      console.error('Failed to create Stripe product for room:', error);
+      this.logger.error('Failed to create Stripe product for room:', error);
     }
     return this.getRoomById(createdRoom.id);
   }
@@ -154,10 +157,7 @@ export class RoomsService {
         eq(schema.highlights.id, schema.roomHighlights.highlightId),
       )
       .where(
-        and(
-          inArray(schema.rooms.id, roomIds),
-          isNull(schema.rooms.deletedAt),
-        ),
+        and(inArray(schema.rooms.id, roomIds), isNull(schema.rooms.deletedAt)),
       );
     const roomsMap = new Map<string, RoomWithDetails>();
     for (const row of roomsData) {
@@ -198,9 +198,13 @@ export class RoomsService {
       highlights: room.highlights.length > 0 ? room.highlights : null,
     }));
     const roomIdStrings = data.map((room) => room.id);
-    const allImages = roomIdStrings.length > 0
-      ? await this.imagesService.getImagesByMultipleEntities('room', roomIdStrings)
-      : [];
+    const allImages =
+      roomIdStrings.length > 0
+        ? await this.imagesService.getImagesByMultipleEntities(
+            'room',
+            roomIdStrings,
+          )
+        : [];
     const imagesByRoomId = new Map<string, typeof allImages>();
     for (const image of allImages) {
       const existing = imagesByRoomId.get(image.entityId) || [];
@@ -513,7 +517,7 @@ export class RoomsService {
           images: imageUrls.length > 0 ? imageUrls : undefined,
         });
       } catch (error) {
-        console.error('Failed to update Stripe product:', error);
+        this.logger.error('Failed to update Stripe product:', error);
       }
     }
     return this.getRoomById(id);
@@ -538,7 +542,7 @@ export class RoomsService {
       try {
         await this.stripeService.archiveProduct(room.stripeProductId);
       } catch (error) {
-        console.error('Failed to archive Stripe product:', error);
+        this.logger.error('Failed to archive Stripe product:', error);
       }
     }
     return result;
@@ -596,14 +600,14 @@ export class RoomsService {
     };
   }
   async getPriceQuote(data: GetPriceQuoteDto) {
-    const { rooms } = data;
+    const { rooms, promoCodeId } = data;
     if (!rooms || rooms.length === 0) {
       throw new BadRequestException('At least one room must be specified');
     }
-    let totalBasePrice = 0;
-    let totalTourismFee = 0;
+
     const roomQuotes: RoomQuote[] = [];
     let allAvailable = true;
+
     for (const roomRequest of rooms) {
       const {
         roomId,
@@ -634,7 +638,6 @@ export class RoomsService {
       );
       let roomPrice = 0;
       let avgPricePerNight = 0;
-      let tourismFee = 0;
       let nightlyBreakdown: { price: string; nights: number }[] = [];
       if (isAvailable) {
         try {
@@ -647,20 +650,7 @@ export class RoomsService {
           const singleRoomPrice = totalPrice;
           roomPrice = singleRoomPrice * quantity;
           avgPricePerNight = singleRoomPrice / nights;
-          totalBasePrice += roomPrice;
           nightlyBreakdown = breakdown;
-          if (room.propertyId) {
-            const property = await this.propertiesService.getPropertyById(
-              room.propertyId,
-            );
-            const propertyWithFee = property as { tourismFee?: string | null };
-            const tourismFeePerPersonPerNight = parseFloat(
-              (propertyWithFee.tourismFee as string) || '0',
-            );
-            tourismFee =
-              tourismFeePerPersonPerNight * guestsCount * nights * quantity;
-            totalTourismFee += tourismFee;
-          }
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -687,18 +677,55 @@ export class RoomsService {
         available: isAvailable,
       });
     }
-    const vatPercentage = 23;
-    const vatValue = totalBasePrice * (vatPercentage / 100);
-    const totalPrice = totalBasePrice + totalTourismFee + vatValue;
+
+    const pricingInput = rooms.map((room) => ({
+      roomId: room.roomId,
+      checkIn: room.checkIn,
+      checkOut: room.checkOut,
+      guestsCount: room.guestsCount || 1,
+      quantity: room.quantity || 1,
+    }));
+
+    const pricingBreakdown =
+      await this.pricingEngine.calculatePricing(pricingInput, promoCodeId);
+
+    const roomBreakdownMap = new Map(
+      pricingBreakdown.breakdown.rooms.map((room) => [room.roomId, room]),
+    );
+
+    const roomsWithPricing = roomQuotes.map((roomQuote) => {
+      const breakdown = roomBreakdownMap.get(roomQuote.roomId);
+      if (breakdown) {
+        const roomDiscountProportion =
+          pricingBreakdown.basePrice > 0
+            ? breakdown.basePrice / pricingBreakdown.basePrice
+            : 0;
+        const roomDiscountAmount =
+          pricingBreakdown.discountAmount * roomDiscountProportion;
+        const roomDiscountedBase = breakdown.basePrice - roomDiscountAmount;
+        const roomVatAmount = roomDiscountedBase * 0.23;
+        const roomTotalWithDiscount =
+          roomDiscountedBase + breakdown.tourismFee + roomVatAmount;
+
     return {
-      rooms: roomQuotes,
-      totalPrice: totalPrice.toFixed(2),
+          ...roomQuote,
+          roomTotal: roomTotalWithDiscount.toFixed(2),
+        };
+      }
+      return roomQuote;
+    });
+
+    return {
+      rooms: roomsWithPricing,
+      totalPrice: pricingBreakdown.totalPrice.toFixed(2),
       pricing: {
-        basePrice: totalBasePrice.toFixed(2),
-        tourismFee: totalTourismFee.toFixed(2),
-        vatPercentage: vatPercentage.toString(),
-        vatValue: vatValue.toFixed(2),
-        totalPrice: totalPrice.toFixed(2),
+        basePrice: pricingBreakdown.basePrice.toFixed(2),
+        discountAmount: pricingBreakdown.discountAmount.toFixed(2),
+        discountedBasePrice: pricingBreakdown.discountedBasePrice.toFixed(2),
+        tourismFee: pricingBreakdown.tourismFee.toFixed(2),
+        vatPercentage: '23',
+        vatValue: pricingBreakdown.vatAmount.toFixed(2),
+        totalPrice: pricingBreakdown.totalPrice.toFixed(2),
       },
       allAvailable,
       message: allAvailable

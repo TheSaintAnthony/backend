@@ -63,10 +63,7 @@ export class RestaurantMenusController {
   }
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  async editMenu(
-    @Param('id') id: string,
-    @Body() dto: EditRestaurantMenuDto,
-  ) {
+  async editMenu(@Param('id') id: string, @Body() dto: EditRestaurantMenuDto) {
     return await this.restaurantMenusService.editMenu(id, dto);
   }
   @Roles(UserRole.ADMIN)
@@ -81,10 +78,7 @@ export class RestaurantMenusController {
   }
   @Roles(UserRole.ADMIN)
   @Patch('items/:id')
-  async editMenuItem(
-    @Param('id') id: string,
-    @Body() dto: EditMenuItemDto,
-  ) {
+  async editMenuItem(@Param('id') id: string, @Body() dto: EditMenuItemDto) {
     return await this.restaurantMenusService.editMenuItem(id, dto);
   }
   @Roles(UserRole.ADMIN)

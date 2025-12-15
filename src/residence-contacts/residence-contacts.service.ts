@@ -37,7 +37,9 @@ export class ResidenceContactsService {
     const offset = (page - 1) * limit;
     const whereConditions = [];
     if (residenceId) {
-      whereConditions.push(eq(schema.residenceContacts.residenceId, residenceId));
+      whereConditions.push(
+        eq(schema.residenceContacts.residenceId, residenceId),
+      );
     }
     if (residenceUnitId) {
       whereConditions.push(

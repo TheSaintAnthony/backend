@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OccurrenceResponsesService } from './occurrence-responses.service';
 import { CreateOccurrenceResponseDto } from './dto';
 import { BadRequestException } from 'src/filters';
+import { AuthGuard } from 'src/auth/auth.guard';
 @ApiTags('Occurrence Responses')
 @ApiBearerAuth('access-token')
+@UseGuards(AuthGuard)
 @Controller('occurrences/responses')
 export class OccurrenceResponsesController {
   constructor(private occurrenceResponsesService: OccurrenceResponsesService) {}
@@ -13,9 +15,7 @@ export class OccurrenceResponsesController {
     return await this.occurrenceResponsesService.createResponse(body);
   }
   @Get()
-  async getResponsesByOccurrence(
-    @Query('occurrenceId') occurrenceId?: string,
-  ) {
+  async getResponsesByOccurrence(@Query('occurrenceId') occurrenceId?: string) {
     if (!occurrenceId) {
       throw new BadRequestException('occurrenceId query parameter is required');
     }

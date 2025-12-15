@@ -190,6 +190,55 @@
       "when": 1764846195525,
       "tag": "0026_is-system-managed",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1765296418518,
+      "tag": "0027_emails-integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1765296659830,
+      "tag": "0028_emails-fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1765457243568,
+      "tag": "0029_promo-codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1765463585047,
+      "tag": "0030_promo-codes-count",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1765465237623,
+      "tag": "0031_promo-codes-fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1765471202115,
+      "tag": "0032_booking-intents",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1765539426553,
+      "tag": "0033_reservation-rooms",
+      "breakpoints": true
     }
   ]
 }
