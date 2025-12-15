@@ -8,16 +8,29 @@ import {
   PaginationDto,
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
+import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
+
 @Injectable()
 export class OccurrencesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
+    private statusLookupService: StatusLookupService,
   ) {}
   async createOccurrence(data: CreateOccurrenceDto) {
+    // Set default statusId to 'Pending' if not provided
+    let statusId = data.statusId;
+    if (!statusId) {
+      statusId = await this.statusLookupService.getOccurrenceStatusId('Pending');
+    }
+    
     return this.db
       .insert(schema.occurrences)
-      .values({ ...data })
+      .values({
+        reservationId: data.reservationId,
+        description: data.description,
+        statusId,
+      })
       .returning();
   }
   async getOccurrences(pagination?: PaginationDto) {

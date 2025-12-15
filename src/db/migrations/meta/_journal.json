@@ -239,6 +239,13 @@
       "when": 1765539426553,
       "tag": "0033_reservation-rooms",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1765797688118,
+      "tag": "0034_db-cleanup",
+      "breakpoints": true
     }
   ]
 }

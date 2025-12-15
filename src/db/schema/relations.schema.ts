@@ -27,7 +27,6 @@ import { activities } from './activities.schema';
 import { activityProperty } from './activity-property.schema';
 import { entityTypes } from './entity-types.schema';
 import { images } from './images.schema';
-import { imageMetadata } from './image-metadata.schema';
 import { residences } from './residences.schema';
 import { residenceUnits } from './residence-units.schema';
 import { residenceContacts } from './residence-contacts.schema';
@@ -192,16 +191,6 @@ export const imagesRelations = relations(images, ({ one }) => ({
   entityType: one(entityTypes, {
     fields: [images.entityTypeId],
     references: [entityTypes.id],
-  }),
-  metadata: one(imageMetadata, {
-    fields: [images.id],
-    references: [imageMetadata.imageId],
-  }),
-}));
-export const imageMetadataRelations = relations(imageMetadata, ({ one }) => ({
-  image: one(images, {
-    fields: [imageMetadata.imageId],
-    references: [images.id],
   }),
 }));
 export const activitiesRelations = relations(activities, ({ many }) => ({

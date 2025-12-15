@@ -18,11 +18,18 @@ export const images = pgTable(
       .notNull()
       .references(() => entityTypes.id, { onDelete: 'restrict' }),
     entityId: uuid('entity_id').notNull(),
-    url: varchar('url', { length: 500 }).notNull(),
+    url: text('url').notNull(),
     altText: varchar('alt_text', { length: 255 }),
     caption: text('caption'),
     displayOrder: integer('display_order').default(0).notNull(),
     isPrimary: boolean('is_primary').default(false).notNull(),
+    // Metadata fields (merged from image_metadata table)
+    width: integer('width'),
+    height: integer('height'),
+    fileSize: integer('file_size'),
+    mimeType: varchar('mime_type', { length: 50 }),
+    originalFilename: varchar('original_filename', { length: 255 }),
+    storageProvider: varchar('storage_provider', { length: 50 }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

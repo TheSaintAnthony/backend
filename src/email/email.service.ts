@@ -299,7 +299,6 @@ ${specialRequestsText}
 
 Resumo do Pagamento:
 - Total: €${emailPayload.totalPrice}
-- Depósito Pago: €${emailPayload.depositAmount}
 
 Em anexo encontrará os eventos de calendário para adicionar à sua agenda.
 
@@ -342,21 +341,11 @@ Este é um email automático. Por favor, não responda.`;
       
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0;">
         <tr>
-          <td style="padding: 15px 0; border-bottom: 1px solid ${EMAIL_STYLES.colors.border};">
+          <td style="padding: 15px 0;">
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td style="font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted};">Total da Reserva</td>
                 <td style="text-align: right; font-size: 16px; font-weight: 600; color: ${EMAIL_STYLES.colors.textDark};">€${emailPayload.totalPrice}</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 15px 0;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-              <tr>
-                <td style="font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted};">Depósito Pago</td>
-                <td style="text-align: right; font-size: 16px; font-weight: 600; color: ${EMAIL_STYLES.colors.accent};">€${emailPayload.depositAmount}</td>
               </tr>
             </table>
           </td>

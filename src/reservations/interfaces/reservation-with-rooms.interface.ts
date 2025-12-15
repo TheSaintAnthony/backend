@@ -23,7 +23,6 @@ export interface ReservationWithRooms {
   totalPrice: string;
   paymentStatusId: string | null;
   paymentStatusName: string | null;
-  depositAmount: string;
   specialRequests: string | null;
   createdAt: Date;
   updatedAt: Date | null;

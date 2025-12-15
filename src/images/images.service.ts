@@ -108,16 +108,7 @@ export class ImagesService {
           ),
         );
     }
-    const insertValues: {
-      id: ReturnType<typeof sql>;
-      entityTypeId: string;
-      entityId: string;
-      url: string;
-      altText: string | null;
-      caption: string | null;
-      displayOrder: number;
-      isPrimary: boolean;
-    } = {
+    const insertValues: any = {
       id: sql`gen_random_uuid()`,
       entityTypeId: entityType.id,
       entityId: data.entityId,
@@ -127,28 +118,19 @@ export class ImagesService {
       displayOrder: data.displayOrder ?? 0,
       isPrimary: data.isPrimary ?? false,
     };
+    
+    // Add metadata fields if provided
+    if (data.width !== undefined) insertValues.width = data.width;
+    if (data.height !== undefined) insertValues.height = data.height;
+    if (data.fileSize !== undefined) insertValues.fileSize = data.fileSize;
+    if (data.mimeType !== undefined) insertValues.mimeType = data.mimeType;
+    if (data.originalFilename !== undefined) insertValues.originalFilename = data.originalFilename;
+    if (data.storageProvider !== undefined) insertValues.storageProvider = data.storageProvider;
+    
     const [image] = await this.db
       .insert(schema.images)
       .values(insertValues)
       .returning();
-    if (
-      data.width ||
-      data.height ||
-      data.fileSize ||
-      data.mimeType ||
-      data.originalFilename ||
-      data.storageProvider
-    ) {
-      await this.db.insert(schema.imageMetadata).values({
-        imageId: image.id,
-        width: data.width,
-        height: data.height,
-        fileSize: data.fileSize,
-        mimeType: data.mimeType,
-        originalFilename: data.originalFilename,
-        storageProvider: data.storageProvider,
-      });
-    }
     return this.getImageById(image.id);
   }
   async getImageById(id: string) {
@@ -156,7 +138,6 @@ export class ImagesService {
       where: and(eq(schema.images.id, id), isNull(schema.images.deletedAt)),
       with: {
         entityType: true,
-        metadata: true,
       },
     });
     if (!image) {
@@ -180,7 +161,6 @@ export class ImagesService {
       where: and(...whereConditions),
       with: {
         entityType: true,
-        metadata: true,
       },
       orderBy: [schema.images.displayOrder, desc(schema.images.createdAt)],
     });
@@ -205,7 +185,6 @@ export class ImagesService {
       ),
       with: {
         entityType: true,
-        metadata: true,
       },
       orderBy: [schema.images.displayOrder, desc(schema.images.createdAt)],
     });
@@ -234,54 +213,28 @@ export class ImagesService {
           ),
         );
     }
+    const updateData: any = {
+      url: data.url,
+      altText: data.altText,
+      caption: data.caption,
+      displayOrder: data.displayOrder,
+      isPrimary: data.isPrimary,
+      updatedAt: new Date(),
+    };
+    
+    // Add metadata fields if provided
+    if (data.width !== undefined) updateData.width = data.width;
+    if (data.height !== undefined) updateData.height = data.height;
+    if (data.fileSize !== undefined) updateData.fileSize = data.fileSize;
+    if (data.mimeType !== undefined) updateData.mimeType = data.mimeType;
+    if (data.originalFilename !== undefined) updateData.originalFilename = data.originalFilename;
+    if (data.storageProvider !== undefined) updateData.storageProvider = data.storageProvider;
+    
     const [updatedImage] = await this.db
       .update(schema.images)
-      .set({
-        url: data.url,
-        altText: data.altText,
-        caption: data.caption,
-        displayOrder: data.displayOrder,
-        isPrimary: data.isPrimary,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(schema.images.id, id))
       .returning();
-    if (
-      data.width !== undefined ||
-      data.height !== undefined ||
-      data.fileSize !== undefined ||
-      data.mimeType !== undefined ||
-      data.originalFilename !== undefined ||
-      data.storageProvider !== undefined
-    ) {
-      const existingMetadata = await this.db.query.imageMetadata.findFirst({
-        where: eq(schema.imageMetadata.imageId, id),
-      });
-      if (existingMetadata) {
-        await this.db
-          .update(schema.imageMetadata)
-          .set({
-            width: data.width,
-            height: data.height,
-            fileSize: data.fileSize,
-            mimeType: data.mimeType,
-            originalFilename: data.originalFilename,
-            storageProvider: data.storageProvider,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.imageMetadata.imageId, id));
-      } else {
-        await this.db.insert(schema.imageMetadata).values({
-          imageId: id,
-          width: data.width,
-          height: data.height,
-          fileSize: data.fileSize,
-          mimeType: data.mimeType,
-          originalFilename: data.originalFilename,
-          storageProvider: data.storageProvider,
-        });
-      }
-    }
     return this.getImageById(updatedImage.id);
   }
   async deleteImage(id: string) {

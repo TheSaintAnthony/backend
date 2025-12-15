@@ -29,7 +29,6 @@ import {
   PaymentStatus,
   RESERVATION_STATUS_NAMES,
   INVOICE_STATUS_NAMES,
-  DEFAULT_DEPOSIT_AMOUNT,
 } from 'src/constants';
 import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
 import {
@@ -300,7 +299,6 @@ export class ReservationsService implements OnModuleInit {
   private async sendConfirmationEmail(
     userId: string,
     totalPrice: string,
-    depositAmount: string,
     validatedRooms: RoomValidation[],
     specialRequests?: string,
   ) {
@@ -310,7 +308,6 @@ export class ReservationsService implements OnModuleInit {
         userName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         totalPrice,
-        depositAmount,
         rooms: validatedRooms,
         specialRequests,
       },
@@ -335,7 +332,6 @@ export class ReservationsService implements OnModuleInit {
         statusId,
         totalPrice,
         paymentStatusId,
-        depositAmount: DEFAULT_DEPOSIT_AMOUNT,
         specialRequests,
         promoCodeId: promoCodeId || null,
         discountAmount: discountAmount || null,
@@ -1072,7 +1068,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -1141,7 +1136,6 @@ export class ReservationsService implements OnModuleInit {
       totalPrice: firstRow.totalPrice,
       paymentStatusId: firstRow.paymentStatusId,
       paymentStatusName: firstRow.paymentStatusName,
-      depositAmount: firstRow.depositAmount,
       specialRequests: firstRow.specialRequests,
       createdAt: firstRow.createdAt,
       updatedAt: firstRow.updatedAt,
@@ -1202,7 +1196,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -1264,7 +1257,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
@@ -1723,7 +1715,6 @@ export class ReservationsService implements OnModuleInit {
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
-        reservation.depositAmount,
         reservationRooms.map((r) => ({
           roomId: r.roomId,
           checkIn: r.checkIn,
@@ -1990,7 +1981,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -2087,7 +2077,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
@@ -2392,7 +2381,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -2462,7 +2450,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
