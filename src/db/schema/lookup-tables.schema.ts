@@ -1,4 +1,11 @@
-import { pgTable, uuid, integer, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  integer,
+  varchar,
+  boolean,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
 // Dynamic lookup tables (admin-manageable)
 export const amenities = pgTable('amenities', {

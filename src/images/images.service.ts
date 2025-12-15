@@ -118,15 +118,17 @@ export class ImagesService {
       displayOrder: data.displayOrder ?? 0,
       isPrimary: data.isPrimary ?? false,
     };
-    
+
     // Add metadata fields if provided
     if (data.width !== undefined) insertValues.width = data.width;
     if (data.height !== undefined) insertValues.height = data.height;
     if (data.fileSize !== undefined) insertValues.fileSize = data.fileSize;
     if (data.mimeType !== undefined) insertValues.mimeType = data.mimeType;
-    if (data.originalFilename !== undefined) insertValues.originalFilename = data.originalFilename;
-    if (data.storageProvider !== undefined) insertValues.storageProvider = data.storageProvider;
-    
+    if (data.originalFilename !== undefined)
+      insertValues.originalFilename = data.originalFilename;
+    if (data.storageProvider !== undefined)
+      insertValues.storageProvider = data.storageProvider;
+
     const [image] = await this.db
       .insert(schema.images)
       .values(insertValues)
@@ -221,15 +223,17 @@ export class ImagesService {
       isPrimary: data.isPrimary,
       updatedAt: new Date(),
     };
-    
+
     // Add metadata fields if provided
     if (data.width !== undefined) updateData.width = data.width;
     if (data.height !== undefined) updateData.height = data.height;
     if (data.fileSize !== undefined) updateData.fileSize = data.fileSize;
     if (data.mimeType !== undefined) updateData.mimeType = data.mimeType;
-    if (data.originalFilename !== undefined) updateData.originalFilename = data.originalFilename;
-    if (data.storageProvider !== undefined) updateData.storageProvider = data.storageProvider;
-    
+    if (data.originalFilename !== undefined)
+      updateData.originalFilename = data.originalFilename;
+    if (data.storageProvider !== undefined)
+      updateData.storageProvider = data.storageProvider;
+
     const [updatedImage] = await this.db
       .update(schema.images)
       .set(updateData)

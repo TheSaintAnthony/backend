@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, timestamp, check } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  check,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { residences } from './residences.schema';
 import { residenceUnits } from './residence-units.schema';

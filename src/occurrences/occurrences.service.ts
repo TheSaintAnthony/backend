@@ -21,9 +21,10 @@ export class OccurrencesService {
     // Set default statusId to 'Pending' if not provided
     let statusId = data.statusId;
     if (!statusId) {
-      statusId = await this.statusLookupService.getOccurrenceStatusId('Pending');
+      statusId =
+        await this.statusLookupService.getOccurrenceStatusId('Pending');
     }
-    
+
     return this.db
       .insert(schema.occurrences)
       .values({

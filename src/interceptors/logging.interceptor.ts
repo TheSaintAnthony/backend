@@ -34,6 +34,10 @@ export class LoggingInterceptor implements NestInterceptor {
       url.includes('/images/serve/') || url.includes('/images/entity/');
     return new Observable((subscriber) => {
       this.correlationIdService.run(correlationId, () => {
+        // Log invocation first
+        this.logger.log(`Invoking: [${method}] ${url}`);
+
+        // Then log request body if present
         if (req.body && typeof req.body === 'object' && !isFileEndpoint) {
           const maskedBody = { ...req.body } as Record<string, unknown>;
           this.sensitiveFields.forEach((field) => {
@@ -41,7 +45,8 @@ export class LoggingInterceptor implements NestInterceptor {
           });
           this.log(`Request: ${JSON.stringify(maskedBody)}`);
         }
-        this.logger.log(`Invoking: [${method}] ${url}`);
+
+        // Then handle the request
         next
           .handle()
           .pipe(
