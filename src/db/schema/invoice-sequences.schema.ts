@@ -4,6 +4,7 @@ import {
   integer,
   varchar,
   uniqueIndex,
+  timestamp,
 } from 'drizzle-orm/pg-core';
 export const invoiceSequences = pgTable(
   'invoice_sequences',
@@ -12,6 +13,7 @@ export const invoiceSequences = pgTable(
     year: integer('year').notNull(),
     sequence: integer('sequence').notNull().default(0),
     prefix: varchar('prefix', { length: 20 }).notNull().default('INV'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => ({
     uniqueYearPrefix: uniqueIndex('unique_year_prefix_idx').on(

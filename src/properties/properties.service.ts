@@ -159,9 +159,27 @@ export class PropertiesService {
     if (activityIds.length === 0) {
       return [];
     }
+    
+    // Select activities with category join
     const activities = await this.db
-      .select()
+      .select({
+        id: schema.activities.id,
+        name: schema.activities.name,
+        description: schema.activities.description,
+        price: schema.activities.price,
+        duration: schema.activities.duration,
+        maxGuests: schema.activities.maxGuests,
+        categoryId: schema.activities.categoryId,
+        category: {
+          id: schema.activityCategories.id,
+          name: schema.activityCategories.name,
+        },
+      })
       .from(schema.activities)
+      .innerJoin(
+        schema.activityCategories,
+        eq(schema.activities.categoryId, schema.activityCategories.id),
+      )
       .where(inArray(schema.activities.id, activityIds));
 
     const allImages =
@@ -183,6 +201,11 @@ export class PropertiesService {
       id: activity.id,
       name: activity.name || '',
       description: activity.description || '',
+      price: activity.price ? activity.price.toString() : undefined,
+      duration: activity.duration || undefined,
+      maxGuests: activity.maxGuests || undefined,
+      categoryId: activity.categoryId,
+      category: activity.category,
       images: imagesByActivityId.get(activity.id) || [],
     }));
   }

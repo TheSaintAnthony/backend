@@ -29,7 +29,6 @@ import {
   PaymentStatus,
   RESERVATION_STATUS_NAMES,
   INVOICE_STATUS_NAMES,
-  DEFAULT_DEPOSIT_AMOUNT,
 } from 'src/constants';
 import { StatusLookupService } from 'src/services/lookups/status-lookup.service';
 import {
@@ -213,7 +212,8 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.reservations.statusId, pendingStatusId),
             eq(schema.reservations.userId, userId),
             isNull(schema.reservationRooms.deletedAt),
-            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
       if (existingPendingReservations.length > 0) {
@@ -241,7 +241,9 @@ export class ReservationsService implements OnModuleInit {
               ne(schema.reservations.statusId, pendingStatusId),
             ),
             isNull(schema.reservationRooms.deletedAt),
-            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
+            // This ensures check-out on day X doesn't conflict with check-in on day X
+            sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
       const roomQuantity = room.quantity || 1;
@@ -261,7 +263,8 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.roomHolds.roomId, roomId),
             gt(schema.roomHolds.expiresAt, now),
             userId ? ne(schema.roomHolds.userId, userId) : undefined,
-            sql`daterange(${schema.roomHolds.checkIn}::date, ${schema.roomHolds.checkOut}::date, '[]') && daterange(${checkIn}::date, ${checkOut}::date, '[]')`,
+            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
+            sql`daterange(${schema.roomHolds.checkIn}::date, ${schema.roomHolds.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
       if (activeHolds.length > 0) {
@@ -300,7 +303,6 @@ export class ReservationsService implements OnModuleInit {
   private async sendConfirmationEmail(
     userId: string,
     totalPrice: string,
-    depositAmount: string,
     validatedRooms: RoomValidation[],
     specialRequests?: string,
   ) {
@@ -310,7 +312,6 @@ export class ReservationsService implements OnModuleInit {
         userName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         totalPrice,
-        depositAmount,
         rooms: validatedRooms,
         specialRequests,
       },
@@ -335,7 +336,6 @@ export class ReservationsService implements OnModuleInit {
         statusId,
         totalPrice,
         paymentStatusId,
-        depositAmount: DEFAULT_DEPOSIT_AMOUNT,
         specialRequests,
         promoCodeId: promoCodeId || null,
         discountAmount: discountAmount || null,
@@ -1072,7 +1072,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -1141,7 +1140,6 @@ export class ReservationsService implements OnModuleInit {
       totalPrice: firstRow.totalPrice,
       paymentStatusId: firstRow.paymentStatusId,
       paymentStatusName: firstRow.paymentStatusName,
-      depositAmount: firstRow.depositAmount,
       specialRequests: firstRow.specialRequests,
       createdAt: firstRow.createdAt,
       updatedAt: firstRow.updatedAt,
@@ -1202,7 +1200,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -1264,7 +1261,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
@@ -1565,7 +1561,7 @@ export class ReservationsService implements OnModuleInit {
         bookingIntentData.userId,
         confirmedStatusId,
         this.completedPaymentStatusId,
-        bookingIntentData.pricing.discountedBasePrice.toString(),
+        bookingIntentData.pricing.totalPrice.toString(), // Use totalPrice (includes VAT and taxes) instead of discountedBasePrice
         bookingIntentData.rooms,
         bookingIntentData.specialRequests,
         bookingIntentData.promoCode?.promoCodeId,
@@ -1723,7 +1719,6 @@ export class ReservationsService implements OnModuleInit {
       await this.sendConfirmationEmail(
         reservation.userId,
         reservation.totalPrice,
-        reservation.depositAmount,
         reservationRooms.map((r) => ({
           roomId: r.roomId,
           checkIn: r.checkIn,
@@ -1990,7 +1985,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -2087,7 +2081,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
@@ -2392,7 +2385,6 @@ export class ReservationsService implements OnModuleInit {
         totalPrice: schema.reservations.totalPrice,
         paymentStatusId: schema.reservations.paymentStatusId,
         paymentStatusName: schema.paymentStatus.name,
-        depositAmount: schema.reservations.depositAmount,
         specialRequests: schema.reservations.specialRequests,
         createdAt: schema.reservations.createdAt,
         updatedAt: schema.reservations.updatedAt,
@@ -2462,7 +2454,6 @@ export class ReservationsService implements OnModuleInit {
           totalPrice: row.totalPrice,
           paymentStatusId: row.paymentStatusId,
           paymentStatusName: row.paymentStatusName,
-          depositAmount: row.depositAmount,
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,

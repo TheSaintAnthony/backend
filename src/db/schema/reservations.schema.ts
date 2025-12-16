@@ -9,8 +9,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { users } from './users.schema';
 import { paymentStatus, reservationStatus } from './lookup-tables.schema';
-// Note: promoCodeId references promo_codes table but we don't import it here
-// to avoid circular dependency. The FK is defined in the migration.
+import { promoCodes } from './promo-codes.schema';
+
 export const reservations = pgTable(
   'reservations',
   {
@@ -18,23 +18,16 @@ export const reservations = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    statusId: uuid('status_id').references(() => reservationStatus.id),
+    statusId: uuid('status_id')
+      .notNull()
+      .references(() => reservationStatus.id),
     totalPrice: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
     paymentStatusId: uuid('payment_status_id')
       .notNull()
       .references(() => paymentStatus.id, { onDelete: 'cascade' }),
-    depositAmount: numeric('deposit_amount', {
-      precision: 10,
-      scale: 2,
-    })
-      .notNull()
-      .default('0.0'),
-    balanceDue: numeric('balance_due', {
-      precision: 10,
-      scale: 2,
-    }).generatedAlwaysAs(`total_price - deposit_amout`),
-    // FK to promo_codes defined in migration to avoid circular import
-    promoCodeId: uuid('promo_code_id'),
+    promoCodeId: uuid('promo_code_id').references(() => promoCodes.id, {
+      onDelete: 'set null',
+    }),
     discountAmount: numeric('discount_amount', { precision: 10, scale: 2 }),
     specialRequests: text('special_requests'),
     checkinReminderSentAt: timestamp('checkin_reminder_sent_at', {
@@ -55,10 +48,6 @@ export const reservations = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   () => ({
-    checkDepositAmount: check(
-      'check_deposit_amount',
-      sql`deposit_amount <=total_price`,
-    ),
     checkTotalPrice: check('check_total_price', sql`total_price >= 0`),
   }),
 );

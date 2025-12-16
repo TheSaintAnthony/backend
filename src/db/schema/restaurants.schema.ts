@@ -14,7 +14,7 @@ export const restaurants = pgTable('restaurants', {
   addressId: uuid('address_id').references(() => addresses.id),
   email: varchar('email', { length: 255 }),
   phoneNumber: varchar('phone_number', { length: 20 }),
-  website: varchar('website', { length: 500 }),
+  website: text('website'),
   openingHours: text('opening_hours'), // JSON or text field
   cuisineType: varchar('cuisine_type', { length: 100 }),
   priceRange: varchar('price_range', { length: 20 }), // €, €€, €€€
