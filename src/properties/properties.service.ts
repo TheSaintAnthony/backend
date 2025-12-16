@@ -159,8 +159,7 @@ export class PropertiesService {
     if (activityIds.length === 0) {
       return [];
     }
-    
-    // Select activities with category join
+
     const activities = await this.db
       .select({
         id: schema.activities.id,

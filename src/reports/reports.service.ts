@@ -22,6 +22,7 @@ import {
   asc,
   isNull,
 } from 'drizzle-orm';
+import { getReservationDetails } from './helpers/reservation-query.helper';
 @Injectable()
 export class ReportsService {
   constructor(
@@ -579,54 +580,8 @@ export class ReportsService {
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, 'Checked Out'));
 
-    const getReservationDetails = async (conditions: any[]) => {
-      return this.db
-        .select({
-          reservationId: schema.reservations.id,
-          checkIn: schema.reservationRooms.checkIn,
-          checkOut: schema.reservationRooms.checkOut,
-          guestsCount: schema.reservationRooms.guestsCount,
-          accessCode: schema.reservationRooms.accessCode,
-          roomId: schema.rooms.id,
-          roomName: schema.rooms.name,
-          propertyId: schema.properties.id,
-          propertyName: schema.properties.name,
-          userId: schema.users.id,
-          userFirstName: schema.users.firstName,
-          userLastName: schema.users.lastName,
-          userEmail: schema.users.email,
-          userPhone: schema.users.phone,
-          statusId: schema.reservations.statusId,
-          statusName: schema.reservationStatus.name,
-          totalPrice: schema.reservations.totalPrice,
-          specialRequests: schema.reservations.specialRequests,
-        })
-        .from(schema.reservationRooms)
-        .innerJoin(
-          schema.reservations,
-          eq(schema.reservationRooms.reservationId, schema.reservations.id),
-        )
-        .innerJoin(
-          schema.rooms,
-          eq(schema.reservationRooms.roomId, schema.rooms.id),
-        )
-        .innerJoin(
-          schema.properties,
-          eq(schema.rooms.propertyId, schema.properties.id),
-        )
-        .innerJoin(
-          schema.users,
-          eq(schema.reservations.userId, schema.users.id),
-        )
-        .innerJoin(
-          schema.reservationStatus,
-          eq(schema.reservations.statusId, schema.reservationStatus.id),
-        )
-        .where(and(...conditions, isNull(schema.reservations.deletedAt)));
-    };
-
     const todayCheckIns = confirmedStatus
-      ? await getReservationDetails([
+      ? await getReservationDetails(this.db, [
           eq(schema.reservationRooms.checkIn, targetDate),
           eq(schema.reservations.statusId, confirmedStatus.id),
           ...(filters.propertyId
@@ -636,7 +591,7 @@ export class ReportsService {
       : [];
 
     const todayCheckOuts = checkedInStatus
-      ? await getReservationDetails([
+      ? await getReservationDetails(this.db, [
           eq(schema.reservationRooms.checkOut, targetDate),
           eq(schema.reservations.statusId, checkedInStatus.id),
           ...(filters.propertyId
@@ -646,7 +601,7 @@ export class ReportsService {
       : [];
 
     const tomorrowCheckIns = confirmedStatus
-      ? await getReservationDetails([
+      ? await getReservationDetails(this.db, [
           eq(schema.reservationRooms.checkIn, tomorrowStr),
           eq(schema.reservations.statusId, confirmedStatus.id),
           ...(filters.propertyId
@@ -656,7 +611,7 @@ export class ReportsService {
       : [];
 
     const inProgress = checkedInStatus
-      ? await getReservationDetails([
+      ? await getReservationDetails(this.db, [
           eq(schema.reservations.statusId, checkedInStatus.id),
           ...(filters.propertyId
             ? [eq(schema.properties.id, filters.propertyId)]
@@ -665,7 +620,7 @@ export class ReportsService {
       : [];
 
     const overdueCheckOuts = checkedInStatus
-      ? await getReservationDetails([
+      ? await getReservationDetails(this.db, [
           lte(schema.reservationRooms.checkOut, targetDate),
           eq(schema.reservations.statusId, checkedInStatus.id),
           ...(filters.propertyId

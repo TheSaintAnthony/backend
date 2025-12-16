@@ -18,7 +18,6 @@ export class OccurrencesService {
     private statusLookupService: StatusLookupService,
   ) {}
   async createOccurrence(data: CreateOccurrenceDto) {
-    // Set default statusId to 'Pending' if not provided
     let statusId = data.statusId;
     if (!statusId) {
       statusId =
