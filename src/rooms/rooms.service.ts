@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger, Optional } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -46,6 +46,7 @@ import {
   groupPricesIntoBreakdown,
   calculateTotalFromNightlyPrices,
 } from './helpers/price-calculation.helper';
+import { CloudBedsSyncService } from '../cloudbeds/cloudbeds-sync.service';
 @Injectable()
 export class RoomsService {
   private readonly logger = new Logger(RoomsService.name);
@@ -59,6 +60,7 @@ export class RoomsService {
     @Inject(forwardRef(() => PropertiesService))
     private propertiesService: PropertiesService,
     private pricingEngine: PricingEngineService,
+    @Optional() private cloudbedsSyncService?: CloudBedsSyncService,
   ) {}
   async createRoom(data: CreateRoomDto) {
     const { images, ...roomData } = data;
@@ -86,7 +88,14 @@ export class RoomsService {
     } catch (error) {
       this.logger.error('Failed to create Stripe product for room:', error);
     }
-    return this.getRoomById(createdRoom.id);
+    const room = await this.getRoomById(createdRoom.id);
+    
+    // CloudBeds sync - fire and forget
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncRoom(room.id, 'create').catch(() => {});
+    }
+    
+    return room;
   }
   async getRooms(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
@@ -382,11 +391,11 @@ export class RoomsService {
     return createPaginatedResponse(roomsWithImages, total, page, limit);
   }
   async editRoom(id: string, data: EditRoomDto) {
-    const [room] = await this.db
+    const [existingRoom] = await this.db
       .select()
       .from(schema.rooms)
       .where(eq(schema.rooms.id, id));
-    if (!room) {
+    if (!existingRoom) {
       throw new NotFoundException('Room', id);
     }
     const { images, ...roomData } = data;
@@ -412,9 +421,9 @@ export class RoomsService {
         );
       }
     }
-    if (room.stripeProductId) {
+    if (existingRoom.stripeProductId) {
       try {
-        const updatedRoom = { ...room, ...roomData };
+        const updatedRoom = { ...existingRoom, ...roomData };
         const roomImages = await this.imagesService.getImagesByEntity(
           'room',
           id,
@@ -422,7 +431,7 @@ export class RoomsService {
         const imageUrls = roomImages
           .map((img) => img.url)
           .filter((url) => url && url.startsWith('http'));
-        await this.stripeService.updateProduct(room.stripeProductId, {
+        await this.stripeService.updateProduct(existingRoom.stripeProductId, {
           name: updatedRoom.name,
           description: updatedRoom.description || undefined,
           metadata: {
@@ -436,7 +445,14 @@ export class RoomsService {
         this.logger.error('Failed to update Stripe product:', error);
       }
     }
-    return this.getRoomById(id);
+    const room = await this.getRoomById(id);
+    
+    // CloudBeds sync - fire and forget
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncRoom(room.id, 'update').catch(() => {});
+    }
+    
+    return room;
   }
   async deleteRoom(id: string) {
     const [room] = await this.db
@@ -460,6 +476,11 @@ export class RoomsService {
       } catch (error) {
         this.logger.error('Failed to archive Stripe product:', error);
       }
+    }
+    
+    // CloudBeds sync - fire and forget
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncRoom(id, 'delete').catch(() => {});
     }
     return result;
   }

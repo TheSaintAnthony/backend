@@ -1,4 +1,4 @@
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, forwardRef, Optional } from '@nestjs/common';
 import { NotFoundException, DatabaseException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -13,6 +13,7 @@ import {
 import { ImagesService } from 'src/images/images.service';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { ActivityPropertyService } from 'src/activity-property/activity-property.service';
+import { CloudBedsSyncService } from '../cloudbeds/cloudbeds-sync.service';
 @Injectable()
 export class PropertiesService {
   constructor(
@@ -22,6 +23,7 @@ export class PropertiesService {
     @Inject(forwardRef(() => RoomsService))
     private roomsService: RoomsService,
     private activityPropertyService: ActivityPropertyService,
+    @Optional() private cloudbedsSyncService?: CloudBedsSyncService,
   ) {}
   async createProperty(data: CreatePropertyDto) {
     const { address, images, ...propertyData } = data;
@@ -45,7 +47,16 @@ export class PropertiesService {
         })),
       );
     }
-    return this.getPropertyById(createdProperty.id);
+    const property = await this.getPropertyById(createdProperty.id);
+    
+    // CloudBeds sync - fire and forget, safe check
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncProperty(property.id, 'create').catch((error) => {
+        // Silently log - don't break the main flow
+      });
+    }
+    
+    return property;
   }
   async getProperties(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
@@ -209,16 +220,16 @@ export class PropertiesService {
     }));
   }
   async editProperty(id: string, data: EditPropertyDto) {
-    const [property] = await this.db
+    const [existingProperty] = await this.db
       .select()
       .from(schema.properties)
       .where(eq(schema.properties.id, id))
       .limit(1);
-    if (!property) {
+    if (!existingProperty) {
       throw new NotFoundException('Property', id);
     }
     const { address, images, ...propertyData } = data;
-    const addressId: string = property.addressId!;
+    const addressId: string = existingProperty.addressId!;
     if (address) {
       const [updateAddressResult] = await this.db
         .update(schema.addresses)
@@ -251,7 +262,14 @@ export class PropertiesService {
         );
       }
     }
-    return this.getPropertyById(id);
+    const property = await this.getPropertyById(id);
+    
+    // CloudBeds sync - fire and forget
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncProperty(property.id, 'update').catch(() => {});
+    }
+    
+    return property;
   }
   async deleteProperty(id: string) {
     const [property] = await this.db
@@ -270,6 +288,11 @@ export class PropertiesService {
         propertyId: id,
         operation: 'delete',
       });
+    }
+    
+    // CloudBeds sync - fire and forget
+    if (this.cloudbedsSyncService) {
+      this.cloudbedsSyncService.syncProperty(id, 'delete').catch(() => {});
     }
   }
 }

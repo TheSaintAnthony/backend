@@ -253,6 +253,13 @@
       "when": 1765800349969,
       "tag": "0035_overlap-booking-fix",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1765876488192,
+      "tag": "0036_cloudbeds",
+      "breakpoints": true
     }
   ]
 }

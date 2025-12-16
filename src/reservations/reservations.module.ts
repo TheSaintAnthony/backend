@@ -45,5 +45,6 @@ import { PricingModule } from 'src/pricing/pricing.module';
     },
   ],
   controllers: [ReservationsController],
+  exports: [ReservationsService], // Export for CloudBedsModule
 })
 export class ReservationsModule {}

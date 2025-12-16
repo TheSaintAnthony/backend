@@ -1,4 +1,4 @@
-import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { NotFoundException, BadRequestException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -53,6 +53,7 @@ import {
   generateAccessCode,
   generateUniqueAccessCode,
 } from './helpers/access-code.helper';
+import { CloudBedsSyncService } from '../cloudbeds/cloudbeds-sync.service';
 
 interface BookingIntentData {
   userId: string;
@@ -117,6 +118,7 @@ export class ReservationsService implements OnModuleInit {
     private promoCodesService: PromoCodesService,
     private roomHoldsService: RoomHoldsService,
     private pricingEngine: PricingEngineService,
+    @Optional() private cloudbedsSyncService?: CloudBedsSyncService,
   ) {}
   async onModuleInit() {
     const [completedStatus] = await this.db
@@ -1498,11 +1500,35 @@ export class ReservationsService implements OnModuleInit {
         reservation.specialRequests || undefined,
       );
 
-      return {
+      const result = {
         success: true,
         reservation,
         message: 'Payment completed successfully',
       };
+
+      // CloudBeds sync - fire and forget (after transaction completes)
+      if (this.cloudbedsSyncService) {
+        // Sync reservation to CloudBeds
+        this.cloudbedsSyncService
+          .syncReservationToCloudBeds(reservation.id)
+          .catch((error) => {
+            this.logger.error('CloudBeds reservation sync failed (non-critical):', error);
+          });
+
+        // Sync availability for all rooms
+        for (const room of reservationRooms) {
+          this.cloudbedsSyncService
+            .syncAvailability(room.roomId, {
+              start: new Date(room.checkIn),
+              end: new Date(room.checkOut),
+            })
+            .catch((error) => {
+              this.logger.error('CloudBeds availability sync failed (non-critical):', error);
+            });
+        }
+      }
+
+      return result;
     });
   }
 

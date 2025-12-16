@@ -40,6 +40,7 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { CloudBedsModule } from './cloudbeds/cloudbeds.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -93,6 +94,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     RestaurantMenusModule,
     NotificationsModule,
     PromoCodesModule,
+    CloudBedsModule,
   ],
   controllers: [],
   providers: [
