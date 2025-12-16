@@ -180,9 +180,7 @@ describe('Booking Flow (e2e)', () => {
 
       expect(response.body).toHaveProperty('available');
 
-      // If not available, we'll need to adjust dates or find another room
       if (!response.body.available) {
-        console.warn('Room not available for selected dates, test may fail');
       }
     });
 
@@ -301,10 +299,7 @@ describe('Booking Flow (e2e)', () => {
           transactionId: `test_txn_${Date.now()}`,
         });
 
-      // Log the response for debugging if it fails
       if (response.status !== 201) {
-        console.error('Booking failed with status:', response.status);
-        console.error('Response body:', JSON.stringify(response.body, null, 2));
       }
 
       expect(response.status).toBe(201);

@@ -212,7 +212,6 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.reservations.statusId, pendingStatusId),
             eq(schema.reservations.userId, userId),
             isNull(schema.reservationRooms.deletedAt),
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
             sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
@@ -241,8 +240,6 @@ export class ReservationsService implements OnModuleInit {
               ne(schema.reservations.statusId, pendingStatusId),
             ),
             isNull(schema.reservationRooms.deletedAt),
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
-            // This ensures check-out on day X doesn't conflict with check-in on day X
             sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
@@ -263,7 +260,6 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.roomHolds.roomId, roomId),
             gt(schema.roomHolds.expiresAt, now),
             userId ? ne(schema.roomHolds.userId, userId) : undefined,
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
             sql`daterange(${schema.roomHolds.checkIn}::date, ${schema.roomHolds.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );

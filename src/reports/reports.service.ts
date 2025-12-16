@@ -564,7 +564,6 @@ export class ReportsService {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    // Get status IDs
     const [confirmedStatus] = await this.db
       .select()
       .from(schema.reservationStatus)
@@ -580,7 +579,6 @@ export class ReportsService {
       .from(schema.reservationStatus)
       .where(eq(schema.reservationStatus.name, 'Checked Out'));
 
-    // Base query for reservation details
     const getReservationDetails = async (conditions: any[]) => {
       return this.db
         .select({
@@ -627,7 +625,6 @@ export class ReportsService {
         .where(and(...conditions, isNull(schema.reservations.deletedAt)));
     };
 
-    // Today's Check-ins (confirmed reservations with check-in today)
     const todayCheckIns = confirmedStatus
       ? await getReservationDetails([
           eq(schema.reservationRooms.checkIn, targetDate),
@@ -638,7 +635,6 @@ export class ReportsService {
         ])
       : [];
 
-    // Today's Check-outs (checked-in reservations with check-out today)
     const todayCheckOuts = checkedInStatus
       ? await getReservationDetails([
           eq(schema.reservationRooms.checkOut, targetDate),
@@ -649,7 +645,6 @@ export class ReportsService {
         ])
       : [];
 
-    // Tomorrow's Check-ins
     const tomorrowCheckIns = confirmedStatus
       ? await getReservationDetails([
           eq(schema.reservationRooms.checkIn, tomorrowStr),
@@ -660,7 +655,6 @@ export class ReportsService {
         ])
       : [];
 
-    // In Progress (currently checked-in guests)
     const inProgress = checkedInStatus
       ? await getReservationDetails([
           eq(schema.reservations.statusId, checkedInStatus.id),
@@ -670,7 +664,6 @@ export class ReportsService {
         ])
       : [];
 
-    // Overdue Check-outs (checked-in with check-out date in the past)
     const overdueCheckOuts = checkedInStatus
       ? await getReservationDetails([
           lte(schema.reservationRooms.checkOut, targetDate),
@@ -728,7 +721,6 @@ export class ReportsService {
       conditions.push(eq(schema.reservations.statusId, filters.statusId));
     }
 
-    // Get total count
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.reservationRooms)
@@ -746,7 +738,6 @@ export class ReportsService {
       )
       .where(and(...conditions));
 
-    // Get paginated data
     const reservations = await this.db
       .select({
         reservationId: schema.reservations.id,
@@ -814,7 +805,6 @@ export class ReportsService {
         .toISOString()
         .split('T')[0];
 
-    // Get status IDs
     const [pendingInvoiceStatus] = await this.db
       .select()
       .from(schema.invoiceStatus)
@@ -825,7 +815,6 @@ export class ReportsService {
       .from(schema.invoiceStatus)
       .where(eq(schema.invoiceStatus.name, 'Paid'));
 
-    // Pending invoices
     const pendingInvoices = pendingInvoiceStatus
       ? await this.db
           .select({
@@ -857,14 +846,12 @@ export class ReportsService {
           .orderBy(asc(schema.invoices.dueDate))
       : [];
 
-    // Calculate overdue invoices (due date in the past)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const overdueInvoices = pendingInvoices.filter(
       (inv) => inv.dueDate && new Date(inv.dueDate) < today,
     );
 
-    // Revenue collected in date range
     const revenueResult = paidInvoiceStatus
       ? await this.db
           .select({
@@ -881,7 +868,6 @@ export class ReportsService {
           )
       : [{ totalCollected: '0', invoiceCount: 0 }];
 
-    // Outstanding amount
     const outstandingResult = pendingInvoiceStatus
       ? await this.db
           .select({
@@ -932,13 +918,11 @@ export class ReportsService {
       conditions.push(eq(schema.occurrences.statusId, filters.statusId));
     }
 
-    // Get total count
     const [totalResult] = await this.db
       .select({ count: count() })
       .from(schema.occurrences)
       .where(and(...conditions));
 
-    // Get paginated data
     const occurrences = await this.db
       .select({
         id: schema.occurrences.id,
@@ -967,7 +951,6 @@ export class ReportsService {
       .limit(limit)
       .offset(offset);
 
-    // Get summary by status
     const byStatus = await this.db
       .select({
         statusId: schema.occurrenceStatus.id,

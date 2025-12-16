@@ -100,7 +100,7 @@ export class RoomsService {
   }
   async getRooms(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
     const [totalResult] = await this.db
       .select({ count: count() })
@@ -339,7 +339,7 @@ export class RoomsService {
   }
   async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
     const [totalResult] = await this.db
       .select({ count: count() })
@@ -766,8 +766,6 @@ export class RoomsService {
           eq(schema.reservationRooms.roomId, roomId),
           isNull(schema.reservationRooms.deletedAt),
           ne(schema.reservationStatus.name, 'Cancelled'),
-          // Use PostgreSQL daterange overlap operator for accurate overlap detection
-          // '[)' means inclusive start, exclusive end - prevents same-day overlaps
           sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
         ),
       );

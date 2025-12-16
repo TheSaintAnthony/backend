@@ -55,9 +55,6 @@ export class EmailService {
     await this.transporter.sendMail(options);
   }
 
-  /**
-   * Sends a password reset email with styled template
-   */
   async sendResetPasswordLink(email: string): Promise<void> {
     const payload = { email };
     const token = await this.jwtService.signAsync(payload, {
@@ -72,7 +69,6 @@ export class EmailService {
       this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
       '15m';
 
-    // Plain text version for email clients that don't support HTML
     const text = `The St. Anthony
 
 Recuperação de Password
@@ -92,7 +88,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Recuperação de Password')}
       
@@ -135,9 +130,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a verification email with styled template
-   */
   async sendVerifyUserLink(data: { id: string; email: string }): Promise<void> {
     const payload = { subb: data.id, email: data.email };
     const token = await this.jwtService.signAsync(payload, {
@@ -152,7 +144,6 @@ Este é um email automático. Por favor, não responda.`;
       this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
       '24h';
 
-    // Plain text version
     const text = `The St. Anthony
 
 Bem-vindo à The St. Anthony Collection
@@ -172,7 +163,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Bem-vindo à The St. Anthony Collection')}
       
@@ -220,9 +210,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a reservation confirmation email with styled template
-   */
   async sendReservationConfirmationEmail(
     emailPayload: EmailConfirmation,
   ): Promise<void> {
@@ -233,7 +220,6 @@ Este é um email automático. Por favor, não responda.`;
       method: string;
     }> = [];
 
-    // Build room details HTML
     const roomDetailsHtml = emailPayload.rooms
       .map((room, index) => {
         const icsContent = this.createCalendarEvent(
@@ -268,7 +254,6 @@ Este é um email automático. Por favor, não responda.`;
       })
       .join('');
 
-    // Plain text version for rooms
     const roomDetailsText = emailPayload.rooms
       .map((room, index) => {
         return `
@@ -284,7 +269,6 @@ Quarto ${index + 1}:
       ? `\nPedidos Especiais: ${emailPayload.specialRequests}`
       : '';
 
-    // Plain text version
     const text = `The St. Anthony
 
 Confirmação de Reserva
@@ -310,7 +294,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Confirmação de Reserva')}
       
@@ -382,16 +365,12 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a check-in reminder email with arrival instructions
-   */
   async sendCheckInReminderEmail(
     emailPayload: CheckInReminderEmail,
   ): Promise<void> {
     const checkInDate = this.formatDate(emailPayload.checkInDate);
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Lembrete de Check-in
@@ -425,7 +404,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Lembrete de Check-in')}
       
@@ -518,15 +496,11 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a check-out reminder email
-   */
   async sendCheckOutReminderEmail(
     emailPayload: CheckOutReminderEmail,
   ): Promise<void> {
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Lembrete de Check-out
@@ -548,7 +522,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Lembrete de Check-out')}
       
@@ -595,14 +568,10 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a post-stay thank you email
-   */
   async sendPostStayEmail(emailPayload: PostStayEmail): Promise<void> {
     const checkInDate = this.formatDate(emailPayload.checkInDate);
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Obrigado pela sua estadia!
@@ -623,7 +592,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Obrigado pela sua estadia!')}
       
@@ -676,9 +644,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Formats a date string to Portuguese locale format
-   */
   private formatDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-PT', {
@@ -689,9 +654,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Creates a calendar event (ICS format) for the booking
-   */
   private createCalendarEvent(
     checkIn: string,
     checkOut: string,

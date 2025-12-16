@@ -24,22 +24,15 @@ export class NotificationsService {
       this.configService.get<string>('FRONTEND_URL') || 'https://stanthony.pt';
   }
 
-  /**
-   * Check-in reminder: Runs every 3 hours
-   * Finds confirmed reservations with check-in between 12-48 hours from now
-   * that haven't received a reminder yet
-   */
   @Cron('0 */3 * * *')
   async sendCheckInReminders() {
     this.logger.log('Starting check-in reminder job...');
 
     try {
       const now = new Date();
-      // Send reminders for check-ins between 12-48 hours from now
       const hoursFrom12 = new Date(now.getTime() + 12 * 60 * 60 * 1000);
       const hoursFrom48 = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
-      // Get confirmed status ID
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -52,7 +45,6 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need check-in reminders
       const reservationsToNotify = await this.db
         .select({
           reservationId: schema.reservations.id,
@@ -120,11 +112,7 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for check-in reminders`,
       );
 
-      // Group by reservation ID to handle multiple rooms
-      const reservationMap = new Map<
-        string,
-        (typeof reservationsToNotify)[0]
-      >();
+      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -161,7 +149,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ checkinReminderSentAt: new Date() })
@@ -178,11 +165,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Check-out reminder: Runs every 4 hours
-   * Finds checked-in reservations with check-out today
-   * that haven't received a reminder yet
-   */
   @Cron('0 */4 * * *')
   async sendCheckOutReminders() {
     this.logger.log('Starting check-out reminder job...');
@@ -192,7 +174,6 @@ export class NotificationsService {
       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-      // Get confirmed and checked_in status IDs
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -219,7 +200,6 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need check-out reminders
       const reservationsToNotify = await this.db
         .select({
           reservationId: schema.reservations.id,
@@ -272,11 +252,7 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for check-out reminders`,
       );
 
-      // Group by reservation ID
-      const reservationMap = new Map<
-        string,
-        (typeof reservationsToNotify)[0]
-      >();
+      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -296,7 +272,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ checkoutReminderSentAt: new Date() })
@@ -313,11 +288,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Post-stay email: Runs daily at 2 PM
-   * Finds completed reservations that checked out yesterday
-   * that haven't received a post-stay email yet
-   */
   @Cron('0 14 * * *')
   async sendPostStayEmails() {
     this.logger.log('Starting post-stay email job...');
@@ -327,7 +297,6 @@ export class NotificationsService {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-      // Get completed or checked_out status IDs
       const [completedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -345,7 +314,6 @@ export class NotificationsService {
           ),
         );
 
-      // Also include confirmed/checked_in where checkout date was yesterday
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -375,7 +343,6 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need post-stay emails
       const reservationsToNotify = await this.db
         .select({
           reservationId: schema.reservations.id,
@@ -420,11 +387,7 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for post-stay emails`,
       );
 
-      // Group by reservation ID
-      const reservationMap = new Map<
-        string,
-        (typeof reservationsToNotify)[0]
-      >();
+      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -444,7 +407,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ postStayEmailSentAt: new Date() })
