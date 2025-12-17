@@ -103,10 +103,7 @@ export function mapRoomsQueryResults(
       });
     }
     const room = roomsMap.get(row.id)!;
-    if (
-      row.amenityId &&
-      !room.amenities.some((a) => a.id === row.amenityId)
-    ) {
+    if (row.amenityId && !room.amenities.some((a) => a.id === row.amenityId)) {
       room.amenities.push({ id: row.amenityId, name: row.amenityName! });
     }
     if (

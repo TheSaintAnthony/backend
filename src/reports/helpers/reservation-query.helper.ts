@@ -40,10 +40,7 @@ export async function getReservationDetails(
       schema.properties,
       eq(schema.rooms.propertyId, schema.properties.id),
     )
-    .innerJoin(
-      schema.users,
-      eq(schema.reservations.userId, schema.users.id),
-    )
+    .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
     .innerJoin(
       schema.reservationStatus,
       eq(schema.reservations.statusId, schema.reservationStatus.id),

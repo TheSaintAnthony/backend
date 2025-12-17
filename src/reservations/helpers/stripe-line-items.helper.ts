@@ -103,33 +103,33 @@ export async function prepareStripeInvoiceLineItems(
   const storedDiscountAmount = storedPricing.discountAmount;
   const storedVatAmount = storedPricing.vatAmount;
 
-    if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
-      const discountDescription = discountInfo?.promoCode
-        ? `Desconto - Código ${discountInfo.promoCode}`
-        : 'Desconto';
+  if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
+    const discountDescription = discountInfo?.promoCode
+      ? `Desconto - Código ${discountInfo.promoCode}`
+      : 'Desconto';
 
-      stripeLineItems.push({
-        priceData: {
-          currency: 'eur',
-          product: firstRoom.stripeProductId,
-          unitAmount: -Math.round(storedDiscountAmount * 100),
-        },
-        quantity: 1,
-        description: discountDescription,
-      } as StripeLineItem);
-    }
+    stripeLineItems.push({
+      priceData: {
+        currency: 'eur',
+        product: firstRoom.stripeProductId,
+        unitAmount: -Math.round(storedDiscountAmount * 100),
+      },
+      quantity: 1,
+      description: discountDescription,
+    } as StripeLineItem);
+  }
 
-    if (firstRoom.stripeProductId && storedVatAmount > 0) {
-      stripeLineItems.push({
-        priceData: {
-          currency: 'eur',
-          product: firstRoom.stripeProductId,
-          unitAmount: Math.round(storedVatAmount * 100),
-        },
-        quantity: 1,
-        description: 'IVA (23%)',
-      } as StripeLineItem);
-    }
+  if (firstRoom.stripeProductId && storedVatAmount > 0) {
+    stripeLineItems.push({
+      priceData: {
+        currency: 'eur',
+        product: firstRoom.stripeProductId,
+        unitAmount: Math.round(storedVatAmount * 100),
+      },
+      quantity: 1,
+      description: 'IVA (23%)',
+    } as StripeLineItem);
+  }
 
   const tourismFeeStripeItems = await Promise.all(
     validatedRooms.map(async (roomValidation) => {

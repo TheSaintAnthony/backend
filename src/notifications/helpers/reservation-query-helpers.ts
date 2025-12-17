@@ -34,10 +34,7 @@ export async function getCheckInReminderReservations(
       addressCountry: schema.addresses.country,
     })
     .from(schema.reservations)
-    .innerJoin(
-      schema.users,
-      eq(schema.reservations.userId, schema.users.id),
-    )
+    .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
     .innerJoin(
       schema.reservationRooms,
       eq(schema.reservations.id, schema.reservationRooms.reservationId),
@@ -90,10 +87,7 @@ export async function getCheckOutReminderReservations(
       checkOutTime: schema.properties.checkOutTime,
     })
     .from(schema.reservations)
-    .innerJoin(
-      schema.users,
-      eq(schema.reservations.userId, schema.users.id),
-    )
+    .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
     .innerJoin(
       schema.reservationRooms,
       eq(schema.reservations.id, schema.reservationRooms.reservationId),
@@ -143,10 +137,7 @@ export async function getPostStayReservations(
       propertyName: schema.properties.name,
     })
     .from(schema.reservations)
-    .innerJoin(
-      schema.users,
-      eq(schema.reservations.userId, schema.users.id),
-    )
+    .innerJoin(schema.users, eq(schema.reservations.userId, schema.users.id))
     .innerJoin(
       schema.reservationRooms,
       eq(schema.reservations.id, schema.reservationRooms.reservationId),
@@ -168,10 +159,7 @@ export async function getPostStayReservations(
         isNull(schema.reservations.postStayEmailSentAt),
         isNull(schema.reservations.deletedAt),
         isNull(schema.reservationRooms.deletedAt),
-        eq(
-          sql`${schema.reservationRooms.checkOut}::date`,
-          yesterdayStr,
-        ),
+        eq(sql`${schema.reservationRooms.checkOut}::date`, yesterdayStr),
       ),
     );
 }

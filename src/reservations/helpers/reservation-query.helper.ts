@@ -71,7 +71,9 @@ export function buildReservationDetailQuery(db: NodePgDatabase<typeof schema>) {
 /**
  * Maps query results to a ReservationWithRooms object
  */
-export function mapReservationQueryResults(results: any[]): ReservationWithRooms {
+export function mapReservationQueryResults(
+  results: any[],
+): ReservationWithRooms {
   if (results.length === 0) {
     throw new Error('No results to map');
   }

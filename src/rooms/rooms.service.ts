@@ -10,7 +10,18 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
-import { eq, and, lte, gte, or, count, inArray, isNull, ne, sql } from 'drizzle-orm';
+import {
+  eq,
+  and,
+  lte,
+  gte,
+  or,
+  count,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
 import {
@@ -706,7 +717,11 @@ export class RoomsService {
       throw new BadRequestException('No pricing available for this room');
     }
     try {
-      const nightlyPrices = calculateNightlyPrices(checkIn, checkOut, roomPrices);
+      const nightlyPrices = calculateNightlyPrices(
+        checkIn,
+        checkOut,
+        roomPrices,
+      );
       const totalPrice = calculateTotalFromNightlyPrices(nightlyPrices);
       const breakdown = groupPricesIntoBreakdown(nightlyPrices);
       return { totalPrice, breakdown };

@@ -61,7 +61,10 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for check-in reminders`,
       );
 
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -160,7 +163,10 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for check-out reminders`,
       );
 
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);
@@ -261,7 +267,10 @@ export class NotificationsService {
         `Found ${reservationsToNotify.length} reservations for post-stay emails`,
       );
 
-      const reservationMap = new Map<string, (typeof reservationsToNotify)[0]>();
+      const reservationMap = new Map<
+        string,
+        (typeof reservationsToNotify)[0]
+      >();
       for (const row of reservationsToNotify) {
         if (!reservationMap.has(row.reservationId)) {
           reservationMap.set(row.reservationId, row);

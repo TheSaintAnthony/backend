@@ -47,9 +47,7 @@ import {
   buildReservationDetailQuery,
   mapReservationQueryResults,
 } from './helpers/reservation-query.helper';
-import {
-  prepareStripeInvoiceLineItems,
-} from './helpers/stripe-line-items.helper';
+import { prepareStripeInvoiceLineItems } from './helpers/stripe-line-items.helper';
 import { calculateNights } from '../common/utils/date.utils';
 import {
   generateAccessCode,
@@ -472,13 +470,19 @@ export class ReservationsService implements OnModuleInit {
   ): Promise<number> {
     const db = tx || this.db;
     try {
-      return await generateUniqueAccessCode(checkIn, checkOut, db, usedCodesInBatch);
+      return await generateUniqueAccessCode(
+        checkIn,
+        checkOut,
+        db,
+        usedCodesInBatch,
+      );
     } catch (error: any) {
       this.logger.error(
         `Failed to generate unique access code for dates ${checkIn} to ${checkOut}: ${error.message}`,
       );
       throw new BadRequestException(
-        error.message || 'Failed to generate unique access code. Please try again.',
+        error.message ||
+          'Failed to generate unique access code. Please try again.',
       );
     }
   }
@@ -919,12 +923,15 @@ export class ReservationsService implements OnModuleInit {
         discountInfo,
       );
     } catch (error: any) {
-      throw new BadRequestException(error.message || 'Failed to prepare Stripe line items');
+      throw new BadRequestException(
+        error.message || 'Failed to prepare Stripe line items',
+      );
     }
   }
   async getReservationById(id: string): Promise<ReservationWithRooms> {
-    const results = await buildReservationDetailQuery(this.db)
-      .where(eq(schema.reservations.id, id));
+    const results = await buildReservationDetailQuery(this.db).where(
+      eq(schema.reservations.id, id),
+    );
 
     if (results.length === 0) {
       throw new NotFoundException('Reservation', id);
