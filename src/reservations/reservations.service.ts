@@ -43,6 +43,16 @@ import { PaymentsService } from 'src/payments/payments.service';
 import { PromoCodesService } from 'src/promo-codes/promo-codes.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
 import { PricingEngineService } from 'src/pricing/pricing-engine.service';
+import {
+  buildReservationDetailQuery,
+  mapReservationQueryResults,
+} from './helpers/reservation-query.helper';
+import { prepareStripeInvoiceLineItems } from './helpers/stripe-line-items.helper';
+import { calculateNights } from '../common/utils/date.utils';
+import {
+  generateAccessCode,
+  generateUniqueAccessCode,
+} from './helpers/access-code.helper';
 
 interface BookingIntentData {
   userId: string;
@@ -212,7 +222,6 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.reservations.statusId, pendingStatusId),
             eq(schema.reservations.userId, userId),
             isNull(schema.reservationRooms.deletedAt),
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
             sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
@@ -241,8 +250,6 @@ export class ReservationsService implements OnModuleInit {
               ne(schema.reservations.statusId, pendingStatusId),
             ),
             isNull(schema.reservationRooms.deletedAt),
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
-            // This ensures check-out on day X doesn't conflict with check-in on day X
             sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
@@ -263,7 +270,6 @@ export class ReservationsService implements OnModuleInit {
             eq(schema.roomHolds.roomId, roomId),
             gt(schema.roomHolds.expiresAt, now),
             userId ? ne(schema.roomHolds.userId, userId) : undefined,
-            // Use '[)' (inclusive start, exclusive end) to prevent same-day overlaps
             sql`daterange(${schema.roomHolds.checkIn}::date, ${schema.roomHolds.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
           ),
         );
@@ -454,7 +460,7 @@ export class ReservationsService implements OnModuleInit {
     return reservation;
   }
   private generateAccessCode(): number {
-    return Math.floor(100000 + Math.random() * 900000);
+    return generateAccessCode();
   }
   private async generateUniqueAccessCode(
     checkIn: string,
@@ -463,47 +469,22 @@ export class ReservationsService implements OnModuleInit {
     usedCodesInBatch?: Set<number>,
   ): Promise<number> {
     const db = tx || this.db;
-    let code = this.generateAccessCode();
-    let exists = true;
-    let attempts = 0;
-    const maxAttempts = 1000;
-
-    while (exists && attempts < maxAttempts) {
-      const isUsedInBatch = usedCodesInBatch?.has(code) || false;
-
-      if (!isUsedInBatch) {
-        const [result] = await db
-          .select({ count: count() })
-          .from(schema.reservationRooms)
-          .where(
-            and(
-              eq(schema.reservationRooms.accessCode, code),
-              eq(schema.reservationRooms.checkIn, checkIn),
-              eq(schema.reservationRooms.checkOut, checkOut),
-              isNull(schema.reservationRooms.deletedAt),
-            ),
-          );
-        exists = result.count > 0;
-      } else {
-        exists = true;
-      }
-
-      if (exists) {
-        code = this.generateAccessCode();
-        attempts++;
-      }
-    }
-
-    if (attempts >= maxAttempts) {
+    try {
+      return await generateUniqueAccessCode(
+        checkIn,
+        checkOut,
+        db,
+        usedCodesInBatch,
+      );
+    } catch (error: any) {
       this.logger.error(
-        `Failed to generate unique access code after ${maxAttempts} attempts for dates ${checkIn} to ${checkOut}`,
+        `Failed to generate unique access code for dates ${checkIn} to ${checkOut}: ${error.message}`,
       );
       throw new BadRequestException(
-        'Failed to generate unique access code. Please try again.',
+        error.message ||
+          'Failed to generate unique access code. Please try again.',
       );
     }
-
-    return code;
   }
   private async createInvoiceAndPayment(
     tx: NodePgDatabase<typeof schema>,
@@ -658,7 +639,7 @@ export class ReservationsService implements OnModuleInit {
         const room = await this.roomsService.getRoomById(roomValidation.roomId);
         const checkIn = new Date(roomValidation.checkIn);
         const checkOut = new Date(roomValidation.checkOut);
-        const nights = this.calculateNights(checkIn, checkOut);
+        const nights = calculateNights(checkIn, checkOut);
         const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
         const roomBasePrice = roomBreakdown
           ? roomBreakdown.basePrice
@@ -905,10 +886,6 @@ export class ReservationsService implements OnModuleInit {
     }
     return invoice;
   }
-  private calculateNights(checkIn: Date, checkOut: Date): number {
-    const diffTime = checkOut.getTime() - checkIn.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  }
   private async prepareStripeInvoiceLineItems(
     validatedRooms: RoomValidation[],
     storedPricing: {
@@ -938,239 +915,29 @@ export class ReservationsService implements OnModuleInit {
       stripeCouponId?: string;
     },
   ) {
-    const storedPricingBreakdown = storedPricing.breakdown.rooms;
-    const roomBreakdownMap = new Map(
-      storedPricingBreakdown.map((room) => [room.roomId, room]),
-    );
-
-    const stripeLineItems = await Promise.all(
-      validatedRooms.map(async (roomValidation) => {
-        const room = await this.roomsService.getRoomById(roomValidation.roomId);
-        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
-        const checkIn = new Date(roomValidation.checkIn);
-        const checkOut = new Date(roomValidation.checkOut);
-        const nights = roomBreakdown
-          ? roomBreakdown.nights
-          : this.calculateNights(checkIn, checkOut);
-        const roomBasePrice = roomBreakdown
-          ? roomBreakdown.basePrice
-          : Number(roomValidation.price);
-        const basePricePerNight = roomBasePrice / nights;
-
-        if (basePricePerNight <= 0) {
-          throw new BadRequestException(
-            `Invalid price for room ${roomValidation.roomId}: ${roomBasePrice}`,
-          );
-        }
-        if (!room.stripePriceId && !room.stripeProductId) {
-          throw new BadRequestException(
-            `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
-          );
-        }
-
-        if (room.stripeProductId) {
-          return {
-            priceId: undefined,
-            priceData: {
-              currency: 'eur',
-              product: room.stripeProductId,
-              unitAmount: Math.round(basePricePerNight * 100),
-            },
-            quantity: nights,
-            description: `${room.name} - ${nights} night(s)`,
-          };
-        } else {
-          throw new BadRequestException(
-            `Room ${roomValidation.roomId} is missing Stripe product configuration`,
-          );
-        }
-      }),
-    );
-
-    const firstRoom = await this.roomsService.getRoomById(
-      validatedRooms[0].roomId,
-    );
-
-    const storedDiscountAmount = storedPricing.discountAmount;
-    const storedVatAmount = storedPricing.vatAmount;
-
-    if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
-      const discountDescription = discountInfo?.promoCode
-        ? `Desconto - Código ${discountInfo.promoCode}`
-        : 'Desconto';
-
-      stripeLineItems.push({
-        priceId: undefined,
-        priceData: {
-          currency: 'eur',
-          product: firstRoom.stripeProductId,
-          unitAmount: -Math.round(storedDiscountAmount * 100),
-        },
-        quantity: 1,
-        description: discountDescription,
-      });
+    try {
+      return await prepareStripeInvoiceLineItems(
+        validatedRooms,
+        storedPricing,
+        this.roomsService,
+        discountInfo,
+      );
+    } catch (error: any) {
+      throw new BadRequestException(
+        error.message || 'Failed to prepare Stripe line items',
+      );
     }
-
-    if (firstRoom.stripeProductId && storedVatAmount > 0) {
-      stripeLineItems.push({
-        priceId: undefined,
-        priceData: {
-          currency: 'eur',
-          product: firstRoom.stripeProductId,
-          unitAmount: Math.round(storedVatAmount * 100),
-        },
-        quantity: 1,
-        description: 'IVA (23%)',
-      });
-    }
-
-    const tourismFeeStripeItems = await Promise.all(
-      validatedRooms.map(async (roomValidation) => {
-        const roomBreakdown = roomBreakdownMap.get(roomValidation.roomId);
-        if (!roomBreakdown || roomBreakdown.tourismFee <= 0) {
-          return null;
-        }
-        const room = await this.roomsService.getRoomById(roomValidation.roomId);
-        if (!room.stripeProductId) {
-          return null;
-        }
-        const checkIn = new Date(roomValidation.checkIn);
-        const checkOut = new Date(roomValidation.checkOut);
-        const nights = roomBreakdown.nights;
-        const guestsCount = roomBreakdown.guestsCount;
-        const tourismFeeTotal = roomBreakdown.tourismFee;
-        const tourismFeePerPersonPerNight =
-          nights > 0 && guestsCount > 0
-            ? tourismFeeTotal / (guestsCount * nights)
-            : 0;
-        return {
-          priceId: undefined,
-          priceData: {
-            currency: 'eur',
-            product: room.stripeProductId,
-            unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
-          },
-          quantity: guestsCount * nights,
-          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
-        };
-      }),
-    );
-    const validTourismFeeItems = tourismFeeStripeItems.filter(
-      (item) => item !== null,
-    );
-    stripeLineItems.push(...validTourismFeeItems);
-
-    return stripeLineItems;
   }
   async getReservationById(id: string): Promise<ReservationWithRooms> {
-    const results = await this.db
-      .select({
-        reservationId: schema.reservations.id,
-        userId: schema.reservations.userId,
-        statusId: schema.reservations.statusId,
-        statusName: schema.reservationStatus.name,
-        totalPrice: schema.reservations.totalPrice,
-        paymentStatusId: schema.reservations.paymentStatusId,
-        paymentStatusName: schema.paymentStatus.name,
-        specialRequests: schema.reservations.specialRequests,
-        createdAt: schema.reservations.createdAt,
-        updatedAt: schema.reservations.updatedAt,
-        roomId: schema.reservationRooms.id,
-        roomReservationId: schema.reservationRooms.reservationId,
-        roomRoomId: schema.reservationRooms.roomId,
-        checkIn: schema.reservationRooms.checkIn,
-        checkOut: schema.reservationRooms.checkOut,
-        guestsCount: schema.reservationRooms.guestsCount,
-        accessCode: schema.reservationRooms.accessCode,
-        roomName: schema.rooms.name,
-        roomDescription: schema.rooms.description,
-        bedCount: schema.rooms.bedCount,
-        bathroomCount: schema.rooms.bathroomCount,
-        roomTypeName: schema.roomTypes.name,
-        maxCapacity: schema.roomTypes.maxCapacity,
-        propertyId: schema.properties.id,
-        propertyName: schema.properties.name,
-        invoiceUrl: schema.invoices.externalInvoiceUrl,
-        invoiceTotalAmount: schema.invoices.totalAmount,
-      })
-      .from(schema.reservations)
-      .leftJoin(
-        schema.reservationStatus,
-        eq(schema.reservations.statusId, schema.reservationStatus.id),
-      )
-      .leftJoin(
-        schema.paymentStatus,
-        eq(schema.reservations.paymentStatusId, schema.paymentStatus.id),
-      )
-      .leftJoin(
-        schema.reservationRooms,
-        and(
-          eq(schema.reservations.id, schema.reservationRooms.reservationId),
-          isNull(schema.reservationRooms.deletedAt),
-        ),
-      )
-      .leftJoin(
-        schema.rooms,
-        eq(schema.reservationRooms.roomId, schema.rooms.id),
-      )
-      .leftJoin(
-        schema.roomTypes,
-        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
-      )
-      .leftJoin(
-        schema.properties,
-        eq(schema.rooms.propertyId, schema.properties.id),
-      )
-      .leftJoin(
-        schema.invoices,
-        eq(schema.reservations.id, schema.invoices.reservationId),
-      )
-      .where(eq(schema.reservations.id, id));
+    const results = await buildReservationDetailQuery(this.db).where(
+      eq(schema.reservations.id, id),
+    );
 
     if (results.length === 0) {
       throw new NotFoundException('Reservation', id);
     }
 
-    const firstRow = results[0];
-    const reservation: ReservationWithRooms = {
-      id: firstRow.reservationId,
-      userId: firstRow.userId,
-      statusId: firstRow.statusId,
-      statusName: firstRow.statusName,
-      totalPrice: firstRow.totalPrice,
-      paymentStatusId: firstRow.paymentStatusId,
-      paymentStatusName: firstRow.paymentStatusName,
-      specialRequests: firstRow.specialRequests,
-      createdAt: firstRow.createdAt,
-      updatedAt: firstRow.updatedAt,
-      invoiceUrl: firstRow.invoiceUrl || null,
-      invoiceTotalAmount: firstRow.invoiceTotalAmount || null,
-      rooms: [],
-    };
-
-    for (const row of results) {
-      if (row.roomId !== null) {
-        reservation.rooms.push({
-          id: row.roomId,
-          reservationId: row.roomReservationId,
-          roomId: row.roomRoomId,
-          checkIn: row.checkIn,
-          checkOut: row.checkOut,
-          guestsCount: row.guestsCount,
-          accessCode: row.accessCode,
-          roomName: row.roomName,
-          roomDescription: row.roomDescription,
-          bedCount: row.bedCount,
-          bathroomCount: row.bathroomCount,
-          roomTypeName: row.roomTypeName,
-          maxCapacity: row.maxCapacity,
-          propertyId: row.propertyId,
-          propertyName: row.propertyName,
-        });
-      }
-    }
-
-    return reservation;
+    return mapReservationQueryResults(results);
   }
   async getReservationsByUser(userId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;

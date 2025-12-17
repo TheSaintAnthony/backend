@@ -7,9 +7,6 @@ import { InvoiceStatus } from '../../constants/invoice-status.enum';
 import { UserRole } from '../../constants/user-role.enum';
 
 export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
-  console.log('Seeding static lookup tables...');
-
-  // Seed Reservation Status
   const reservationStatuses = Object.values(ReservationStatus);
   for (const status of reservationStatuses) {
     const existing = await db
@@ -25,9 +22,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${reservationStatuses.length} reservation statuses`);
 
-  // Seed Payment Status
   const paymentStatuses = Object.values(PaymentStatus);
   for (const status of paymentStatuses) {
     const existing = await db
@@ -43,9 +38,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${paymentStatuses.length} payment statuses`);
 
-  // Seed Invoice Status
   const invoiceStatuses = Object.values(InvoiceStatus);
   for (const status of invoiceStatuses) {
     const existing = await db
@@ -61,9 +54,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${invoiceStatuses.length} invoice statuses`);
 
-  // Seed Invoice Types
   const invoiceTypes = [
     { name: 'Booking', description: 'Invoice for room booking' },
     { name: 'Service', description: 'Invoice for additional services' },
@@ -83,9 +74,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${invoiceTypes.length} invoice types`);
 
-  // Seed Occurrence Status
   const occurrenceStatuses = ['Pending', 'In Progress', 'Resolved', 'Closed'];
   for (const status of occurrenceStatuses) {
     const existing = await db
@@ -101,9 +90,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${occurrenceStatuses.length} occurrence statuses`);
 
-  // Seed Roles
   const roles = Object.values(UserRole);
   for (const role of roles) {
     const existing = await db
@@ -119,9 +106,7 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       });
     }
   }
-  console.log(`✓ Seeded ${roles.length} roles`);
 
-  // Seed Entity Types
   const entityTypes = [
     { code: 'property', name: 'Property', tableName: 'properties' },
     { code: 'room', name: 'Room', tableName: 'rooms' },
@@ -150,7 +135,4 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       await db.insert(schema.entityTypes).values(entityType);
     }
   }
-  console.log(`✓ Seeded ${entityTypes.length} entity types`);
-
-  console.log('✓ Static lookup tables seeded successfully!');
 }
