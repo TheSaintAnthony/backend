@@ -17,4 +17,5 @@ export const entityTypes = pgTable('entity_types', {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });

@@ -10,7 +10,7 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
-import { eq, and, lte, gte, or, count, inArray, isNull, ne } from 'drizzle-orm';
+import { eq, and, lte, gte, or, count, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
 import {
@@ -686,8 +686,10 @@ export class RoomsService {
       quantity: room.quantity || 1,
     }));
 
-    const pricingBreakdown =
-      await this.pricingEngine.calculatePricing(pricingInput, promoCodeId);
+    const pricingBreakdown = await this.pricingEngine.calculatePricing(
+      pricingInput,
+      promoCodeId,
+    );
 
     const roomBreakdownMap = new Map(
       pricingBreakdown.breakdown.rooms.map((room) => [room.roomId, room]),
@@ -707,7 +709,7 @@ export class RoomsService {
         const roomTotalWithDiscount =
           roomDiscountedBase + breakdown.tourismFee + roomVatAmount;
 
-    return {
+        return {
           ...roomQuote,
           roomTotal: roomTotalWithDiscount.toFixed(2),
         };
@@ -764,20 +766,9 @@ export class RoomsService {
           eq(schema.reservationRooms.roomId, roomId),
           isNull(schema.reservationRooms.deletedAt),
           ne(schema.reservationStatus.name, 'Cancelled'),
-          or(
-            and(
-              lte(schema.reservationRooms.checkIn, checkIn),
-              gte(schema.reservationRooms.checkOut, checkIn),
-            ),
-            and(
-              lte(schema.reservationRooms.checkIn, checkOut),
-              gte(schema.reservationRooms.checkOut, checkOut),
-            ),
-            and(
-              gte(schema.reservationRooms.checkIn, checkIn),
-              lte(schema.reservationRooms.checkOut, checkOut),
-            ),
-          ),
+          // Use PostgreSQL daterange overlap operator for accurate overlap detection
+          // '[)' means inclusive start, exclusive end - prevents same-day overlaps
+          sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
         ),
       );
     const bookedCount = Number(overlappingReservations[0]?.count || 0);

@@ -7,7 +7,9 @@ export const occurrences = pgTable('occurrences', {
     .notNull()
     .references(() => reservations.id, { onDelete: 'cascade' }),
   description: text('description').notNull(),
-  statusId: uuid('status_id').references(() => occurrenceStatus.id),
+  statusId: uuid('status_id')
+    .notNull()
+    .references(() => occurrenceStatus.id),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),
