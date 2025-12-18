@@ -10,7 +10,18 @@ import {
   GetPriceQuoteDto,
 } from './dto';
 import { RoomWithDetails, RoomResponse, RoomQuote } from './interfaces';
-import { eq, and, lte, gte, or, count, inArray, isNull, ne, sql } from 'drizzle-orm';
+import {
+  eq,
+  and,
+  lte,
+  gte,
+  or,
+  count,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from 'drizzle-orm';
 import { RoomPricesService } from 'src/room-prices/room-prices.service';
 import { RoomHoldsService } from 'src/room-holds/room-holds.service';
 import {
@@ -21,6 +32,20 @@ import { ImagesService } from 'src/images/images.service';
 import { StripeService } from 'src/payments/stripe/stripe.service';
 import { PropertiesService } from 'src/properties/properties.service';
 import { PricingEngineService } from 'src/pricing/pricing-engine.service';
+import {
+  createStripeProductForRoom,
+  updateStripeProductImages,
+} from './helpers/stripe-integration.helper';
+import {
+  buildRoomsByPropertyQuery,
+  mapRoomsQueryResults,
+} from './helpers/room-query.helper';
+import { calculateNights } from '../common/utils/date.utils';
+import {
+  calculateNightlyPrices,
+  groupPricesIntoBreakdown,
+  calculateTotalFromNightlyPrices,
+} from './helpers/price-calculation.helper';
 @Injectable()
 export class RoomsService {
   private readonly logger = new Logger(RoomsService.name);
@@ -51,48 +76,13 @@ export class RoomsService {
       );
     }
     try {
-      const roomImages = await this.imagesService.getImagesByEntity(
-        'room',
-        createdRoom.id,
+      await createStripeProductForRoom(
+        createdRoom,
+        this.stripeService,
+        this.imagesService,
+        this.roomPricesService,
+        this.db,
       );
-      const imageUrls = roomImages
-        .map((img) => img.url)
-        .filter((url) => url && url.startsWith('http'));
-      const stripeProduct = await this.stripeService.createProduct(
-        createdRoom.name,
-        createdRoom.description || undefined,
-        {
-          roomId: createdRoom.id,
-          propertyId: createdRoom.propertyId,
-          roomTypeId: createdRoom.roomTypeId || '',
-        },
-        imageUrls.length > 0 ? imageUrls : undefined,
-      );
-      let stripePriceId: string | undefined;
-      const roomPrices = await this.roomPricesService.getRoomPricesByRoom(
-        createdRoom.id,
-      );
-      if (roomPrices.length > 0) {
-        const defaultPrice = roomPrices[0];
-        const priceInCents = Math.round(parseFloat(defaultPrice.price) * 100);
-        const stripePrice = await this.stripeService.createPrice(
-          stripeProduct.id,
-          priceInCents,
-          'eur',
-          {
-            roomId: createdRoom.id,
-            priceId: defaultPrice.id,
-          },
-        );
-        stripePriceId = stripePrice.id;
-      }
-      await this.db
-        .update(schema.rooms)
-        .set({
-          stripeProductId: stripeProduct.id,
-          stripePriceId: stripePriceId,
-        })
-        .where(eq(schema.rooms.id, createdRoom.id));
     } catch (error) {
       this.logger.error('Failed to create Stripe product for room:', error);
     }
@@ -100,7 +90,7 @@ export class RoomsService {
   }
   async getRooms(pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
     const [totalResult] = await this.db
       .select({ count: count() })
@@ -339,7 +329,7 @@ export class RoomsService {
   }
   async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
     const page = pagination?.page || 1;
-    const limit = Math.min(pagination?.limit || 10, 100); // Safety clamp
+    const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
     const [totalResult] = await this.db
       .select({ count: count() })
@@ -365,91 +355,12 @@ export class RoomsService {
     if (roomIds.length === 0) {
       return createPaginatedResponse([], total, page, limit);
     }
-    const roomsData = await this.db
-      .select({
-        id: schema.rooms.id,
-        name: schema.rooms.name,
-        description: schema.rooms.description,
-        bedCount: schema.rooms.bedCount,
-        bathroomCount: schema.rooms.bathroomCount,
-        quantity: schema.rooms.quantity,
-        available: schema.rooms.available,
-        roomType: schema.roomTypes.name,
-        maxCapacity: schema.roomTypes.maxCapacity,
-        amenityId: schema.amenities.id,
-        amenityName: schema.amenities.name,
-        highlightId: schema.highlights.id,
-        highlightName: schema.highlights.name,
-        roomTypeId: schema.rooms.roomTypeId,
-      })
-      .from(schema.rooms)
-      .leftJoin(
-        schema.roomTypes,
-        eq(schema.rooms.roomTypeId, schema.roomTypes.id),
-      )
-      .leftJoin(
-        schema.roomAmenities,
-        eq(schema.roomAmenities.roomId, schema.rooms.id),
-      )
-      .leftJoin(
-        schema.roomHighlights,
-        eq(schema.roomHighlights.roomId, schema.rooms.id),
-      )
-      .leftJoin(
-        schema.amenities,
-        eq(schema.amenities.id, schema.roomAmenities.amenityId),
-      )
-      .leftJoin(
-        schema.highlights,
-        eq(schema.highlights.id, schema.roomHighlights.highlightId),
-      )
-      .where(
-        and(
-          inArray(
-            schema.rooms.id,
-            roomIds.map((r) => r.id),
-          ),
-          isNull(schema.rooms.deletedAt),
-        ),
-      );
-    const roomsMap = new Map<string, RoomWithDetails>();
-    for (const row of roomsData) {
-      if (!roomsMap.has(row.id)) {
-        roomsMap.set(row.id, {
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          bedCount: row.bedCount,
-          bathroomCount: row.bathroomCount,
-          quantity: row.quantity,
-          available: row.available,
-          roomType: row.roomType,
-          maxCapacity: row.maxCapacity,
-          amenities: [],
-          highlights: [],
-          propertyId: propertyId,
-          roomTypeId: row.roomTypeId,
-        });
-      }
-      const room = roomsMap.get(row.id)!;
-      if (
-        row.amenityId &&
-        !room.amenities.some((a) => a.id === row.amenityId)
-      ) {
-        room.amenities.push({ id: row.amenityId, name: row.amenityName });
-      }
-      if (
-        row.highlightId &&
-        !room.highlights.some((h) => h.id === row.highlightId)
-      ) {
-        room.highlights.push({ id: row.highlightId, name: row.highlightName });
-      }
-    }
-    const data = Array.from(roomsMap.values()).map((room) => ({
-      ...room,
-      amenities: room.amenities.length > 0 ? room.amenities : null,
-      highlights: room.highlights.length > 0 ? room.highlights : null,
-    }));
+    const roomsData = await buildRoomsByPropertyQuery(
+      this.db,
+      propertyId,
+      roomIds,
+    );
+    const data = mapRoomsQueryResults(roomsData, propertyId);
     const roomsWithImages = await Promise.all(
       data.map(async (room) => {
         const images = await this.imagesService.getImagesByEntity(
@@ -460,7 +371,12 @@ export class RoomsService {
           url: img.url,
           isPrimary: img.isPrimary,
         }));
-        return { ...room, images: simplifiedImages };
+        return {
+          ...room,
+          amenities: room.amenities.length > 0 ? room.amenities : null,
+          highlights: room.highlights.length > 0 ? room.highlights : null,
+          images: simplifiedImages,
+        };
       }),
     );
     return createPaginatedResponse(roomsWithImages, total, page, limit);
@@ -766,8 +682,6 @@ export class RoomsService {
           eq(schema.reservationRooms.roomId, roomId),
           isNull(schema.reservationRooms.deletedAt),
           ne(schema.reservationStatus.name, 'Cancelled'),
-          // Use PostgreSQL daterange overlap operator for accurate overlap detection
-          // '[)' means inclusive start, exclusive end - prevents same-day overlaps
           sql`daterange(${schema.reservationRooms.checkIn}::date, ${schema.reservationRooms.checkOut}::date, '[)') && daterange(${checkIn}::date, ${checkOut}::date, '[)')`,
         ),
       );
@@ -794,9 +708,7 @@ export class RoomsService {
   }> {
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
-    const nights = Math.ceil(
-      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const nights = calculateNights(checkIn, checkOut);
     if (nights <= 0) {
       throw new BadRequestException('Check-out must be after check-in');
     }
@@ -804,70 +716,20 @@ export class RoomsService {
     if (roomPrices.length === 0) {
       throw new BadRequestException('No pricing available for this room');
     }
-    let totalPrice = 0;
-    const currentDate = new Date(checkIn);
-    const nightlyPrices: { date: Date; price: number }[] = [];
-    for (let i = 0; i < nights; i++) {
-      const applicablePrices = roomPrices.filter((price) => {
-        const priceStart = new Date(price.startDate);
-        const priceEnd = new Date(price.endDate);
-        const currentDateStr = currentDate.toISOString().split('T')[0];
-        const priceStartStr = priceStart.toISOString().split('T')[0];
-        const priceEndStr = priceEnd.toISOString().split('T')[0];
-        return currentDateStr >= priceStartStr && currentDateStr < priceEndStr;
-      });
-      if (applicablePrices.length === 0) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        throw new BadRequestException(
-          `No pricing available for date: ${dateStr}`,
-        );
-      }
-      applicablePrices.sort((a, b) => {
-        const aStart = new Date(a.startDate);
-        const aEnd = new Date(a.endDate);
-        const bStart = new Date(b.startDate);
-        const bEnd = new Date(b.endDate);
-        const aRangeLength = aEnd.getTime() - aStart.getTime();
-        const bRangeLength = bEnd.getTime() - bStart.getTime();
-        if (aRangeLength !== bRangeLength) {
-          return aRangeLength - bRangeLength;
-        }
-        const aCreated = new Date(a.createdAt);
-        const bCreated = new Date(b.createdAt);
-        return bCreated.getTime() - aCreated.getTime();
-      });
-      const applicablePrice = applicablePrices[0];
-      const price = Math.round(parseFloat(applicablePrice.price) * 100) / 100;
-      totalPrice += price;
-      nightlyPrices.push({ date: new Date(currentDate), price });
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    const breakdown: { price: string; nights: number }[] = [];
-    if (nightlyPrices.length > 0) {
-      const normalizedPrices = nightlyPrices.map(
-        (item) => Math.round(item.price * 100) / 100,
+    try {
+      const nightlyPrices = calculateNightlyPrices(
+        checkIn,
+        checkOut,
+        roomPrices,
       );
-      const priceToCents = (price: number) => Math.round(price * 100);
-      const priceCountMap = new Map<number, { price: number; count: number }>();
-      for (const price of normalizedPrices) {
-        const priceCents = priceToCents(price);
-        const existing = priceCountMap.get(priceCents);
-        if (existing) {
-          existing.count++;
-        } else {
-          priceCountMap.set(priceCents, { price, count: 1 });
-        }
-      }
-      breakdown.push(
-        ...Array.from(priceCountMap.values())
-          .sort((a, b) => a.price - b.price)
-          .map((item) => ({
-            price: item.price.toFixed(2),
-            nights: item.count,
-          })),
+      const totalPrice = calculateTotalFromNightlyPrices(nightlyPrices);
+      const breakdown = groupPricesIntoBreakdown(nightlyPrices);
+      return { totalPrice, breakdown };
+    } catch (error: any) {
+      throw new BadRequestException(
+        error.message || 'Failed to calculate price breakdown',
       );
     }
-    return { totalPrice, breakdown };
   }
   async calculateTotalPrice(
     roomId: string,

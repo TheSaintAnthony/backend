@@ -38,8 +38,6 @@ export class OccurrenceResponsesService {
       .values(insertValues)
       .returning();
 
-    // Auto-update occurrence status to "In Progress" when admin responds
-    // (only if current status is "Pending")
     if (createData.isAdmin) {
       const pendingStatusId =
         await this.statusLookupService.getOccurrenceStatusId('Pending');

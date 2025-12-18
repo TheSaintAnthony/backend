@@ -5,6 +5,11 @@ import {
   PaymentCaptureResult,
   PaymentStatusResult,
 } from '../interfaces';
+import {
+  createInvoiceItems,
+  payInvoiceWithRetry,
+} from './helpers/invoice-helpers';
+import { mapStripeStatusToPaymentStatus } from './helpers/payment-status.helper';
 @Injectable()
 export class StripeService {
   private readonly logger = new Logger(StripeService.name);
@@ -15,7 +20,7 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY environment variable is not set');
     }
     this.stripe = new Stripe(stripeKey, {
-      apiVersion: '2025-11-17.clover',
+      apiVersion: '2025-12-15.clover',
     });
   }
   async getOrCreateCustomer(
@@ -267,47 +272,13 @@ export class StripeService {
       }
 
       const invoice = await this.stripe.invoices.create(invoiceCreateParams);
-      for (const item of params.lineItems) {
-        if (
-          item.priceId &&
-          item.priceId.trim() !== '' &&
-          item.priceId.startsWith('price_')
-        ) {
-          await this.stripe.invoiceItems.create({
-            customer: params.customerId,
-            invoice: invoice.id,
-            price: item.priceId,
-            quantity: item.quantity,
-            description: item.description,
-          } as Stripe.InvoiceItemCreateParams);
-        } else if (item.priceData) {
-          if (item.priceData.unitAmount < 0) {
-            await this.stripe.invoiceItems.create({
-              customer: params.customerId,
-              invoice: invoice.id,
-              amount: item.priceData.unitAmount * item.quantity,
-              currency: item.priceData.currency,
-              description: item.description,
-            });
-          } else {
-            await this.stripe.invoiceItems.create({
-              customer: params.customerId,
-              invoice: invoice.id,
-              price_data: {
-                currency: item.priceData.currency,
-                product: item.priceData.product,
-                unit_amount: item.priceData.unitAmount,
-              },
-              quantity: item.quantity,
-              description: item.description,
-            } as Stripe.InvoiceItemCreateParams);
-          }
-        } else {
-          this.logger.warn(
-            `Skipping invoice item with invalid price configuration: ${item.description}`,
-          );
-        }
-      }
+      await createInvoiceItems(
+        this.stripe,
+        invoice.id,
+        params.customerId,
+        params.lineItems,
+        this.logger,
+      );
       const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
         invoice.id,
       );
@@ -391,85 +362,7 @@ export class StripeService {
         `[STRIPE INVOICE] Calling pay() with paid_out_of_band=true for invoice ${invoiceId}`,
       );
 
-      invoice = await this.stripe.invoices.pay(invoiceId, {
-        paid_out_of_band: true,
-      });
-
-      this.logger.log(
-        `[STRIPE INVOICE] Invoice ${invoiceId} pay() call completed. Status: ${invoice.status}`,
-      );
-
-      if (invoice.status !== 'paid') {
-        this.logger.warn(
-          `[STRIPE INVOICE] Invoice ${invoiceId} status is '${invoice.status}' after pay() call. Waiting and re-checking...`,
-        );
-
-        for (let attempt = 1; attempt <= 5; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-
-          const recheckedInvoice =
-            await this.stripe.invoices.retrieve(invoiceId);
-
-          this.logger.log(
-            `[STRIPE INVOICE] Re-check attempt ${attempt}/5 for invoice ${invoiceId}. Status: ${recheckedInvoice.status}`,
-          );
-
-          if (recheckedInvoice.status === 'paid') {
-            this.logger.log(
-              `[STRIPE INVOICE] Invoice ${invoiceId} confirmed as paid after re-check attempt ${attempt}.`,
-            );
-            return recheckedInvoice;
-          }
-
-          if (recheckedInvoice.status === 'open' && attempt < 5) {
-            this.logger.warn(
-              `[STRIPE INVOICE] Invoice ${invoiceId} still open. Retrying pay() call...`,
-            );
-            try {
-              invoice = await this.stripe.invoices.pay(invoiceId, {
-                paid_out_of_band: true,
-              });
-              this.logger.log(
-                `[STRIPE INVOICE] Retry pay() call completed. Status: ${invoice.status}`,
-              );
-              if (invoice.status === 'paid') {
-                return invoice;
-              }
-            } catch (retryError: any) {
-              this.logger.warn(
-                `[STRIPE INVOICE] Retry pay() call failed: ${retryError.message}`,
-              );
-            }
-          }
-        }
-
-        const finalCheck = await this.stripe.invoices.retrieve(invoiceId);
-        if (finalCheck.status !== 'paid') {
-          this.logger.error(
-            `[STRIPE INVOICE] CRITICAL: Invoice ${invoiceId} still not paid after all attempts. Final status: '${finalCheck.status}'. Invoice details: ${JSON.stringify(
-              {
-                id: finalCheck.id,
-                status: finalCheck.status,
-                amount_paid: finalCheck.amount_paid,
-                amount_due: finalCheck.amount_due,
-                total: finalCheck.total,
-                auto_advance: finalCheck.auto_advance,
-              },
-            )}`,
-          );
-          throw new Error(
-            `Invoice payment failed. Invoice status: ${finalCheck.status}. Expected: 'paid'. Invoice ID: ${invoiceId}`,
-          );
-        }
-
-        return finalCheck;
-      }
-
-      this.logger.log(
-        `[STRIPE INVOICE] Invoice ${invoiceId} paid successfully. Status: ${invoice.status}`,
-      );
-
-      return invoice;
+      return await payInvoiceWithRetry(this.stripe, invoiceId, this.logger);
     } catch (error: any) {
       this.logger.error(
         `[STRIPE INVOICE] Failed to pay Stripe invoice ${invoiceId}: ${error.message}`,
@@ -766,17 +659,7 @@ export class StripeService {
   private mapStripeStatusToPaymentStatus(
     stripeStatus: string,
   ): PaymentStatusResult['status'] {
-    const statusMap: Record<string, PaymentStatusResult['status']> = {
-      succeeded: 'completed',
-      processing: 'pending',
-      requires_payment_method: 'pending',
-      requires_confirmation: 'pending',
-      requires_action: 'pending',
-      requires_capture: 'pending',
-      canceled: 'failed',
-      payment_failed: 'failed',
-    };
-    return statusMap[stripeStatus] || 'pending';
+    return mapStripeStatusToPaymentStatus(stripeStatus);
   }
   verifyWebhookSignature(
     payload: string | Buffer,

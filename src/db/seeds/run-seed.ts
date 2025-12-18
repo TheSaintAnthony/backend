@@ -15,9 +15,7 @@ async function main() {
 
   try {
     await seedStaticLookups(db);
-    console.log('Seed completed successfully!');
   } catch (error) {
-    console.error('Error seeding database:', error);
     process.exit(1);
   } finally {
     await pool.end();

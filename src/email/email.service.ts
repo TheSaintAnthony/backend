@@ -23,6 +23,10 @@ import {
   createSectionHeading,
   EMAIL_STYLES,
 } from './templates';
+import {
+  buildPasswordResetEmailContent,
+  buildVerifyUserEmailContent,
+} from './helpers/email-content-builders';
 
 @Injectable()
 export class EmailService {
@@ -55,9 +59,6 @@ export class EmailService {
     await this.transporter.sendMail(options);
   }
 
-  /**
-   * Sends a password reset email with styled template
-   */
   async sendResetPasswordLink(email: string): Promise<void> {
     const payload = { email };
     const token = await this.jwtService.signAsync(payload, {
@@ -72,59 +73,7 @@ export class EmailService {
       this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
       '15m';
 
-    // Plain text version for email clients that don't support HTML
-    const text = `The St. Anthony
-
-Recuperação de Password
-
-Recebemos um pedido para redefinir a password da sua conta The St. Anthony.
-
-Clique no link abaixo para redefinir a sua password:
-${url}
-
-Este link expira em ${expirationTime}.
-
-Se não solicitou a recuperação de password, pode ignorar este email com segurança.
-
-Com os melhores cumprimentos,
-The St. Anthony Collection
-
----
-Este é um email automático. Por favor, não responda.`;
-
-    // HTML content
-    const content = `
-      ${createMainTitle('Recuperação de Password')}
-      
-      ${createParagraph('Recebemos um pedido para redefinir a password da sua conta <strong>The St. Anthony</strong>.')}
-      
-      ${createParagraph('Clique no botão abaixo para criar uma nova password:')}
-      
-      <div style="text-align: center; margin: 35px 0;">
-        ${createEmailButton('Redefinir Password', url)}
-      </div>
-      
-      ${createInfoBox(`
-        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
-          <strong>⏱ Este link expira em ${expirationTime}.</strong>
-        </p>
-      `)}
-      
-      ${createDivider()}
-      
-      ${createParagraph('Se o botão não funcionar, copie e cole o seguinte link no seu navegador:', 'muted')}
-      
-      <p style="margin: 0 0 25px 0; padding: 15px; background-color: ${EMAIL_STYLES.colors.gold}; border-radius: 4px; word-break: break-all;">
-        <a href="${url}" style="color: ${EMAIL_STYLES.colors.accent}; text-decoration: none; font-size: 13px;">${url}</a>
-      </p>
-      
-      ${createParagraph('Se não solicitou a recuperação de password, pode ignorar este email com segurança. A sua conta permanece protegida.', 'small')}
-    `;
-
-    const html = createBaseEmailTemplate(content, {
-      preheaderText: 'Redefinir a sua password - The St. Anthony',
-      showFooterLinks: false,
-    });
+    const { text, html } = buildPasswordResetEmailContent(url, expirationTime);
 
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
@@ -135,9 +84,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a verification email with styled template
-   */
   async sendVerifyUserLink(data: { id: string; email: string }): Promise<void> {
     const payload = { subb: data.id, email: data.email };
     const token = await this.jwtService.signAsync(payload, {
@@ -152,64 +98,7 @@ Este é um email automático. Por favor, não responda.`;
       this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
       '24h';
 
-    // Plain text version
-    const text = `The St. Anthony
-
-Bem-vindo à The St. Anthony Collection
-
-Obrigado por se registar! Estamos entusiasmados por tê-lo connosco.
-
-Para concluir o seu registo e verificar a sua conta, clique no link abaixo:
-${url}
-
-Este link expira em ${expirationTime}.
-
-Se não criou uma conta, pode ignorar este email.
-
-Com os melhores cumprimentos,
-The St. Anthony Collection
-
----
-Este é um email automático. Por favor, não responda.`;
-
-    // HTML content
-    const content = `
-      ${createMainTitle('Bem-vindo à The St. Anthony Collection')}
-      
-      ${createParagraph('Obrigado por se registar! Estamos entusiasmados por tê-lo connosco.')}
-      
-      ${createParagraph('Para concluir o seu registo e começar a descobrir as nossas propriedades exclusivas, por favor verifique o seu email:')}
-      
-      <div style="text-align: center; margin: 35px 0;">
-        ${createEmailButton('Verificar Conta', url)}
-      </div>
-      
-      ${createInfoBox(`
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
-          <strong>O que pode fazer depois de verificar:</strong>
-        </p>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: ${EMAIL_STYLES.colors.textMuted}; line-height: 1.8;">
-          <li>Reservar estadias nas nossas propriedades</li>
-          <li>Aceder a ofertas exclusivas</li>
-          <li>Gerir as suas reservas</li>
-        </ul>
-      `)}
-      
-      ${createDivider()}
-      
-      ${createParagraph('Se o botão não funcionar, copie e cole o seguinte link no seu navegador:', 'muted')}
-      
-      <p style="margin: 0 0 25px 0; padding: 15px; background-color: ${EMAIL_STYLES.colors.gold}; border-radius: 4px; word-break: break-all;">
-        <a href="${url}" style="color: ${EMAIL_STYLES.colors.accent}; text-decoration: none; font-size: 13px;">${url}</a>
-      </p>
-      
-      ${createParagraph(`Este link expira em ${expirationTime}. Se não criou uma conta The St. Anthony, pode ignorar este email.`, 'small')}
-    `;
-
-    const html = createBaseEmailTemplate(content, {
-      preheaderText: 'Verifique a sua conta - The St. Anthony',
-      showFooterLinks: false,
-    });
+    const { text, html } = buildVerifyUserEmailContent(url, expirationTime);
 
     await this.sendEmail({
       from: this.configService.get<string>('MAIL_FROM'),
@@ -220,9 +109,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a reservation confirmation email with styled template
-   */
   async sendReservationConfirmationEmail(
     emailPayload: EmailConfirmation,
   ): Promise<void> {
@@ -233,7 +119,6 @@ Este é um email automático. Por favor, não responda.`;
       method: string;
     }> = [];
 
-    // Build room details HTML
     const roomDetailsHtml = emailPayload.rooms
       .map((room, index) => {
         const icsContent = this.createCalendarEvent(
@@ -268,7 +153,6 @@ Este é um email automático. Por favor, não responda.`;
       })
       .join('');
 
-    // Plain text version for rooms
     const roomDetailsText = emailPayload.rooms
       .map((room, index) => {
         return `
@@ -284,7 +168,6 @@ Quarto ${index + 1}:
       ? `\nPedidos Especiais: ${emailPayload.specialRequests}`
       : '';
 
-    // Plain text version
     const text = `The St. Anthony
 
 Confirmação de Reserva
@@ -310,7 +193,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Confirmação de Reserva')}
       
@@ -382,16 +264,12 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a check-in reminder email with arrival instructions
-   */
   async sendCheckInReminderEmail(
     emailPayload: CheckInReminderEmail,
   ): Promise<void> {
     const checkInDate = this.formatDate(emailPayload.checkInDate);
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Lembrete de Check-in
@@ -425,7 +303,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Lembrete de Check-in')}
       
@@ -518,15 +395,11 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a check-out reminder email
-   */
   async sendCheckOutReminderEmail(
     emailPayload: CheckOutReminderEmail,
   ): Promise<void> {
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Lembrete de Check-out
@@ -548,7 +421,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Lembrete de Check-out')}
       
@@ -595,14 +467,10 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Sends a post-stay thank you email
-   */
   async sendPostStayEmail(emailPayload: PostStayEmail): Promise<void> {
     const checkInDate = this.formatDate(emailPayload.checkInDate);
     const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-    // Plain text version
     const text = `The St. Anthony
 
 Obrigado pela sua estadia!
@@ -623,7 +491,6 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-    // HTML content
     const content = `
       ${createMainTitle('Obrigado pela sua estadia!')}
       
@@ -676,9 +543,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Formats a date string to Portuguese locale format
-   */
   private formatDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-PT', {
@@ -689,9 +553,6 @@ Este é um email automático. Por favor, não responda.`;
     });
   }
 
-  /**
-   * Creates a calendar event (ICS format) for the booking
-   */
   private createCalendarEvent(
     checkIn: string,
     checkOut: string,

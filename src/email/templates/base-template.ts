@@ -1,22 +1,9 @@
-/**
- * Base email template for St. Anthony Hotel
- * Follows the website's luxury aesthetic with black/gold color scheme
- *
- * Brand Colors:
- * - Primary accent: #a18d6b (gold/taupe)
- * - Background gold: #f0ebe3
- * - Buttons: #e3d7c3
- * - Dark: #000000
- * - Text light: #ffffff
- */
-
 export interface BaseEmailOptions {
   preheaderText?: string;
   showFooterLinks?: boolean;
 }
 
 export const EMAIL_STYLES = {
-  // Colors matching the website
   colors: {
     primary: '#000000',
     accent: '#a18d6b',
@@ -28,16 +15,12 @@ export const EMAIL_STYLES = {
     textLight: '#999999',
     border: 'rgba(161, 141, 107, 0.3)',
   },
-  // Typography
   fonts: {
     primary: "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
     heading: "'Helvetica Neue', Helvetica, Arial, 'Lucida Grande', sans-serif",
   },
 } as const;
 
-/**
- * Creates a styled button for emails
- */
 export function createEmailButton(
   text: string,
   href: string,
@@ -59,9 +42,6 @@ export function createEmailButton(
   `;
 }
 
-/**
- * Creates a divider line
- */
 export function createDivider(): string {
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -74,9 +54,6 @@ export function createDivider(): string {
   `;
 }
 
-/**
- * Creates the base email template wrapper
- */
 export function createBaseEmailTemplate(
   content: string,
   options: BaseEmailOptions = {},
@@ -84,7 +61,6 @@ export function createBaseEmailTemplate(
   const { colors, fonts } = EMAIL_STYLES;
   const { preheaderText = '', showFooterLinks = true } = options;
 
-  // Logo as base64 SVG data URI (white logo on dark background)
   const logoSvg = `
     <svg viewBox="0 0 300 60" xmlns="http://www.w3.org/2000/svg">
       <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" 
@@ -208,9 +184,6 @@ export function createBaseEmailTemplate(
   `.trim();
 }
 
-/**
- * Creates a section heading
- */
 export function createSectionHeading(text: string): string {
   const { colors, fonts } = EMAIL_STYLES;
   return `
@@ -220,9 +193,6 @@ export function createSectionHeading(text: string): string {
   `;
 }
 
-/**
- * Creates a main title
- */
 export function createMainTitle(text: string): string {
   const { colors, fonts } = EMAIL_STYLES;
   return `
@@ -232,9 +202,6 @@ export function createMainTitle(text: string): string {
   `;
 }
 
-/**
- * Creates a paragraph
- */
 export function createParagraph(
   text: string,
   style: 'normal' | 'muted' | 'small' = 'normal',
@@ -254,9 +221,6 @@ export function createParagraph(
   `;
 }
 
-/**
- * Creates an info box/card
- */
 export function createInfoBox(content: string): string {
   const { colors } = EMAIL_STYLES;
   return `
@@ -270,9 +234,6 @@ export function createInfoBox(content: string): string {
   `;
 }
 
-/**
- * Creates a detail row (label: value)
- */
 export function createDetailRow(label: string, value: string): string {
   const { colors, fonts } = EMAIL_STYLES;
   return `
@@ -287,9 +248,6 @@ export function createDetailRow(label: string, value: string): string {
   `;
 }
 
-/**
- * Creates a details table wrapper
- */
 export function createDetailsTable(rows: string): string {
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0;">

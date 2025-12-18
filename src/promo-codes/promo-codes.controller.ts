@@ -26,8 +26,6 @@ import type { AuthenticatedRequest } from 'src/auth/interfaces/authenticated.req
 export class PromoCodesController {
   constructor(private promoCodesService: PromoCodesService) {}
 
-  // ==================== ADMIN ENDPOINTS ====================
-
   @Roles(UserRole.ADMIN)
   @Post()
   @ApiOperation({ summary: 'Create a new promo code (Admin)' })
@@ -78,8 +76,6 @@ export class PromoCodesController {
       dto.isVisibleToUsers,
     );
   }
-
-  // ==================== USER ENDPOINTS ====================
 
   @Get('available')
   @ApiOperation({ summary: 'Get available promo codes for current user' })

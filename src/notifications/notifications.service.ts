@@ -5,9 +5,14 @@ import { Queue } from 'bullmq';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
-import { and, eq, isNull, gte, lte, sql } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import { ConfigService } from '@nestjs/config';
 import { RESERVATION_STATUS_NAMES } from 'src/constants';
+import {
+  getCheckInReminderReservations,
+  getCheckOutReminderReservations,
+  getPostStayReservations,
+} from './helpers/reservation-query-helpers';
 
 @Injectable()
 export class NotificationsService {
@@ -24,22 +29,15 @@ export class NotificationsService {
       this.configService.get<string>('FRONTEND_URL') || 'https://stanthony.pt';
   }
 
-  /**
-   * Check-in reminder: Runs every 3 hours
-   * Finds confirmed reservations with check-in between 12-48 hours from now
-   * that haven't received a reminder yet
-   */
   @Cron('0 */3 * * *')
   async sendCheckInReminders() {
     this.logger.log('Starting check-in reminder job...');
 
     try {
       const now = new Date();
-      // Send reminders for check-ins between 12-48 hours from now
       const hoursFrom12 = new Date(now.getTime() + 12 * 60 * 60 * 1000);
       const hoursFrom48 = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
-      // Get confirmed status ID
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -52,75 +50,17 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need check-in reminders
-      const reservationsToNotify = await this.db
-        .select({
-          reservationId: schema.reservations.id,
-          userId: schema.reservations.userId,
-          specialRequests: schema.reservations.specialRequests,
-          userFirstName: schema.users.firstName,
-          userLastName: schema.users.lastName,
-          userEmail: schema.users.email,
-          roomId: schema.reservationRooms.id,
-          checkIn: schema.reservationRooms.checkIn,
-          checkOut: schema.reservationRooms.checkOut,
-          accessCode: schema.reservationRooms.accessCode,
-          guestsCount: schema.reservationRooms.guestsCount,
-          roomName: schema.rooms.name,
-          propertyId: schema.properties.id,
-          propertyName: schema.properties.name,
-          propertyEmail: schema.properties.email,
-          propertyPhone: schema.properties.phoneNumber,
-          checkInTime: schema.properties.checkInTime,
-          arrivalInstructions: schema.properties.arrivalInstructions,
-          addressStreet: schema.addresses.street,
-          addressCity: schema.addresses.city,
-          addressZipCode: schema.addresses.zipCode,
-          addressCountry: schema.addresses.country,
-        })
-        .from(schema.reservations)
-        .innerJoin(
-          schema.users,
-          eq(schema.reservations.userId, schema.users.id),
-        )
-        .innerJoin(
-          schema.reservationRooms,
-          eq(schema.reservations.id, schema.reservationRooms.reservationId),
-        )
-        .innerJoin(
-          schema.rooms,
-          eq(schema.reservationRooms.roomId, schema.rooms.id),
-        )
-        .innerJoin(
-          schema.properties,
-          eq(schema.rooms.propertyId, schema.properties.id),
-        )
-        .leftJoin(
-          schema.addresses,
-          eq(schema.properties.addressId, schema.addresses.id),
-        )
-        .where(
-          and(
-            eq(schema.reservations.statusId, confirmedStatus.id),
-            isNull(schema.reservations.checkinReminderSentAt),
-            isNull(schema.reservations.deletedAt),
-            isNull(schema.reservationRooms.deletedAt),
-            gte(
-              schema.reservationRooms.checkIn,
-              hoursFrom12.toISOString().split('T')[0],
-            ),
-            lte(
-              schema.reservationRooms.checkIn,
-              hoursFrom48.toISOString().split('T')[0],
-            ),
-          ),
-        );
+      const reservationsToNotify = await getCheckInReminderReservations(
+        this.db,
+        confirmedStatus.id,
+        hoursFrom12,
+        hoursFrom48,
+      );
 
       this.logger.log(
         `Found ${reservationsToNotify.length} reservations for check-in reminders`,
       );
 
-      // Group by reservation ID to handle multiple rooms
       const reservationMap = new Map<
         string,
         (typeof reservationsToNotify)[0]
@@ -161,7 +101,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ checkinReminderSentAt: new Date() })
@@ -178,11 +117,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Check-out reminder: Runs every 4 hours
-   * Finds checked-in reservations with check-out today
-   * that haven't received a reminder yet
-   */
   @Cron('0 */4 * * *')
   async sendCheckOutReminders() {
     this.logger.log('Starting check-out reminder job...');
@@ -192,7 +126,6 @@ export class NotificationsService {
       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-      // Get confirmed and checked_in status IDs
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -219,60 +152,17 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need check-out reminders
-      const reservationsToNotify = await this.db
-        .select({
-          reservationId: schema.reservations.id,
-          userFirstName: schema.users.firstName,
-          userLastName: schema.users.lastName,
-          userEmail: schema.users.email,
-          checkOut: schema.reservationRooms.checkOut,
-          roomName: schema.rooms.name,
-          propertyName: schema.properties.name,
-          checkOutTime: schema.properties.checkOutTime,
-        })
-        .from(schema.reservations)
-        .innerJoin(
-          schema.users,
-          eq(schema.reservations.userId, schema.users.id),
-        )
-        .innerJoin(
-          schema.reservationRooms,
-          eq(schema.reservations.id, schema.reservationRooms.reservationId),
-        )
-        .innerJoin(
-          schema.rooms,
-          eq(schema.reservationRooms.roomId, schema.rooms.id),
-        )
-        .innerJoin(
-          schema.properties,
-          eq(schema.rooms.propertyId, schema.properties.id),
-        )
-        .where(
-          and(
-            sql`${schema.reservations.statusId} IN (${sql.join(
-              validStatusIds.map((id) => sql`${id}`),
-              sql`, `,
-            )})`,
-            isNull(schema.reservations.checkoutReminderSentAt),
-            isNull(schema.reservations.deletedAt),
-            isNull(schema.reservationRooms.deletedAt),
-            gte(
-              sql`${schema.reservationRooms.checkOut}::date`,
-              startOfDay.toISOString().split('T')[0],
-            ),
-            lte(
-              sql`${schema.reservationRooms.checkOut}::date`,
-              endOfDay.toISOString().split('T')[0],
-            ),
-          ),
-        );
+      const reservationsToNotify = await getCheckOutReminderReservations(
+        this.db,
+        validStatusIds,
+        startOfDay,
+        endOfDay,
+      );
 
       this.logger.log(
         `Found ${reservationsToNotify.length} reservations for check-out reminders`,
       );
 
-      // Group by reservation ID
       const reservationMap = new Map<
         string,
         (typeof reservationsToNotify)[0]
@@ -296,7 +186,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ checkoutReminderSentAt: new Date() })
@@ -313,11 +202,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Post-stay email: Runs daily at 2 PM
-   * Finds completed reservations that checked out yesterday
-   * that haven't received a post-stay email yet
-   */
   @Cron('0 14 * * *')
   async sendPostStayEmails() {
     this.logger.log('Starting post-stay email job...');
@@ -327,7 +211,6 @@ export class NotificationsService {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-      // Get completed or checked_out status IDs
       const [completedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -345,7 +228,6 @@ export class NotificationsService {
           ),
         );
 
-      // Also include confirmed/checked_in where checkout date was yesterday
       const [confirmedStatus] = await this.db
         .select()
         .from(schema.reservationStatus)
@@ -375,52 +257,16 @@ export class NotificationsService {
         return;
       }
 
-      // Find reservations that need post-stay emails
-      const reservationsToNotify = await this.db
-        .select({
-          reservationId: schema.reservations.id,
-          userFirstName: schema.users.firstName,
-          userLastName: schema.users.lastName,
-          userEmail: schema.users.email,
-          checkIn: schema.reservationRooms.checkIn,
-          checkOut: schema.reservationRooms.checkOut,
-          propertyName: schema.properties.name,
-        })
-        .from(schema.reservations)
-        .innerJoin(
-          schema.users,
-          eq(schema.reservations.userId, schema.users.id),
-        )
-        .innerJoin(
-          schema.reservationRooms,
-          eq(schema.reservations.id, schema.reservationRooms.reservationId),
-        )
-        .innerJoin(
-          schema.rooms,
-          eq(schema.reservationRooms.roomId, schema.rooms.id),
-        )
-        .innerJoin(
-          schema.properties,
-          eq(schema.rooms.propertyId, schema.properties.id),
-        )
-        .where(
-          and(
-            sql`${schema.reservations.statusId} IN (${sql.join(
-              validStatusIds.map((id) => sql`${id}`),
-              sql`, `,
-            )})`,
-            isNull(schema.reservations.postStayEmailSentAt),
-            isNull(schema.reservations.deletedAt),
-            isNull(schema.reservationRooms.deletedAt),
-            eq(sql`${schema.reservationRooms.checkOut}::date`, yesterdayStr),
-          ),
-        );
+      const reservationsToNotify = await getPostStayReservations(
+        this.db,
+        validStatusIds,
+        yesterdayStr,
+      );
 
       this.logger.log(
         `Found ${reservationsToNotify.length} reservations for post-stay emails`,
       );
 
-      // Group by reservation ID
       const reservationMap = new Map<
         string,
         (typeof reservationsToNotify)[0]
@@ -444,7 +290,6 @@ export class NotificationsService {
           },
         });
 
-        // Mark as sent
         await this.db
           .update(schema.reservations)
           .set({ postStayEmailSentAt: new Date() })
