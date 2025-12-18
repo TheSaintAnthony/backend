@@ -20,7 +20,7 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY environment variable is not set');
     }
     this.stripe = new Stripe(stripeKey, {
-      apiVersion: '2025-11-17.clover',
+      apiVersion: '2025-12-15.clover',
     });
   }
   async getOrCreateCustomer(
