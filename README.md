@@ -101,6 +101,10 @@ export REDIS_PASSWORD=sua_password_redis
 
 # JWT
 export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
+export JWT_PASSWORD_RESET_SECRET=seu_jwt_password_reset_secret
+export JWT_PASSWORD_RESET_EXPIRATION_TIME=15m
+export JWT_USER_VERIFY_SECRET=seu_jwt_user_verify_secret
+export JWT_USER_VERIFY_EXPIRATION_TIME=24h
 
 # Stripe
 export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe
@@ -109,11 +113,24 @@ export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 # Aplicação
 export PORT=3000
 export FRONTEND_URL=https://seu-dominio-frontend.com
+export EMAIL_RESET_PASSWORD_URL=https://seu-dominio-frontend.com/reset-password
+export USER_VERIFY_ACCOUNT_URL=https://seu-dominio-frontend.com/verify-account
 export IMAGES_PATH=/caminho/para/pasta/de/imagens
 
 # Email (opcional, se usar servidor SMTP externo)
 export MAIL_HOST=smtp.exemplo.com
 export MAIL_PORT=587
+export MAIL_USER=seu_usuario_email
+export MAIL_PASS=sua_password_email
+export MAIL_FROM=no-reply@seu-dominio.com
+
+# Cloudbeds (opcional - apenas se usar integração Cloudbeds)
+# Nota: A integração Cloudbeds está disponível na branch feature/cloudbeds.
+# Configure estas variáveis apenas se decidir implementar a integração Cloudbeds.
+export CLOUDBEDS_ENABLED=false
+export CLOUDBEDS_CLIENT_ID=seu_cloudbeds_client_id
+export CLOUDBEDS_CLIENT_SECRET=seu_cloudbeds_client_secret
+export CLOUDBEDS_WEBHOOK_SECRET=seu_cloudbeds_webhook_secret
 ```
 
 Para tornar estas variáveis permanentes, adicione-as ao ficheiro de perfil do shell (por exemplo, `~/.bashrc` ou `~/.zshrc`):
@@ -124,11 +141,27 @@ echo 'export REDIS_HOST=localhost' >> ~/.bashrc
 echo 'export REDIS_PORT=6379' >> ~/.bashrc
 echo 'export REDIS_PASSWORD=sua_password_redis' >> ~/.bashrc
 echo 'export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio' >> ~/.bashrc
+echo 'export JWT_PASSWORD_RESET_SECRET=seu_jwt_password_reset_secret' >> ~/.bashrc
+echo 'export JWT_PASSWORD_RESET_EXPIRATION_TIME=15m' >> ~/.bashrc
+echo 'export JWT_USER_VERIFY_SECRET=seu_jwt_user_verify_secret' >> ~/.bashrc
+echo 'export JWT_USER_VERIFY_EXPIRATION_TIME=24h' >> ~/.bashrc
 echo 'export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe' >> ~/.bashrc
 echo 'export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe' >> ~/.bashrc
 echo 'export PORT=3000' >> ~/.bashrc
 echo 'export FRONTEND_URL=https://seu-dominio-frontend.com' >> ~/.bashrc
+echo 'export EMAIL_RESET_PASSWORD_URL=https://seu-dominio-frontend.com/reset-password' >> ~/.bashrc
+echo 'export USER_VERIFY_ACCOUNT_URL=https://seu-dominio-frontend.com/verify-account' >> ~/.bashrc
 echo 'export IMAGES_PATH=/caminho/para/pasta/de/imagens' >> ~/.bashrc
+echo 'export MAIL_HOST=smtp.exemplo.com' >> ~/.bashrc
+echo 'export MAIL_PORT=587' >> ~/.bashrc
+echo 'export MAIL_USER=seu_usuario_email' >> ~/.bashrc
+echo 'export MAIL_PASS=sua_password_email' >> ~/.bashrc
+echo 'export MAIL_FROM=no-reply@seu-dominio.com' >> ~/.bashrc
+# Cloudbeds (opcional - apenas se usar integração Cloudbeds na branch feature/cloudbeds)
+echo 'export CLOUDBEDS_ENABLED=false' >> ~/.bashrc
+echo 'export CLOUDBEDS_CLIENT_ID=seu_cloudbeds_client_id' >> ~/.bashrc
+echo 'export CLOUDBEDS_CLIENT_SECRET=seu_cloudbeds_client_secret' >> ~/.bashrc
+echo 'export CLOUDBEDS_WEBHOOK_SECRET=seu_cloudbeds_webhook_secret' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -145,6 +178,10 @@ REDIS_PASSWORD=sua_password_redis
 
 # JWT
 JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
+JWT_PASSWORD_RESET_SECRET=seu_jwt_password_reset_secret
+JWT_PASSWORD_RESET_EXPIRATION_TIME=15m
+JWT_USER_VERIFY_SECRET=seu_jwt_user_verify_secret
+JWT_USER_VERIFY_EXPIRATION_TIME=24h
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_sua_chave_secreta_stripe
@@ -153,11 +190,24 @@ STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 # Aplicação
 PORT=3000
 FRONTEND_URL=http://localhost:4200
+EMAIL_RESET_PASSWORD_URL=http://localhost:4200/reset-password
+USER_VERIFY_ACCOUNT_URL=http://localhost:4200/verify-account
 IMAGES_PATH=./uploads
 
 # Email (opcional)
 MAIL_HOST=localhost
 MAIL_PORT=1025
+MAIL_USER=test
+MAIL_PASS=test
+MAIL_FROM=no-reply@stanthony.com
+
+# Cloudbeds (opcional - apenas se usar integração Cloudbeds)
+# Nota: A integração Cloudbeds está disponível na branch feature/cloudbeds.
+# Configure estas variáveis apenas se decidir implementar a integração Cloudbeds.
+CLOUDBEDS_ENABLED=false
+CLOUDBEDS_CLIENT_ID=
+CLOUDBEDS_CLIENT_SECRET=
+CLOUDBEDS_WEBHOOK_SECRET=
 ```
 
 **Importante**: 
@@ -165,6 +215,7 @@ MAIL_PORT=1025
 - O `JWT_SECRET` deve ser uma string aleatória e segura (pode gerar com: `openssl rand -base64 32`)
 - O `IMAGES_PATH` deve apontar para uma pasta onde as imagens serão armazenadas (certifique-se de que a pasta existe e tem permissões de escrita)
 - O `FRONTEND_URL` deve ser o URL completo do frontend em produção
+- **As variáveis Cloudbeds (`CLOUDBEDS_*`) são opcionais e devem ser configuradas apenas se decidir implementar a integração Cloudbeds. Esta funcionalidade está disponível na branch `feature/cloudbeds`.**
 - **Em produção, use sempre variáveis de ambiente do sistema** em vez de ficheiros `.env` por questões de segurança e boas práticas
 
 ### 6. Executar Migrações da Base de Dados
@@ -306,13 +357,26 @@ module.exports = {
         REDIS_PORT: process.env.REDIS_PORT,
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
         JWT_SECRET: process.env.JWT_SECRET,
+        JWT_PASSWORD_RESET_SECRET: process.env.JWT_PASSWORD_RESET_SECRET,
+        JWT_PASSWORD_RESET_EXPIRATION_TIME: process.env.JWT_PASSWORD_RESET_EXPIRATION_TIME,
+        JWT_USER_VERIFY_SECRET: process.env.JWT_USER_VERIFY_SECRET,
+        JWT_USER_VERIFY_EXPIRATION_TIME: process.env.JWT_USER_VERIFY_EXPIRATION_TIME,
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
         STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
         PORT: process.env.PORT || 3000,
         FRONTEND_URL: process.env.FRONTEND_URL,
+        EMAIL_RESET_PASSWORD_URL: process.env.EMAIL_RESET_PASSWORD_URL,
+        USER_VERIFY_ACCOUNT_URL: process.env.USER_VERIFY_ACCOUNT_URL,
         IMAGES_PATH: process.env.IMAGES_PATH,
         MAIL_HOST: process.env.MAIL_HOST,
         MAIL_PORT: process.env.MAIL_PORT,
+        MAIL_USER: process.env.MAIL_USER,
+        MAIL_PASS: process.env.MAIL_PASS,
+        MAIL_FROM: process.env.MAIL_FROM,
+        CLOUDBEDS_ENABLED: process.env.CLOUDBEDS_ENABLED,
+        CLOUDBEDS_CLIENT_ID: process.env.CLOUDBEDS_CLIENT_ID,
+        CLOUDBEDS_CLIENT_SECRET: process.env.CLOUDBEDS_CLIENT_SECRET,
+        CLOUDBEDS_WEBHOOK_SECRET: process.env.CLOUDBEDS_WEBHOOK_SECRET,
       },
     },
   ],
@@ -371,11 +435,27 @@ export REDIS_HOST=localhost
 export REDIS_PORT=6379
 export REDIS_PASSWORD=sua_password_redis
 export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
+export JWT_PASSWORD_RESET_SECRET=seu_jwt_password_reset_secret
+export JWT_PASSWORD_RESET_EXPIRATION_TIME=15m
+export JWT_USER_VERIFY_SECRET=seu_jwt_user_verify_secret
+export JWT_USER_VERIFY_EXPIRATION_TIME=24h
 export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe
 export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 export PORT=3000
 export FRONTEND_URL=https://seu-dominio-frontend.com
+export EMAIL_RESET_PASSWORD_URL=https://seu-dominio-frontend.com/reset-password
+export USER_VERIFY_ACCOUNT_URL=https://seu-dominio-frontend.com/verify-account
 export IMAGES_PATH=/caminho/para/pasta/de/imagens
+export MAIL_HOST=smtp.exemplo.com
+export MAIL_PORT=587
+export MAIL_USER=seu_usuario_email
+export MAIL_PASS=sua_password_email
+export MAIL_FROM=no-reply@seu-dominio.com
+# Cloudbeds (opcional - apenas se usar integração Cloudbeds na branch feature/cloudbeds)
+export CLOUDBEDS_ENABLED=false
+export CLOUDBEDS_CLIENT_ID=seu_cloudbeds_client_id
+export CLOUDBEDS_CLIENT_SECRET=seu_cloudbeds_client_secret
+export CLOUDBEDS_WEBHOOK_SECRET=seu_cloudbeds_webhook_secret
 
 # 3. Executar migrações
 yarn db:migrate
