@@ -104,7 +104,6 @@ export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
 
 # Stripe
 export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe
-export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 
 # Aplicação
 export PORT=3000
@@ -125,7 +124,6 @@ echo 'export REDIS_PORT=6379' >> ~/.bashrc
 echo 'export REDIS_PASSWORD=sua_password_redis' >> ~/.bashrc
 echo 'export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio' >> ~/.bashrc
 echo 'export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe' >> ~/.bashrc
-echo 'export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe' >> ~/.bashrc
 echo 'export PORT=3000' >> ~/.bashrc
 echo 'export FRONTEND_URL=https://seu-dominio-frontend.com' >> ~/.bashrc
 echo 'export IMAGES_PATH=/caminho/para/pasta/de/imagens' >> ~/.bashrc
@@ -148,7 +146,6 @@ JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_sua_chave_secreta_stripe
-STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 
 # Aplicação
 PORT=3000
@@ -307,7 +304,6 @@ module.exports = {
         REDIS_PASSWORD: process.env.REDIS_PASSWORD,
         JWT_SECRET: process.env.JWT_SECRET,
         STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-        STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
         PORT: process.env.PORT || 3000,
         FRONTEND_URL: process.env.FRONTEND_URL,
         IMAGES_PATH: process.env.IMAGES_PATH,
@@ -372,7 +368,6 @@ export REDIS_PORT=6379
 export REDIS_PASSWORD=sua_password_redis
 export JWT_SECRET=seu_jwt_secret_muito_seguro_e_aleatorio
 export STRIPE_SECRET_KEY=sk_live_sua_chave_secreta_stripe
-export STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_stripe
 export PORT=3000
 export FRONTEND_URL=https://seu-dominio-frontend.com
 export IMAGES_PATH=/caminho/para/pasta/de/imagens
