@@ -86,27 +86,59 @@ export class AuthService {
     }
     await this.emailsQueue.add('sendResetPasswordLink', { data: email });
   }
-  async resetPassword(data: PasswordResetDto) {
-    const { email, tokenIssuedAt } = await this.decodeResetPasswordTokenToEmail(
-      data.token,
-    );
-    const user = await this.usersService.findByEmail(email);
-    if (!user) {
-      throw new NotFoundException('User', email);
-    }
-    if (user.passwordChangedAt) {
-      const passwordChangedAtTimestamp = new Date(
-        user.passwordChangedAt,
-      ).getTime();
-      const tokenIssuedAtTimestamp = Number(tokenIssuedAt) * 1000;
-      if (tokenIssuedAtTimestamp < passwordChangedAtTimestamp) {
-        throw new UnauthorizedException(
-          'Password was changed after this token was issued. Please request a new password reset.',
-        );
+  async resetPassword(data: PasswordResetDto, userId?: string) {
+    let user;
+    
+    // Scenario 1: Unauthenticated reset with token
+    if (data.token) {
+      const { email, tokenIssuedAt } = await this.decodeResetPasswordTokenToEmail(
+        data.token,
+      );
+      user = await this.usersService.findOneByEmail(email);
+      if (!user) {
+        throw new NotFoundException('User', email);
+      }
+      
+      // Check if password was changed after token was issued
+      if (user.passwordChangedAt) {
+        const passwordChangedAtTimestamp = new Date(
+          user.passwordChangedAt,
+        ).getTime();
+        const tokenIssuedAtTimestamp = Number(tokenIssuedAt) * 1000;
+        if (tokenIssuedAtTimestamp < passwordChangedAtTimestamp) {
+          throw new UnauthorizedException(
+            'Password was changed after this token was issued. Please request a new password reset.',
+          );
+        }
       }
     }
+    // Scenario 2: Authenticated password change with current password
+    else if (data.currentPassword && userId) {
+      const userWithId = await this.usersService.getUserById(userId);
+      if (!userWithId) {
+        throw new NotFoundException('User', userId);
+      }
+      
+      // Need to get user with password hash for verification
+      user = await this.usersService.findOneByEmail(userWithId.email);
+      if (!user) {
+        throw new NotFoundException('User', userWithId.email);
+      }
+      
+      // Verify current password
+      const isMatch = await bcrypt.compare(data.currentPassword, user.passwordHash);
+      if (!isMatch) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+    } else {
+      throw new BadRequestException(
+        'Either token (for password reset) or currentPassword (for password change) is required',
+      );
+    }
+
+    // Hash and update password
     const passwordHashed = await bcrypt.hash(data.password, 10);
-    const result = await this.usersService.resetPassword(email, passwordHashed);
+    const result = await this.usersService.resetPassword(user.email, passwordHashed);
     return result;
   }
   private async decodeResetPasswordTokenToEmail(token: string) {

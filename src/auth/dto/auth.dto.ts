@@ -4,6 +4,7 @@ import {
   MinLength,
   IsNotEmpty,
   ValidateNested,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -60,12 +61,23 @@ export class SignUpDto {
 }
 export class PasswordResetDto {
   @ApiProperty({
-    description: 'Password reset token from email',
+    description: 'Password reset token from email (required for unauthenticated reset)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    required: false,
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  token: string;
+  token?: string;
+
+  @ApiProperty({
+    description: 'Current password (required for authenticated password change)',
+    example: 'currentPassword123',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
+
   @ApiProperty({
     description: 'New password (minimum 6 characters)',
     example: 'newPassword123',
