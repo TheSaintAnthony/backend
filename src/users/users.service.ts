@@ -117,41 +117,36 @@ export class UsersService {
     };
   }
   async findByEmail(email: string) {
-    const [user] = await this.db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.email, email));
+    const user = await this.findByEmailOrNull(email);
     if (!user) {
       throw new NotFoundException('User', email);
     }
-    const roles = await this.db
-      .select({ name: schema.roles.name })
-      .from(schema.roles)
-      .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
-      .where(eq(schema.userRoles.userId, user.id));
-    const { passwordHash: _, ...safeUser } = user;
-    return {
-      ...safeUser,
-      roles,
-    };
+    return user;
   }
+
   async findByEmailOrNull(email: string) {
     const [user] = await this.db
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, email));
+      .where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt)));
+
     if (!user) {
       return null;
     }
-    const roles = await this.db
-      .select({ name: schema.roles.name })
+
+    const rolesRows = await this.db
+      .select({
+        id: schema.roles.id,
+        name: schema.roles.name,
+      })
       .from(schema.roles)
       .leftJoin(schema.userRoles, eq(schema.userRoles.roleId, schema.roles.id))
       .where(eq(schema.userRoles.userId, user.id));
+
     const { passwordHash: _, ...safeUser } = user;
     return {
       ...safeUser,
-      roles,
+      roles: rolesRows,
     };
   }
   async getUserById(id: string) {

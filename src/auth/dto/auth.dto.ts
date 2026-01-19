@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   ValidateNested,
   IsOptional,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -37,12 +38,18 @@ export class SignUpDto {
   @IsEmail()
   email: string;
   @ApiProperty({
-    description: 'User password (minimum 6 characters)',
-    example: 'password123',
-    minLength: 6,
+    description: 'User password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
+    example: 'Password123!',
+    minLength: 8,
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]{8,}$/,
+    {
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+    },
+  )
   password: string;
   @ApiProperty({
     description: 'User phone number',
@@ -79,12 +86,18 @@ export class PasswordResetDto {
   currentPassword?: string;
 
   @ApiProperty({
-    description: 'New password (minimum 6 characters)',
-    example: 'newPassword123',
-    minLength: 6,
+    description: 'New password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
+    example: 'NewPassword123!',
+    minLength: 8,
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]{8,}$/,
+    {
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+    },
+  )
   password: string;
 }
 export * from './forgot-password.dto';

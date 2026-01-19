@@ -13,10 +13,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ResidenceContactsService } from './residence-contacts.service';
 import { CreateResidenceContactDto } from './dto/create-residence-contact.dto';
 import { EditResidenceContactDto } from './dto/edit-residence-contact.dto';
+import { GetResidenceContactsDto } from './dto/get-residence-contacts.dto';
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/user-roles/roles.guard';
 @ApiTags('Residence Contacts')
@@ -32,14 +32,10 @@ export class ResidenceContactsController {
   }
   @Roles(UserRole.ADMIN)
   @Get()
-  async getResidenceContacts(
-    @Query() pagination: PaginationDto,
-    @Query('residenceId') residenceId?: string,
-    @Query('residenceUnitId') residenceUnitId?: string,
-    @Query('status') status?: string,
-  ) {
+  async getResidenceContacts(@Query() query: GetResidenceContactsDto) {
+    const { page, limit, residenceId, residenceUnitId, status } = query;
     return this.residenceContactsService.getResidenceContacts(
-      pagination,
+      { page, limit },
       residenceId,
       residenceUnitId,
       status,

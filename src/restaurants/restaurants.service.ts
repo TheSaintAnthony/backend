@@ -106,30 +106,36 @@ export class RestaurantsService {
       throw new NotFoundException('Restaurant', id);
     }
     const { address, images, ...restaurantData } = data;
-    const addressId: string | undefined = restaurant.addressId || undefined;
-    if (address && addressId) {
-      await this.db
-        .update(schema.addresses)
-        .set({ ...address })
-        .where(eq(schema.addresses.id, addressId));
-    } else if (address && !addressId) {
-      const [createdAddress] = await this.db
-        .insert(schema.addresses)
-        .values({ ...address })
-        .returning({ id: schema.addresses.id });
-      await this.db
-        .update(schema.restaurants)
-        .set({
-          ...restaurantData,
-          addressId: createdAddress.id,
-        })
-        .where(eq(schema.restaurants.id, id));
-    } else {
-      await this.db
-        .update(schema.restaurants)
-        .set({ ...restaurantData })
-        .where(eq(schema.restaurants.id, id));
+    let addressId: string | undefined = restaurant.addressId || undefined;
+
+    // Handle address update/creation
+    if (address) {
+      if (addressId) {
+        await this.db
+          .update(schema.addresses)
+          .set({ ...address })
+          .where(eq(schema.addresses.id, addressId));
+      } else {
+        const [createdAddress] = await this.db
+          .insert(schema.addresses)
+          .values({ ...address })
+          .returning({ id: schema.addresses.id });
+        addressId = createdAddress.id;
+      }
     }
+
+    // Always update restaurant with provided data
+    const updateData: any = { ...restaurantData };
+    if (addressId) {
+      updateData.addressId = addressId;
+    }
+    
+    await this.db
+      .update(schema.restaurants)
+      .set(updateData)
+      .where(eq(schema.restaurants.id, id));
+
+    // Handle images
     if (images !== undefined) {
       const existingImages = await this.imagesService.getImagesByEntity(
         'restaurant',
