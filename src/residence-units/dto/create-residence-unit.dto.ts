@@ -39,13 +39,12 @@ export class CreateResidenceUnitDto {
   })
   @IsNumberString()
   price: string;
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'Area in square meters',
     example: '120.50',
   })
-  @IsOptional()
   @IsNumberString()
-  area?: string;
+  area: string;
   @ApiPropertyOptional({
     description: 'Floor number',
     example: 2,

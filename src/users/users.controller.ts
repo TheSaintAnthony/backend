@@ -33,10 +33,7 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   @Get('email/:email')
   async getUserByEmail(@Param('email') email: string) {
-    const user = await this.usersService.findByEmail(email);
-    if (!user) {
-      return null;
-    }
+    const user = await this.usersService.findByEmailOrNull(email);
     return user;
   }
   @Patch('me')
