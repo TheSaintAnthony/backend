@@ -22,6 +22,8 @@ import {
   createDetailRow,
   createSectionHeading,
   EMAIL_STYLES,
+  createContactNotificationTemplate,
+  ContactNotificationData,
 } from './templates';
 import {
   buildPasswordResetEmailContent,
@@ -539,6 +541,21 @@ Este é um email automático. Por favor, não responda.`;
       to: emailPayload.email,
       subject: `Obrigado pela sua estadia - ${emailPayload.propertyName}`,
       text,
+      html,
+    });
+  }
+
+  async sendContactNotification(
+    contactData: ContactNotificationData,
+  ): Promise<void> {
+    const html = createContactNotificationTemplate(contactData);
+
+    const adminEmail = this.configService.get<string>('ADMIN_CONTACT_EMAIL');
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: adminEmail,
+      subject: `Novo Contacto: ${contactData.subject || 'Sem Assunto'}`,
       html,
     });
   }

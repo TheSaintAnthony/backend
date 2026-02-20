@@ -1,15 +1,15 @@
 services:
   db:
-    image: postgres:18
+    image: postgres:18-alpine
     container_name: stanthony
     ports:
-      - '5432:5432'
+      - '5434:5432'
     environment:
       POSTGRES_PASSWORD: stanthony
       POSTGRES_USER: stanthony
       POSTGRES_DB: stanthony
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-stanthony:/var/lib/postgresql/data
 
   mailpit:
     image: axllent/mailpit
@@ -28,6 +28,6 @@ services:
     command: redis-server --save 20 1 --loglevel warning --requirepass stanthony
 
 volumes:
-  pgdata:
+  pgdata-stanthony:
   cache:
     driver: local

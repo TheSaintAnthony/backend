@@ -8,6 +8,7 @@ import {
   CheckOutReminderEmail,
   PostStayEmail,
 } from 'src/notifications/interfaces';
+import { ContactNotificationData } from 'src/email/templates';
 import { EmailJobData } from './interfaces';
 @Processor('email')
 export class EmailConsumer extends WorkerHost {
@@ -49,6 +50,11 @@ export class EmailConsumer extends WorkerHost {
           break;
         case 'sendPostStayEmail':
           await this.emailsService.sendPostStayEmail(jobData as PostStayEmail);
+          break;
+        case 'sendContactNotification':
+          await this.emailsService.sendContactNotification(
+            jobData as unknown as ContactNotificationData,
+          );
           break;
         default:
           this.logger.warn(`Unknown job type: ${name}`);
