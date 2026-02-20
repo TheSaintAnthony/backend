@@ -22,14 +22,14 @@ import type { AuthenticatedRequest } from './interfaces';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-  
+
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('signup')
   async signUp(@Body() data: SignUpDto) {
     return this.authService.signUp(data);
   }
-  
+
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('signin')

@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { cvFileUploadOptions } from 'src/common/helpers/file-upload.helper';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { JobPostingsService } from './job-postings.service';
 import {
@@ -96,24 +96,7 @@ export class JobPostingsController {
   @Public()
   @Post(':id/apply')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileInterceptor('cv', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-      fileFilter: (_req, file, cb) => {
-        const allowed = [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ];
-        if (allowed.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new Error('Only PDF and Word documents are allowed'), false);
-        }
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('cv', cvFileUploadOptions))
   async applyToPosting(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SubmitApplicationDto,
@@ -125,24 +108,7 @@ export class JobPostingsController {
   @Public()
   @Post('apply/spontaneous')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileInterceptor('cv', {
-      storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-      fileFilter: (_req, file, cb) => {
-        const allowed = [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ];
-        if (allowed.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new Error('Only PDF and Word documents are allowed'), false);
-        }
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('cv', cvFileUploadOptions))
   async applySpontaneous(
     @Body() dto: SubmitApplicationDto,
     @UploadedFile() cv: Express.Multer.File,

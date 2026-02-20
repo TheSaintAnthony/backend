@@ -30,4 +30,5 @@ export * from './promo-codes.schema';
 export * from './booking-intents.schema';
 export * from './job-postings.schema';
 export * from './contacts.schema';
+export * from './reports.schema';
 export * from './relations.schema';

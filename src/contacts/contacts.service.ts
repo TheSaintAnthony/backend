@@ -2,30 +2,38 @@ import { Injectable, Inject } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, count, and } from 'drizzle-orm';
+import { eq, SQL } from 'drizzle-orm';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from 'src/db/schema';
-import { NotFoundException } from 'src/filters';
-import {
-  PaginationDto,
-  createPaginatedResponse,
-} from 'src/common/dto/pagination.dto';
+import { BaseCrudService } from 'src/common/services/base-crud.service';
 import { CreateContactDto, UpdateContactDto, GetContactsDto } from './dto';
 
+type Contact = typeof schema.contacts.$inferSelect;
+
 @Injectable()
-export class ContactsService {
+export class ContactsService extends BaseCrudService<
+  Contact,
+  CreateContactDto,
+  UpdateContactDto,
+  GetContactsDto
+> {
   constructor(
     @Inject(DB_PROVIDER)
-    private db: NodePgDatabase<typeof schema>,
+    db: NodePgDatabase<typeof schema>,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) {
+    super(db, {
+      table: schema.contacts,
+      entityName: 'Contact',
+      defaultOrderBy: schema.contacts.createdAt,
+    });
+  }
 
-  async createContact(data: CreateContactDto) {
-    const [contact] = await this.db
-      .insert(schema.contacts)
-      .values({ ...data, status: 'pending' })
-      .returning();
+  protected transformCreateData(data: CreateContactDto) {
+    return { ...data, status: 'pending' };
+  }
 
+  protected async afterCreate(contact: Contact): Promise<void> {
     // Queue email notification to admin
     const adminEmail = process.env.ADMIN_CONTACT_EMAIL;
     if (adminEmail) {
@@ -47,62 +55,34 @@ export class ContactsService {
         },
       });
     }
+  }
 
-    return contact;
+  protected getWhereConditions(query?: GetContactsDto): SQL[] {
+    const conditions: SQL[] = [];
+    if (query?.status) {
+      conditions.push(eq(schema.contacts.status, query.status));
+    }
+    return conditions;
+  }
+
+  // Keep original method names for backward compatibility
+  async createContact(data: CreateContactDto) {
+    return this.create(data);
   }
 
   async getContacts(query: GetContactsDto) {
-    const page = query?.page || 1;
-    const limit = Math.min(query?.limit || 10, 100);
-    const offset = (page - 1) * limit;
-
-    const whereConditions = [];
-    if (query?.status) {
-      whereConditions.push(eq(schema.contacts.status, query.status));
-    }
-
-    const [totalResult] = await this.db
-      .select({ count: count() })
-      .from(schema.contacts)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
-    const total = totalResult.count;
-
-    const data = await this.db
-      .select()
-      .from(schema.contacts)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .limit(limit)
-      .offset(offset)
-      .orderBy(schema.contacts.createdAt);
-
-    return createPaginatedResponse(data, total, page, limit);
+    return this.getAll(query);
   }
 
   async getContactById(id: string) {
-    const [contact] = await this.db
-      .select()
-      .from(schema.contacts)
-      .where(eq(schema.contacts.id, id))
-      .limit(1);
-
-    if (!contact) {
-      throw new NotFoundException('Contact', id);
-    }
-    return contact;
+    return this.getById(id);
   }
 
   async updateContact(id: string, data: UpdateContactDto) {
-    await this.getContactById(id);
-    const [updated] = await this.db
-      .update(schema.contacts)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(schema.contacts.id, id))
-      .returning();
-    return updated;
+    return this.update(id, data);
   }
 
   async deleteContact(id: string) {
-    await this.getContactById(id);
-    await this.db.delete(schema.contacts).where(eq(schema.contacts.id, id));
+    return this.delete(id);
   }
 }

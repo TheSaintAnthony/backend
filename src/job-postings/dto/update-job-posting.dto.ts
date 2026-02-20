@@ -14,7 +14,10 @@ export class UpdateJobPostingDto {
   @Length(1, 255)
   location?: string;
 
-  @ApiPropertyOptional({ example: 'Full-time', enum: ['Full-time', 'Part-time'] })
+  @ApiPropertyOptional({
+    example: 'Full-time',
+    enum: ['Full-time', 'Part-time'],
+  })
   @IsOptional()
   @IsString()
   type?: string;

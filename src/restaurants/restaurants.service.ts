@@ -129,7 +129,7 @@ export class RestaurantsService {
     if (addressId) {
       updateData.addressId = addressId;
     }
-    
+
     await this.db
       .update(schema.restaurants)
       .set(updateData)

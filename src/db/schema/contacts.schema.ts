@@ -5,9 +5,13 @@ export const contacts = pgTable('contacts', {
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 50 }),
-  subject: varchar('subject', { length: 255 }),
-  message: text('message'),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  message: text('message').notNull(),
   status: varchar('status', { length: 20 }).default('pending').notNull(), // pending, replied, archived
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });

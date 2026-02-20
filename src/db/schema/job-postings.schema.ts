@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  boolean,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
 export const jobPostings = pgTable('job_postings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,8 +15,12 @@ export const jobPostings = pgTable('job_postings', {
   department: varchar('department', { length: 255 }).notNull(),
   description: text('description'),
   isActive: boolean('is_active').default(true).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const jobApplications = pgTable('job_applications', {
@@ -23,5 +34,18 @@ export const jobApplications = pgTable('job_applications', {
   message: text('message'),
   cvFilePath: varchar('cv_file_path', { length: 500 }).notNull(),
   cvOriginalName: varchar('cv_original_name', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+
+  // New optional fields for expanded application
+  address: varchar('address', { length: 500 }),
+  birthDate: varchar('birth_date', { length: 10 }),
+  qualifications: varchar('qualifications', { length: 100 }),
+  hotelExperience: boolean('hotel_experience'),
+  restaurantExperience: boolean('restaurant_experience'),
+  realEstateExperience: boolean('real_estate_experience'),
+  driverLicense: boolean('driver_license'),
+  linkedinProfile: varchar('linkedin_profile', { length: 255 }),
+
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });

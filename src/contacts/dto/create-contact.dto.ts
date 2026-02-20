@@ -16,13 +16,13 @@ export class CreateContactDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'Informações sobre reservas' })
-  @IsOptional()
+  @ApiProperty({ example: 'Informações sobre reservas' })
   @IsString()
-  subject?: string;
+  @IsNotEmpty()
+  subject: string;
 
-  @ApiPropertyOptional({ example: 'Gostaria de saber mais...' })
-  @IsOptional()
+  @ApiProperty({ example: 'Gostaria de saber mais...' })
   @IsString()
-  message?: string;
+  @IsNotEmpty()
+  message: string;
 }
