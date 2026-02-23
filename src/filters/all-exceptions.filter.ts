@@ -22,6 +22,7 @@ interface DatabaseError {
   column?: string;
   severity?: string;
   routine?: string;
+  message?: string;
 }
 interface ValidationError {
   name?: string;
@@ -77,9 +78,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         correlationId,
       };
     }
-    if (this.isDatabaseError(exception)) {
+    // Unwrap DrizzleQueryError: the real PostgreSQL error is on .cause
+    const dbError =
+      exception instanceof Error &&
+      exception.cause &&
+      this.isDatabaseError(exception.cause)
+        ? exception.cause
+        : exception;
+    if (this.isDatabaseError(dbError)) {
       return this.handleDatabaseError(
-        exception,
+        dbError,
         timestamp,
         path,
         method,
@@ -110,7 +118,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     method: string,
     correlationId?: string,
   ): ErrorResponse {
-    const message = 'Database operation failed';
+    const pgMessage =
+      typeof exception.message === 'string' ? exception.message : undefined;
+    const message = pgMessage || 'Database operation failed';
     let details: Record<string, unknown> = {};
     if (exception.code) {
       switch (exception.code) {
@@ -163,6 +173,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
             error: 'Bad Request',
             details: {
               column: exception.column,
+            },
+            correlationId,
+          };
+        case '42703':
+          return {
+            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            timestamp,
+            path,
+            method,
+            message:
+              'Database schema is out of date. Please run migrations (yarn db:migrate).',
+            error: 'Database Error',
+            details: {
+              column: exception.column,
+              hint: pgMessage,
             },
             correlationId,
           };

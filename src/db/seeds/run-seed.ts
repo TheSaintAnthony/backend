@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from '../schema';
 import { seedStaticLookups } from './seed-static-lookups';
+import { seedDevData } from './seed-dev-data';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,7 +16,9 @@ async function main() {
 
   try {
     await seedStaticLookups(db);
+    await seedDevData(db);
   } catch (error) {
+    console.error(error);
     process.exit(1);
   } finally {
     await pool.end();

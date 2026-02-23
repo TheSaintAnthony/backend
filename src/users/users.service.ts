@@ -128,7 +128,9 @@ export class UsersService {
     const [user] = await this.db
       .select()
       .from(schema.users)
-      .where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt)));
+      .where(
+        and(eq(schema.users.email, email), isNull(schema.users.deletedAt)),
+      );
 
     if (!user) {
       return null;

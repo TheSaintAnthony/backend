@@ -38,7 +38,8 @@ export class SignUpDto {
   @IsEmail()
   email: string;
   @ApiProperty({
-    description: 'User password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
+    description:
+      'User password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
     example: 'Password123!',
     minLength: 8,
   })
@@ -47,7 +48,8 @@ export class SignUpDto {
   @Matches(
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]{8,}$/,
     {
-      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+      message:
+        'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
     },
   )
   password: string;
@@ -68,7 +70,8 @@ export class SignUpDto {
 }
 export class PasswordResetDto {
   @ApiProperty({
-    description: 'Password reset token from email (required for unauthenticated reset)',
+    description:
+      'Password reset token from email (required for unauthenticated reset)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     required: false,
   })
@@ -77,7 +80,8 @@ export class PasswordResetDto {
   token?: string;
 
   @ApiProperty({
-    description: 'Current password (required for authenticated password change)',
+    description:
+      'Current password (required for authenticated password change)',
     example: 'currentPassword123',
     required: false,
   })
@@ -86,7 +90,8 @@ export class PasswordResetDto {
   currentPassword?: string;
 
   @ApiProperty({
-    description: 'New password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
+    description:
+      'New password (minimum 8 characters, must contain uppercase, lowercase, number and special character)',
     example: 'NewPassword123!',
     minLength: 8,
   })
@@ -95,7 +100,8 @@ export class PasswordResetDto {
   @Matches(
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/]{8,}$/,
     {
-      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
+      message:
+        'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
     },
   )
   password: string;

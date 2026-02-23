@@ -1098,9 +1098,7 @@ export class ReservationsService implements OnModuleInit {
           if (promoCode && promoCode.isActive && promoCode.coupon) {
             promoCodeValidation = {
               promoCodeId: promoCode.id,
-              discountType: promoCode.coupon.discountType as
-                | 'percentage'
-                | 'fixed_amount',
+              discountType: promoCode.coupon.discountType,
               discountValue: promoCode.coupon.discountValue || '0',
               stripePromoCodeId: promoCode.stripePromoCodeId,
               stripeCouponId: promoCode.coupon.stripeCouponId,

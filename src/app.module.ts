@@ -40,6 +40,8 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
 import { RestaurantMenusModule } from './restaurant-menus/restaurant-menus.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { JobPostingsModule } from './job-postings/job-postings.module';
+import { ContactsModule } from './contacts/contacts.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -93,6 +95,8 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     RestaurantMenusModule,
     NotificationsModule,
     PromoCodesModule,
+    JobPostingsModule,
+    ContactsModule,
   ],
   controllers: [],
   providers: [
