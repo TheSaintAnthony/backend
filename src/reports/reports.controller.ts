@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
@@ -48,12 +47,5 @@ export class ReportsController {
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateReportDto) {
     return this.reportsService.updateReport(id, dto);
-  }
-
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Delete(':id')
-  async delete(@Param('id') id: string) {
-    return this.reportsService.deleteReport(id);
   }
 }

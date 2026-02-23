@@ -58,8 +58,4 @@ export class ReportsService extends BaseCrudService<
   async updateReport(id: string, data: UpdateReportDto) {
     return this.update(id, data);
   }
-
-  async deleteReport(id: string) {
-    return this.delete(id);
-  }
 }
