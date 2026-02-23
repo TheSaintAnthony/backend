@@ -185,6 +185,12 @@ ${specialRequestsText}
 Resumo do Pagamento:
 - Total: €${Number(emailPayload.totalPrice).toFixed(2)}
 
+A sua fatura e respetivo recibo não são enviados por email.
+
+Para os obter, deverá aceder à área "Minha Conta -> Reservas" no nosso site, onde será redirecionado para a plataforma segura, que permite o respetivo download.
+
+Caso necessite de apoio adicional, a nossa equipa encontra-se ao seu dispor.
+
 Em anexo encontrará os eventos de calendário para adicionar à sua agenda.
 
 Se tiver alguma questão, não hesite em contactar-nos.
@@ -239,6 +245,16 @@ Este é um email automático. Por favor, não responda.`;
       ${createInfoBox(`
         <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
           📎 <strong>Em anexo encontrará os eventos de calendário</strong> para adicionar à sua agenda.
+        </p>
+      `)}
+
+      ${createDivider()}
+
+      ${createInfoBox(`
+        <p style="margin: 0; font-size: 14px; color: ${EMAIL_STYLES.colors.textDark};">
+          A sua fatura e respetivo recibo não são enviados por email.<br/><br/>
+          Para os obter, deverá aceder à área "Minha Conta -> Reservas" no nosso site, onde será redirecionado para a plataforma segura, que permite o respetivo download.<br/><br/>
+          Caso necessite de apoio adicional, a nossa equipa encontra-se ao seu dispor.
         </p>
       `)}
       

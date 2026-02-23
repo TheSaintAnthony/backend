@@ -83,7 +83,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Error &&
       exception.cause &&
       this.isDatabaseError(exception.cause)
-        ? (exception.cause as DatabaseError)
+        ? exception.cause
         : exception;
     if (this.isDatabaseError(dbError)) {
       return this.handleDatabaseError(

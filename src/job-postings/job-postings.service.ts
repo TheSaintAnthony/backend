@@ -123,10 +123,18 @@ export class JobPostingsService {
         ...(dto.address && { address: dto.address }),
         ...(dto.birthDate && { birthDate: dto.birthDate }),
         ...(dto.qualifications && { qualifications: dto.qualifications }),
-        ...(dto.hotelExperience !== undefined && { hotelExperience: dto.hotelExperience }),
-        ...(dto.restaurantExperience !== undefined && { restaurantExperience: dto.restaurantExperience }),
-        ...(dto.realEstateExperience !== undefined && { realEstateExperience: dto.realEstateExperience }),
-        ...(dto.driverLicense !== undefined && { driverLicense: dto.driverLicense }),
+        ...(dto.hotelExperience !== undefined && {
+          hotelExperience: dto.hotelExperience,
+        }),
+        ...(dto.restaurantExperience !== undefined && {
+          restaurantExperience: dto.restaurantExperience,
+        }),
+        ...(dto.realEstateExperience !== undefined && {
+          realEstateExperience: dto.realEstateExperience,
+        }),
+        ...(dto.driverLicense !== undefined && {
+          driverLicense: dto.driverLicense,
+        }),
         ...(dto.linkedinProfile && { linkedinProfile: dto.linkedinProfile }),
       })
       .returning();
