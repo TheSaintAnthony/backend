@@ -67,7 +67,7 @@ export class JobPostingsController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Post()
+  @Post('admin')
   async createJobPosting(@Body() dto: CreateJobPostingDto) {
     return this.jobPostingsService.createJobPosting(dto);
   }
