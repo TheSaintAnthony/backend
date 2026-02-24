@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConflictException, NotFoundException } from 'src/filters';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
 import {
@@ -25,7 +25,7 @@ export class LookupsService {
     const existing = await this.db
       .select()
       .from(table)
-      .where(eq(table.name, name))
+      .where(and(eq(table.name, name), isNull((table as any).deletedAt)))
       .limit(1);
     if (existing.length > 0) {
       throw new ConflictException(
@@ -37,7 +37,7 @@ export class LookupsService {
     const record = await this.db
       .select()
       .from(table)
-      .where(eq(table.id, id))
+      .where(and(eq(table.id, id), isNull((table as any).deletedAt)))
       .limit(1);
     if (record.length === 0) {
       throw new NotFoundException(`Record on ${this.getTableName()} not found`);
@@ -60,12 +60,21 @@ export class LookupsService {
     return this.db.insert(table).values(value as any);
   }
   async getAll(table: LookupTable, includeSystemManaged = true) {
-    const allRecords = await this.db.select().from(table);
-    if (!includeSystemManaged) {
-      // Filter out system-managed records
-      return allRecords.filter((record: any) => !record.isSystemManaged);
+    let whereClause: any;
+    const isSystemManagedColumn = (table as any).isSystemManaged;
+
+    if (!includeSystemManaged && isSystemManagedColumn) {
+      // Filter by deletedAt AND isSystemManaged
+      whereClause = and(
+        isNull((table as any).deletedAt),
+        eq(isSystemManagedColumn, false)
+      );
+    } else {
+      // Filter by deletedAt only
+      whereClause = isNull((table as any).deletedAt);
     }
-    return allRecords;
+
+    return this.db.select().from(table).where(whereClause);
   }
   async getById(table: LookupTable, id: string) {
     return this.ensureExistsById(table, id);
@@ -131,7 +140,10 @@ export class LookupsService {
     return this.addValue(schema.amenities, { name: value });
   }
   getAmenities() {
-    return this.getAll(schema.amenities, false); // Exclude system-managed for admin
+    return this.db
+      .select()
+      .from(schema.amenities)
+      .where(isNull(schema.amenities.deletedAt));
   }
   getAmenityById(id: string) {
     return this.getById(schema.amenities, id);
@@ -146,7 +158,10 @@ export class LookupsService {
     return this.addValue(schema.roomTypes, { name, maxCapacity });
   }
   getRoomTypes() {
-    return this.getAll(schema.roomTypes, false); // Exclude system-managed for admin
+    return this.db
+      .select()
+      .from(schema.roomTypes)
+      .where(isNull(schema.roomTypes.deletedAt));
   }
   getRoomTypeById(id: string) {
     return this.getById(schema.roomTypes, id);
@@ -161,7 +176,10 @@ export class LookupsService {
     return this.addValue(schema.highlights, { name: value });
   }
   getHighlights() {
-    return this.getAll(schema.highlights, false); // Exclude system-managed for admin
+    return this.db
+      .select()
+      .from(schema.highlights)
+      .where(isNull(schema.highlights.deletedAt));
   }
   getHighlightById(id: string) {
     return this.getById(schema.highlights, id);
@@ -337,7 +355,10 @@ export class LookupsService {
     return this.addValue(schema.activityCategories, { name: value });
   }
   getActivityCategories() {
-    return this.getAll(schema.activityCategories, false); // Exclude system-managed for admin
+    return this.db
+      .select()
+      .from(schema.activityCategories)
+      .where(isNull(schema.activityCategories.deletedAt));
   }
   getActivityCategoryById(id: string) {
     return this.getById(schema.activityCategories, id);

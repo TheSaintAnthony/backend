@@ -84,7 +84,7 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
         .values({
           name: rt.name,
           maxCapacity: rt.maxCapacity,
-          isSystemManaged: true,
+          isSystemManaged: false,
         })
         .returning();
     }

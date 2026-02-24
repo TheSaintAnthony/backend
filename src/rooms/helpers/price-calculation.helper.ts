@@ -27,7 +27,7 @@ export function findApplicablePrices(
     const priceEnd = new Date(price.endDate);
     const priceStartStr = priceStart.toISOString().split('T')[0];
     const priceEndStr = priceEnd.toISOString().split('T')[0];
-    return dateStr >= priceStartStr && dateStr < priceEndStr;
+    return dateStr >= priceStartStr && dateStr <= priceEndStr;
   });
 }
 
