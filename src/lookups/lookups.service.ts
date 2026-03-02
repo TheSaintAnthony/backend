@@ -64,13 +64,11 @@ export class LookupsService {
     const isSystemManagedColumn = (table as any).isSystemManaged;
 
     if (!includeSystemManaged && isSystemManagedColumn) {
-      // Filter by deletedAt AND isSystemManaged
       whereClause = and(
         isNull((table as any).deletedAt),
-        eq(isSystemManagedColumn, false)
+        eq(isSystemManagedColumn, false),
       );
     } else {
-      // Filter by deletedAt only
       whereClause = isNull((table as any).deletedAt);
     }
 
@@ -136,8 +134,8 @@ export class LookupsService {
       roles,
     };
   }
-  addAmenity(value: string) {
-    return this.addValue(schema.amenities, { name: value });
+  addAmenity(dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string }) {
+    return this.addValue(schema.amenities, dto);
   }
   getAmenities() {
     return this.db
@@ -148,14 +146,29 @@ export class LookupsService {
   getAmenityById(id: string) {
     return this.getById(schema.amenities, id);
   }
-  editAmenity(id: string, value: string) {
-    return this.updateValue(schema.amenities, id, { name: value });
+  editAmenity(
+    id: string,
+    dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string },
+  ) {
+    return this.updateValue(schema.amenities, id, dto);
   }
   deleteAmenity(id: string) {
     return this.deleteValue(schema.amenities, id);
   }
-  addRoomType(name: string, maxCapacity: number) {
-    return this.addValue(schema.roomTypes, { name, maxCapacity });
+  addRoomType(dto: {
+    name: string;
+    maxCapacity: number;
+    nameEn?: string;
+    nameFr?: string;
+    nameDe?: string;
+  }) {
+    return this.addValue(schema.roomTypes, {
+      name: dto.name,
+      maxCapacity: dto.maxCapacity,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    });
   }
   getRoomTypes() {
     return this.db
@@ -166,14 +179,29 @@ export class LookupsService {
   getRoomTypeById(id: string) {
     return this.getById(schema.roomTypes, id);
   }
-  editRoomType(id: string, name: string, maxCapacity: number) {
-    return this.updateValue(schema.roomTypes, id, { name, maxCapacity });
+  editRoomType(
+    id: string,
+    dto: {
+      name: string;
+      maxCapacity: number;
+      nameEn?: string;
+      nameFr?: string;
+      nameDe?: string;
+    },
+  ) {
+    return this.updateValue(schema.roomTypes, id, {
+      name: dto.name,
+      maxCapacity: dto.maxCapacity,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    });
   }
   deleteRoomType(id: string) {
     return this.deleteValue(schema.roomTypes, id);
   }
-  addHighlight(value: string) {
-    return this.addValue(schema.highlights, { name: value });
+  addHighlight(dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string }) {
+    return this.addValue(schema.highlights, dto);
   }
   getHighlights() {
     return this.db
@@ -184,8 +212,11 @@ export class LookupsService {
   getHighlightById(id: string) {
     return this.getById(schema.highlights, id);
   }
-  editHighlight(id: string, value: string) {
-    return this.updateValue(schema.highlights, id, { name: value });
+  editHighlight(
+    id: string,
+    dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string },
+  ) {
+    return this.updateValue(schema.highlights, id, dto);
   }
   deleteHighlight(id: string) {
     return this.deleteValue(schema.highlights, id);
@@ -351,8 +382,18 @@ export class LookupsService {
   deleteActivity(id: string) {
     return this.deleteValue(schema.activities, id);
   }
-  addActivityCategory(value: string) {
-    return this.addValue(schema.activityCategories, { name: value });
+  addActivityCategory(dto: {
+    name: string;
+    nameEn?: string;
+    nameFr?: string;
+    nameDe?: string;
+  }) {
+    return this.addValue(schema.activityCategories, {
+      name: dto.name,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    });
   }
   getActivityCategories() {
     return this.db
@@ -363,24 +404,50 @@ export class LookupsService {
   getActivityCategoryById(id: string) {
     return this.getById(schema.activityCategories, id);
   }
-  editActivityCategory(id: string, value: string) {
-    return this.updateValue(schema.activityCategories, id, { name: value });
+  editActivityCategory(
+    id: string,
+    dto: {
+      name: string;
+      nameEn?: string;
+      nameFr?: string;
+      nameDe?: string;
+    },
+  ) {
+    return this.updateValue(schema.activityCategories, id, {
+      name: dto.name,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    });
   }
   deleteActivityCategory(id: string) {
     return this.deleteValue(schema.activityCategories, id);
   }
-  async addMenuCategory(value: string, displayOrder = 0) {
+  async addMenuCategory(dto: {
+    name: string;
+    displayOrder?: number;
+    nameEn?: string;
+    nameFr?: string;
+    nameDe?: string;
+  }) {
+    const displayOrder = dto.displayOrder ?? 0;
     const [existing] = await this.db
       .select()
       .from(schema.menuCategories)
-      .where(eq(schema.menuCategories.name, value))
+      .where(eq(schema.menuCategories.name, dto.name))
       .limit(1);
     if (existing) {
-      throw new ConflictException('Menu Category', { name: value });
+      throw new ConflictException('Menu Category', { name: dto.name });
     }
     const [created] = await this.db
       .insert(schema.menuCategories)
-      .values({ name: value, displayOrder })
+      .values({
+        name: dto.name,
+        displayOrder,
+        nameEn: dto.nameEn,
+        nameFr: dto.nameFr,
+        nameDe: dto.nameDe,
+      })
       .returning();
     return created;
   }
@@ -389,7 +456,6 @@ export class LookupsService {
       .select()
       .from(schema.menuCategories)
       .orderBy(schema.menuCategories.displayOrder);
-    // Filter out system-managed categories for admin
     return allCategories.filter((cat: any) => !cat.isSystemManaged);
   }
   async getMenuCategoryById(id: string) {
@@ -403,11 +469,31 @@ export class LookupsService {
     }
     return category;
   }
-  async editMenuCategory(id: string, value: string, displayOrder?: number) {
-    await this.getMenuCategoryById(id); // Ensure it exists
-    const updateData: { name: string; displayOrder?: number } = { name: value };
-    if (displayOrder !== undefined) {
-      updateData.displayOrder = displayOrder;
+  async editMenuCategory(
+    id: string,
+    dto: {
+      name: string;
+      displayOrder?: number;
+      nameEn?: string;
+      nameFr?: string;
+      nameDe?: string;
+    },
+  ) {
+    await this.getMenuCategoryById(id);
+    const updateData: {
+      name: string;
+      displayOrder?: number;
+      nameEn?: string;
+      nameFr?: string;
+      nameDe?: string;
+    } = {
+      name: dto.name,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    };
+    if (dto.displayOrder !== undefined) {
+      updateData.displayOrder = dto.displayOrder;
     }
     const [updated] = await this.db
       .update(schema.menuCategories)
@@ -417,7 +503,7 @@ export class LookupsService {
     return updated;
   }
   async deleteMenuCategory(id: string) {
-    await this.getMenuCategoryById(id); // Ensure it exists
+    await this.getMenuCategoryById(id);
     await this.db
       .delete(schema.menuCategories)
       .where(eq(schema.menuCategories.id, id));

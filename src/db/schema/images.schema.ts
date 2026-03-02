@@ -23,7 +23,6 @@ export const images = pgTable(
     caption: text('caption'),
     displayOrder: integer('display_order').default(0).notNull(),
     isPrimary: boolean('is_primary').default(false).notNull(),
-    // Metadata fields (merged from image_metadata table)
     width: integer('width'),
     height: integer('height'),
     fileSize: integer('file_size'),

@@ -45,8 +45,9 @@ export abstract class BaseCrudService<
   /**
    * Override this method to add post-creation logic (e.g., sending notifications)
    */
-  protected async afterCreate(entity: TEntity): Promise<void> {
-    // Default: do nothing
+  protected async afterCreate(entity: TEntity, createData?: TCreateDto): Promise<void> {
+    void entity;
+    void createData;
   }
 
   async create(data: TCreateDto): Promise<TEntity> {
@@ -56,7 +57,7 @@ export abstract class BaseCrudService<
       .values(transformedData)
       .returning();
 
-    await this.afterCreate(entity as TEntity);
+    await this.afterCreate(entity as TEntity, data);
     return entity as TEntity;
   }
 

@@ -1,5 +1,3 @@
-// RoomPrice type - using any for now to avoid circular dependencies
-// The actual type is defined in room-prices module
 type RoomPrice = any;
 
 import { calculateNights } from '../../common/utils/date.utils';

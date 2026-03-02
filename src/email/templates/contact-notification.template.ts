@@ -26,7 +26,6 @@ export function createContactNotificationTemplate(
 ): string {
   const { colors, fonts } = EMAIL_STYLES;
 
-  // Format the submission date
   const submittedDate = new Date(data.submittedAt).toLocaleDateString('pt-PT', {
     year: 'numeric',
     month: 'long',
@@ -35,7 +34,6 @@ export function createContactNotificationTemplate(
     minute: '2-digit',
   });
 
-  // Build details table rows
   let detailsRows = createDetailRow('Nome', data.name);
   detailsRows += createDetailRow('Email', data.email);
 
@@ -49,7 +47,6 @@ export function createContactNotificationTemplate(
 
   detailsRows += createDetailRow('Data', submittedDate);
 
-  // Main content
   const content = `
     ${createMainTitle('Novo Contacto Recebido')}
 

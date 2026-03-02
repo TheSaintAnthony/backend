@@ -24,6 +24,10 @@ import {
 	EMAIL_STYLES,
 	createContactNotificationTemplate,
 	ContactNotificationData,
+	createReportConfirmationTemplate,
+	ReportConfirmationData,
+	createReportStatusUpdateTemplate,
+	ReportStatusUpdateData,
 } from './templates';
 import {
 	buildPasswordResetEmailContent,
@@ -569,6 +573,38 @@ Este é um email automático. Por favor, não responda.`;
 			from: this.configService.get<string>('MAIL_FROM'),
 			to: adminEmail,
 			subject: `Novo Contacto: ${contactData.subject || 'Sem Assunto'}`,
+			html,
+		});
+	}
+
+	async sendReportConfirmation(data: ReportConfirmationData): Promise<void> {
+		const html = createReportConfirmationTemplate(data);
+		const text = `Olá ${data.reporterName},\n\nConfirmamos a receção do seu relato (Ref: ${data.reportId}).\nA sua submissão será analisada pela nossa equipa com a máxima confidencialidade.\n\nEntraremos em contacto caso necessitemos de informações adicionais.\n\nObrigado,\nThe St. Anthony`;
+
+		await this.sendEmail({
+			from: this.configService.get<string>('MAIL_FROM'),
+			to: data.reporterEmail,
+			subject: 'Confirmação de Receção de Relato - The St. Anthony',
+			text,
+			html,
+		});
+	}
+
+	async sendReportStatusUpdate(data: ReportStatusUpdateData): Promise<void> {
+		const STATUS_LABELS: Record<string, string> = {
+			pending: 'Pendente',
+			reviewed: 'Em Revisão',
+			resolved: 'Resolvido',
+		};
+		const statusLabel = STATUS_LABELS[data.newStatus] || data.newStatus;
+		const html = createReportStatusUpdateTemplate(data);
+		const text = `Olá ${data.reporterName},\n\nO estado do seu relato (Ref: ${data.reportId}) foi atualizado para: ${statusLabel}.\n\nPara mais informações, entre em contacto connosco.\n\nObrigado,\nThe St. Anthony`;
+
+		await this.sendEmail({
+			from: this.configService.get<string>('MAIL_FROM'),
+			to: data.reporterEmail,
+			subject: `Atualização do seu Relato: ${statusLabel} - The St. Anthony`,
+			text,
 			html,
 		});
 	}

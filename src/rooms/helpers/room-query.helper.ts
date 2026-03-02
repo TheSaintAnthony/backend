@@ -15,7 +15,13 @@ export function buildRoomsByPropertyQuery(
     .select({
       id: schema.rooms.id,
       name: schema.rooms.name,
+      nameEn: schema.rooms.nameEn,
+      nameFr: schema.rooms.nameFr,
+      nameDe: schema.rooms.nameDe,
       description: schema.rooms.description,
+      descriptionEn: schema.rooms.descriptionEn,
+      descriptionFr: schema.rooms.descriptionFr,
+      descriptionDe: schema.rooms.descriptionDe,
       bedCount: schema.rooms.bedCount,
       bathroomCount: schema.rooms.bathroomCount,
       quantity: schema.rooms.quantity,
@@ -67,7 +73,13 @@ export function mapRoomsQueryResults(
   roomsData: Array<{
     id: string;
     name: string;
+    nameEn?: string | null;
+    nameFr?: string | null;
+    nameDe?: string | null;
     description: string | null;
+    descriptionEn?: string | null;
+    descriptionFr?: string | null;
+    descriptionDe?: string | null;
     bedCount: number | null;
     bathroomCount: number | null;
     quantity: number | null;
@@ -89,7 +101,13 @@ export function mapRoomsQueryResults(
       roomsMap.set(row.id, {
         id: row.id,
         name: row.name,
+        nameEn: row.nameEn,
+        nameFr: row.nameFr,
+        nameDe: row.nameDe,
         description: row.description,
+        descriptionEn: row.descriptionEn,
+        descriptionFr: row.descriptionFr,
+        descriptionDe: row.descriptionDe,
         bedCount: row.bedCount,
         bathroomCount: row.bathroomCount,
         quantity: row.quantity,

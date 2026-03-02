@@ -108,7 +108,6 @@ export class RestaurantsService {
     const { address, images, ...restaurantData } = data;
     let addressId: string | undefined = restaurant.addressId || undefined;
 
-    // Handle address update/creation
     if (address) {
       if (addressId) {
         await this.db
@@ -124,7 +123,6 @@ export class RestaurantsService {
       }
     }
 
-    // Always update restaurant with provided data
     const updateData: any = { ...restaurantData };
     if (addressId) {
       updateData.addressId = addressId;
@@ -135,7 +133,6 @@ export class RestaurantsService {
       .set(updateData)
       .where(eq(schema.restaurants.id, id));
 
-    // Handle images
     if (images !== undefined) {
       const existingImages = await this.imagesService.getImagesByEntity(
         'restaurant',

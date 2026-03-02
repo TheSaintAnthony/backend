@@ -42,6 +42,10 @@ import {
 } from './helpers/room-query.helper';
 import { calculateNights } from '../common/utils/date.utils';
 import {
+  localizeRoom,
+  type SupportedLocale,
+} from '../common/utils/localize';
+import {
   calculateNightlyPrices,
   groupPricesIntoBreakdown,
   calculateTotalFromNightlyPrices,
@@ -327,7 +331,11 @@ export class RoomsService {
     }
     return { ...room, property: null };
   }
-  async getRoomsByProperty(propertyId: string, pagination?: PaginationDto) {
+  async getRoomsByProperty(
+    propertyId: string,
+    pagination?: PaginationDto,
+    locale?: SupportedLocale,
+  ) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
@@ -360,7 +368,15 @@ export class RoomsService {
       propertyId,
       roomIds,
     );
-    const data = mapRoomsQueryResults(roomsData, propertyId);
+    let data = mapRoomsQueryResults(roomsData, propertyId);
+    if (locale && locale !== 'pt') {
+      data = data.map((room) =>
+        localizeRoom(
+          room as unknown as Record<string, unknown>,
+          locale,
+        ) as unknown as RoomWithDetails,
+      );
+    }
     const roomsWithImages = await Promise.all(
       data.map(async (room) => {
         const images = await this.imagesService.getImagesByEntity(

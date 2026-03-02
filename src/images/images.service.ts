@@ -119,7 +119,6 @@ export class ImagesService {
       isPrimary: data.isPrimary ?? false,
     };
 
-    // Add metadata fields if provided
     if (data.width !== undefined) insertValues.width = data.width;
     if (data.height !== undefined) insertValues.height = data.height;
     if (data.fileSize !== undefined) insertValues.fileSize = data.fileSize;
@@ -224,7 +223,6 @@ export class ImagesService {
       updatedAt: new Date(),
     };
 
-    // Add metadata fields if provided
     if (data.width !== undefined) updateData.width = data.width;
     if (data.height !== undefined) updateData.height = data.height;
     if (data.fileSize !== undefined) updateData.fileSize = data.fileSize;

@@ -21,6 +21,18 @@ export class CreateRestaurantDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  @ApiPropertyOptional({ description: 'Restaurant name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Restaurant name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Restaurant name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
   @ApiPropertyOptional({
     description: 'Restaurant description',
     example: 'Fine dining restaurant specializing in seafood',
@@ -28,6 +40,18 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsString()
   description?: string;
+  @ApiPropertyOptional({ description: 'Restaurant description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Restaurant description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Restaurant description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
   @ApiPropertyOptional({
     description: 'Restaurant address',
     type: CreateAddressDto,

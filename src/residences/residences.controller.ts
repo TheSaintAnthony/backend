@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -16,6 +17,7 @@ import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { parseAcceptLanguage } from 'src/common/utils/localize';
 @ApiTags('Residences')
 @ApiBearerAuth('access-token')
 @Controller('residences')
@@ -23,13 +25,21 @@ export class ResidencesController {
   constructor(private residencesService: ResidencesService) {}
   @Public()
   @Get()
-  async getResidences(@Query() pagination: PaginationDto) {
-    return this.residencesService.getResidences(pagination);
+  async getResidences(
+    @Query() pagination: PaginationDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
+    return this.residencesService.getResidences(pagination, locale);
   }
   @Public()
   @Get(':id')
-  async getResidenceById(@Param('id') id: string) {
-    return await this.residencesService.getResidenceById(id);
+  async getResidenceById(
+    @Param('id') id: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
+    return await this.residencesService.getResidenceById(id, locale);
   }
   @Roles(UserRole.ADMIN)
   @Post()

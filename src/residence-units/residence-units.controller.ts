@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -16,6 +17,7 @@ import { GetResidenceUnitsDto } from './dto/get-residence-units.dto';
 import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
+import { parseAcceptLanguage } from 'src/common/utils/localize';
 @ApiTags('Residence Units')
 @ApiBearerAuth('access-token')
 @Controller('residence-units')
@@ -23,17 +25,26 @@ export class ResidenceUnitsController {
   constructor(private residenceUnitsService: ResidenceUnitsService) {}
   @Public()
   @Get()
-  async getResidenceUnits(@Query() query: GetResidenceUnitsDto) {
+  async getResidenceUnits(
+    @Query() query: GetResidenceUnitsDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
     const { residenceId, ...pagination } = query;
+    const locale = parseAcceptLanguage(acceptLanguage);
     return this.residenceUnitsService.getResidenceUnits(
       pagination,
       residenceId,
+      locale,
     );
   }
   @Public()
   @Get(':id')
-  async getResidenceUnitById(@Param('id') id: string) {
-    return await this.residenceUnitsService.getResidenceUnitById(id);
+  async getResidenceUnitById(
+    @Param('id') id: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
+    return await this.residenceUnitsService.getResidenceUnitById(id, locale);
   }
   @Roles(UserRole.ADMIN)
   @Post()

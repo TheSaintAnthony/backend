@@ -1,4 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq, SQL } from 'drizzle-orm';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
@@ -18,6 +20,7 @@ export class ReportsService extends BaseCrudService<
   constructor(
     @Inject(DB_PROVIDER)
     db: NodePgDatabase<typeof schema>,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {
     super(db, {
       table: schema.reports,
@@ -34,6 +37,27 @@ export class ReportsService extends BaseCrudService<
     };
   }
 
+  protected async afterCreate(entity: Report, createData?: CreateReportDto): Promise<void> {
+    if (
+      !entity.isAnonymous &&
+      entity.reporterEmail &&
+      entity.reporterName
+    ) {
+      await this.emailQueue.add('sendReportConfirmation', {
+        data: {
+          reporterName: entity.reporterName,
+          reporterEmail: entity.reporterEmail,
+          subject: entity.subject,
+          relationship: entity.relationship,
+          occurrenceDate: entity.occurrenceDate.toISOString(),
+          submittedAt: entity.createdAt.toISOString(),
+          reportId: entity.id,
+          locale: createData?.locale || 'pt',
+        },
+      });
+    }
+  }
+
   protected getWhereConditions(query?: GetReportsDto): SQL[] {
     const conditions: SQL[] = [];
     if (query?.status) {
@@ -42,7 +66,6 @@ export class ReportsService extends BaseCrudService<
     return conditions;
   }
 
-  // Keep original method names for backward compatibility
   async createReport(data: CreateReportDto) {
     return this.create(data);
   }
@@ -56,6 +79,28 @@ export class ReportsService extends BaseCrudService<
   }
 
   async updateReport(id: string, data: UpdateReportDto) {
-    return this.update(id, data);
+    const existing = await this.getById(id);
+    const updated = await this.update(id, data);
+
+    if (
+      data.status &&
+      data.status !== existing.status &&
+      !updated.isAnonymous &&
+      updated.reporterEmail &&
+      updated.reporterName
+    ) {
+      await this.emailQueue.add('sendReportStatusUpdate', {
+        data: {
+          reporterName: updated.reporterName,
+          reporterEmail: updated.reporterEmail,
+          reportId: updated.id,
+          oldStatus: existing.status,
+          newStatus: updated.status,
+          updatedAt: updated.updatedAt?.toISOString() ?? new Date().toISOString(),
+        },
+      });
+    }
+
+    return updated;
   }
 }

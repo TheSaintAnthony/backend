@@ -89,7 +89,6 @@ export class AuthService {
   async resetPassword(data: PasswordResetDto, userId?: string) {
     let user;
 
-    // Scenario 1: Unauthenticated reset with token
     if (data.token) {
       const { email, tokenIssuedAt } =
         await this.decodeResetPasswordTokenToEmail(data.token);
@@ -98,7 +97,6 @@ export class AuthService {
         throw new NotFoundException('User', email);
       }
 
-      // Check if password was changed after token was issued
       if (user.passwordChangedAt) {
         const passwordChangedAtTimestamp = new Date(
           user.passwordChangedAt,
@@ -111,20 +109,17 @@ export class AuthService {
         }
       }
     }
-    // Scenario 2: Authenticated password change with current password
     else if (data.currentPassword && userId) {
       const userWithId = await this.usersService.getUserById(userId);
       if (!userWithId) {
         throw new NotFoundException('User', userId);
       }
 
-      // Need to get user with password hash for verification
       user = await this.usersService.findOneByEmail(userWithId.email);
       if (!user) {
         throw new NotFoundException('User', userWithId.email);
       }
 
-      // Verify current password
       const isMatch = await bcrypt.compare(
         data.currentPassword,
         user.passwordHash,
@@ -138,7 +133,6 @@ export class AuthService {
       );
     }
 
-    // Hash and update password
     const passwordHashed = await bcrypt.hash(data.password, 10);
     const result = await this.usersService.resetPassword(
       user.email,

@@ -33,8 +33,7 @@ export class ContactsService extends BaseCrudService<
     return { ...data, status: 'pending' };
   }
 
-  protected async afterCreate(contact: Contact): Promise<void> {
-    // Queue email notification to admin
+  protected async afterCreate(contact: Contact, createData?: CreateContactDto): Promise<void> {
     const adminEmail = process.env.ADMIN_CONTACT_EMAIL;
     if (adminEmail) {
       const adminPanelUrl =
@@ -52,6 +51,7 @@ export class ContactsService extends BaseCrudService<
           message: contact.message,
           submittedAt: contact.createdAt.toISOString(),
           adminPanelUrl,
+          locale: createData?.locale || 'pt',
         },
       });
     }
@@ -65,7 +65,6 @@ export class ContactsService extends BaseCrudService<
     return conditions;
   }
 
-  // Keep original method names for backward compatibility
   async createContact(data: CreateContactDto) {
     return this.create(data);
   }

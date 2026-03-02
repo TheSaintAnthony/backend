@@ -8,7 +8,11 @@ import {
   CheckOutReminderEmail,
   PostStayEmail,
 } from 'src/notifications/interfaces';
-import { ContactNotificationData } from 'src/email/templates';
+import {
+  ContactNotificationData,
+  ReportConfirmationData,
+  ReportStatusUpdateData,
+} from 'src/email/templates';
 import { EmailJobData } from './interfaces';
 @Processor('email')
 export class EmailConsumer extends WorkerHost {
@@ -54,6 +58,16 @@ export class EmailConsumer extends WorkerHost {
         case 'sendContactNotification':
           await this.emailsService.sendContactNotification(
             jobData as unknown as ContactNotificationData,
+          );
+          break;
+        case 'sendReportConfirmation':
+          await this.emailsService.sendReportConfirmation(
+            jobData as unknown as ReportConfirmationData,
+          );
+          break;
+        case 'sendReportStatusUpdate':
+          await this.emailsService.sendReportStatusUpdate(
+            jobData as unknown as ReportStatusUpdateData,
           );
           break;
         default:

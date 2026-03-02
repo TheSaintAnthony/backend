@@ -136,4 +136,21 @@ export async function seedStaticLookups(db: NodePgDatabase<typeof schema>) {
       await db.insert(schema.entityTypes).values(entityType);
     }
   }
+
+  const spaCategoryName = 'SPA';
+  const existingSpaCategory = await db
+    .select()
+    .from(schema.activityCategories)
+    .where(eq(schema.activityCategories.name, spaCategoryName))
+    .limit(1);
+
+  if (existingSpaCategory.length === 0) {
+    await db.insert(schema.activityCategories).values({
+      name: spaCategoryName,
+      nameEn: spaCategoryName,
+      nameFr: 'SPA',
+      nameDe: spaCategoryName,
+      isSystemManaged: true,
+    });
+  }
 }
