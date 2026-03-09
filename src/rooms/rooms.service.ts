@@ -610,32 +610,64 @@ export class RoomsService {
       });
     }
 
-    const pricingInput = rooms.map((room) => ({
-      roomId: room.roomId,
-      checkIn: room.checkIn,
-      checkOut: room.checkOut,
-      guestsCount: room.guestsCount || 1,
-      quantity: room.quantity || 1,
-    }));
-
-    const pricingBreakdown = await this.pricingEngine.calculatePricing(
-      pricingInput,
-      promoCodeId,
+    const priceableRoomIds = new Set(
+      roomQuotes
+        .filter((quote) => quote.available && !quote.error)
+        .map((quote) => quote.roomId),
     );
+    const pricingInput = rooms
+      .filter((room) => priceableRoomIds.has(room.roomId))
+      .map((room) => ({
+        roomId: room.roomId,
+        checkIn: room.checkIn,
+        checkOut: room.checkOut,
+        guestsCount: room.guestsCount || 1,
+        quantity: room.quantity || 1,
+      }));
 
-    const roomBreakdownMap = new Map(
-      pricingBreakdown.breakdown.rooms.map((room) => [room.roomId, room]),
-    );
+    let roomBreakdownMap = new Map<string, { basePrice: number; tourismFee: number }>();
+    let totals = {
+      basePrice: 0,
+      discountAmount: 0,
+      discountedBasePrice: 0,
+      tourismFee: 0,
+      vatValue: 0,
+      totalPrice: 0,
+    };
+
+    if (pricingInput.length > 0) {
+      const pricingBreakdown = await this.pricingEngine.calculatePricing(
+        pricingInput,
+        promoCodeId,
+      );
+      roomBreakdownMap = new Map(
+        pricingBreakdown.breakdown.rooms.map((room) => [
+          room.roomId,
+          {
+            basePrice: room.basePrice,
+            tourismFee: room.tourismFee,
+          },
+        ]),
+      );
+      totals = {
+        basePrice: pricingBreakdown.basePrice,
+        discountAmount: pricingBreakdown.discountAmount,
+        discountedBasePrice: pricingBreakdown.discountedBasePrice,
+        tourismFee: pricingBreakdown.tourismFee,
+        vatValue: pricingBreakdown.vatAmount,
+        totalPrice: pricingBreakdown.totalPrice,
+      };
+    }
 
     const roomsWithPricing = roomQuotes.map((roomQuote) => {
       const breakdown = roomBreakdownMap.get(roomQuote.roomId);
       if (breakdown) {
         const roomDiscountProportion =
-          pricingBreakdown.basePrice > 0
-            ? breakdown.basePrice / pricingBreakdown.basePrice
+          totals.basePrice > 0
+            ? breakdown.basePrice / totals.basePrice
             : 0;
         const roomDiscountAmount =
-          pricingBreakdown.discountAmount * roomDiscountProportion;
+          totals.discountAmount * roomDiscountProportion;
         const roomDiscountedBase = breakdown.basePrice - roomDiscountAmount;
         const roomVatAmount = roomDiscountedBase * 0.23;
         const roomTotalWithDiscount =
@@ -649,18 +681,20 @@ export class RoomsService {
       return roomQuote;
     });
 
+    const pricing = {
+      basePrice: totals.basePrice.toFixed(2),
+      discountAmount: totals.discountAmount.toFixed(2),
+      discountedBasePrice: totals.discountedBasePrice.toFixed(2),
+      tourismFee: totals.tourismFee.toFixed(2),
+      vatPercentage: '23',
+      vatValue: totals.vatValue.toFixed(2),
+      totalPrice: totals.totalPrice.toFixed(2),
+    };
+
     return {
       rooms: roomsWithPricing,
-      totalPrice: pricingBreakdown.totalPrice.toFixed(2),
-      pricing: {
-        basePrice: pricingBreakdown.basePrice.toFixed(2),
-        discountAmount: pricingBreakdown.discountAmount.toFixed(2),
-        discountedBasePrice: pricingBreakdown.discountedBasePrice.toFixed(2),
-        tourismFee: pricingBreakdown.tourismFee.toFixed(2),
-        vatPercentage: '23',
-        vatValue: pricingBreakdown.vatAmount.toFixed(2),
-        totalPrice: pricingBreakdown.totalPrice.toFixed(2),
-      },
+      totalPrice: pricing.totalPrice,
+      pricing,
       allAvailable,
       message: allAvailable
         ? 'All rooms are available'
