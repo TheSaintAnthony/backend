@@ -70,4 +70,13 @@ export class CreateReportDto {
   @IsBoolean()
   @IsNotEmpty()
   dataConsentGiven: boolean;
+
+  @ApiPropertyOptional({
+    example: 'pt',
+    enum: ['pt', 'en', 'fr', 'de'],
+    description: 'User locale for email localization',
+  })
+  @IsOptional()
+  @IsString()
+  locale?: string;
 }

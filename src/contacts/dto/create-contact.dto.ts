@@ -25,4 +25,13 @@ export class CreateContactDto {
   @IsString()
   @IsNotEmpty()
   message: string;
+
+  @ApiPropertyOptional({
+    example: 'pt',
+    enum: ['pt', 'en', 'fr', 'de'],
+    description: 'User locale for email localization',
+  })
+  @IsOptional()
+  @IsString()
+  locale?: string;
 }

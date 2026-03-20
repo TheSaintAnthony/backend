@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -16,6 +17,7 @@ import { Public } from 'src/decorators/public.decorator';
 import { Roles } from 'src/decorators/role.decorator';
 import { UserRole } from 'src/constants';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { parseAcceptLanguage } from 'src/common/utils/localize';
 @ApiTags('Properties')
 @ApiBearerAuth('access-token')
 @Controller('properties')
@@ -23,13 +25,21 @@ export class PropertiesController {
   constructor(private propertiesService: PropertiesService) {}
   @Public()
   @Get()
-  async getProperties(@Query() pagination: PaginationDto) {
-    return this.propertiesService.getProperties(pagination);
+  async getProperties(
+    @Query() pagination: PaginationDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
+    return this.propertiesService.getProperties(pagination, locale);
   }
   @Public()
   @Get('slug/:slug')
-  async getPropertyBySlug(@Param('slug') slug: string) {
-    return await this.propertiesService.getPropertyBySlug(slug);
+  async getPropertyBySlug(
+    @Param('slug') slug: string,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
+    return await this.propertiesService.getPropertyBySlug(slug, locale);
   }
   @Public()
   @Get(':id')
@@ -37,7 +47,9 @@ export class PropertiesController {
     @Param('id') id: string,
     @Query('includeRooms') includeRooms?: string,
     @Query('includeActivities') includeActivities?: string,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
+    const locale = parseAcceptLanguage(acceptLanguage);
     const includeRoomsFlag = includeRooms === 'true';
     const includeActivitiesFlag = includeActivities === 'true';
     if (includeRoomsFlag || includeActivitiesFlag) {
@@ -45,9 +57,10 @@ export class PropertiesController {
         id,
         includeRoomsFlag,
         includeActivitiesFlag,
+        locale,
       );
     }
-    return await this.propertiesService.getPropertyById(id);
+    return await this.propertiesService.getPropertyById(id, locale);
   }
   @Roles(UserRole.ADMIN)
   @Post()

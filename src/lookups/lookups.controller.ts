@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LookupsService } from './lookups.service';
 import {
   CreateLookupDto,
+  CreateLookupWithTranslationsDto,
   CreateRoomTypeDto,
   CreateActivityDto,
   CreateMenuCategoryDto,
@@ -28,8 +29,8 @@ export class LookupsController {
     return this.lookupsService.getAllLookups();
   }
   @Post('amenities')
-  addAmenity(@Body() dto: CreateLookupDto) {
-    return this.lookupsService.addAmenity(dto.name);
+  addAmenity(@Body() dto: CreateLookupWithTranslationsDto) {
+    return this.lookupsService.addAmenity(dto);
   }
   @Public()
   @Get('amenities')
@@ -42,8 +43,11 @@ export class LookupsController {
     return this.lookupsService.getAmenityById(id);
   }
   @Patch('amenities/:id')
-  editAmenity(@Param('id') id: string, @Body() dto: CreateLookupDto) {
-    return this.lookupsService.editAmenity(id, dto.name);
+  editAmenity(
+    @Param('id') id: string,
+    @Body() dto: CreateLookupWithTranslationsDto,
+  ) {
+    return this.lookupsService.editAmenity(id, dto);
   }
   @Delete('amenities/:id')
   deleteAmenity(@Param('id') id: string) {
@@ -51,7 +55,7 @@ export class LookupsController {
   }
   @Post('room/types')
   addRoomType(@Body() dto: CreateRoomTypeDto) {
-    return this.lookupsService.addRoomType(dto.name, dto.maxCapacity);
+    return this.lookupsService.addRoomType(dto);
   }
   @Public()
   @Get('room/types')
@@ -65,15 +69,15 @@ export class LookupsController {
   }
   @Patch('room/types/:id')
   editRoomType(@Param('id') id: string, @Body() dto: CreateRoomTypeDto) {
-    return this.lookupsService.editRoomType(id, dto.name, dto.maxCapacity);
+    return this.lookupsService.editRoomType(id, dto);
   }
   @Delete('room/types/:id')
   deleteRoomType(@Param('id') id: string) {
     return this.lookupsService.deleteRoomType(id);
   }
   @Post('highlights')
-  addHighlight(@Body() dto: CreateLookupDto) {
-    return this.lookupsService.addHighlight(dto.name);
+  addHighlight(@Body() dto: CreateLookupWithTranslationsDto) {
+    return this.lookupsService.addHighlight(dto);
   }
   @Public()
   @Get('highlights')
@@ -86,8 +90,11 @@ export class LookupsController {
     return this.lookupsService.getHighlightById(id);
   }
   @Patch('highlights/:id')
-  editHighlight(@Param('id') id: string, @Body() dto: CreateLookupDto) {
-    return this.lookupsService.editHighlight(id, dto.name);
+  editHighlight(
+    @Param('id') id: string,
+    @Body() dto: CreateLookupWithTranslationsDto,
+  ) {
+    return this.lookupsService.editHighlight(id, dto);
   }
   @Delete('highlights/:id')
   deleteHighlight(@Param('id') id: string) {
@@ -225,7 +232,7 @@ export class LookupsController {
   }
   @Post('activitycategories')
   addActivityCategory(@Body() dto: CreateActivityCategoryDto) {
-    return this.lookupsService.addActivityCategory(dto.name);
+    return this.lookupsService.addActivityCategory(dto);
   }
   @Public()
   @Get('activitycategories')
@@ -242,7 +249,7 @@ export class LookupsController {
     @Param('id') id: string,
     @Body() dto: CreateActivityCategoryDto,
   ) {
-    return this.lookupsService.editActivityCategory(id, dto.name);
+    return this.lookupsService.editActivityCategory(id, dto);
   }
   @Delete('activitycategories/:id')
   deleteActivityCategory(@Param('id') id: string) {
@@ -250,7 +257,13 @@ export class LookupsController {
   }
   @Post('menucategories')
   addMenuCategory(@Body() dto: CreateMenuCategoryDto) {
-    return this.lookupsService.addMenuCategory(dto.name, dto.displayOrder || 0);
+    return this.lookupsService.addMenuCategory({
+      name: dto.name,
+      displayOrder: dto.displayOrder ?? 0,
+      nameEn: dto.nameEn,
+      nameFr: dto.nameFr,
+      nameDe: dto.nameDe,
+    });
   }
   @Public()
   @Get('menucategories')
@@ -267,7 +280,7 @@ export class LookupsController {
     @Param('id') id: string,
     @Body() dto: CreateMenuCategoryDto,
   ) {
-    return this.lookupsService.editMenuCategory(id, dto.name, dto.displayOrder);
+    return this.lookupsService.editMenuCategory(id, dto);
   }
   @Delete('menucategories/:id')
   deleteMenuCategory(@Param('id') id: string) {

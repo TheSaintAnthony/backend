@@ -15,7 +15,13 @@ export const restaurantMenuItems = pgTable('restaurant_menu_items', {
     .notNull()
     .references(() => restaurantMenus.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
+  nameEn: varchar('name_en', { length: 255 }),
+  nameFr: varchar('name_fr', { length: 255 }),
+  nameDe: varchar('name_de', { length: 255 }),
   description: text('description'),
+  descriptionEn: text('description_en'),
+  descriptionFr: text('description_fr'),
+  descriptionDe: text('description_de'),
   price: numeric('price', { precision: 10, scale: 2 }),
   categoryId: uuid('category_id').references(() => menuCategories.id, {
     onDelete: 'set null',

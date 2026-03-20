@@ -1,5 +1,10 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { NotFoundException } from 'src/filters';
+import {
+  localizeResidence,
+  parseAcceptLanguage,
+  type SupportedLocale,
+} from 'src/common/utils/localize';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -46,7 +51,7 @@ export class ResidencesService {
     }
     return this.getResidenceById(createdResidence.id);
   }
-  async getResidences(pagination?: PaginationDto) {
+  async getResidences(pagination?: PaginationDto, locale?: SupportedLocale) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
@@ -77,13 +82,16 @@ export class ResidencesService {
       existing.push(image);
       imagesByResidenceId.set(image.entityId, existing);
     }
-    const residencesWithImages = data.map((residence) => ({
-      ...residence,
-      images: imagesByResidenceId.get(residence.id) || [],
-    }));
+    const residencesWithImages = data.map((residence) => {
+      const withImages = {
+        ...residence,
+        images: imagesByResidenceId.get(residence.id) || [],
+      };
+      return localizeResidence(withImages as Record<string, unknown>, locale) as typeof withImages;
+    });
     return createPaginatedResponse(residencesWithImages, total, page, limit);
   }
-  async getResidenceById(id: string) {
+  async getResidenceById(id: string, locale?: SupportedLocale) {
     const residence = await this.db.query.residences.findFirst({
       where: eq(schema.residences.id, id),
       with: {
@@ -94,7 +102,8 @@ export class ResidencesService {
       throw new NotFoundException('Residence', id);
     }
     const images = await this.imagesService.getImagesByEntity('residence', id);
-    return { ...residence, images };
+    const withImages = { ...residence, images };
+    return localizeResidence(withImages as Record<string, unknown>, locale) as typeof withImages;
   }
   async editResidence(id: string, data: EditResidenceDto) {
     const [residence] = await this.db

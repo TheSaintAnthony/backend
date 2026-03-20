@@ -20,14 +20,12 @@ import { UserRole } from 'src/constants';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  // Public endpoint - no auth required
   @Public()
   @Post()
   async create(@Body() dto: CreateReportDto) {
     return this.reportsService.createReport(dto);
   }
 
-  // Admin endpoints - require authentication
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get()

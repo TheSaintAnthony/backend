@@ -33,6 +33,18 @@ export class CreateRoomDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  @ApiPropertyOptional({ description: 'Room name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Room name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Room name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
   @ApiPropertyOptional({
     description: 'Room description',
     example: 'Beautiful suite with ocean view and modern amenities',
@@ -40,6 +52,18 @@ export class CreateRoomDto {
   @IsOptional()
   @IsString()
   description?: string;
+  @ApiPropertyOptional({ description: 'Room description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Room description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Room description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
   @ApiPropertyOptional({
     description: 'Number of beds in the room',
     example: 2,

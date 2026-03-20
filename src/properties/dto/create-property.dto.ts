@@ -16,6 +16,18 @@ export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  @ApiPropertyOptional({ description: 'Property name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Property name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Property name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
   @ApiProperty({
     description: 'Short description',
     example: 'Luxury hotel in the heart of the city',
@@ -30,6 +42,30 @@ export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
   about: string;
+  @ApiPropertyOptional({ description: 'Short description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Short description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Short description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (English)' })
+  @IsOptional()
+  @IsString()
+  aboutEn?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (French)' })
+  @IsOptional()
+  @IsString()
+  aboutFr?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (German)' })
+  @IsOptional()
+  @IsString()
+  aboutDe?: string;
   @ApiProperty({ description: 'Property address', type: CreateAddressDto })
   @ValidateNested()
   @Type(() => CreateAddressDto)
@@ -71,6 +107,18 @@ export class CreatePropertyDto {
   @IsOptional()
   @IsString()
   arrivalInstructions?: string;
+  @ApiPropertyOptional({ description: 'Arrival instructions (English)' })
+  @IsOptional()
+  @IsString()
+  arrivalInstructionsEn?: string;
+  @ApiPropertyOptional({ description: 'Arrival instructions (French)' })
+  @IsOptional()
+  @IsString()
+  arrivalInstructionsFr?: string;
+  @ApiPropertyOptional({ description: 'Arrival instructions (German)' })
+  @IsOptional()
+  @IsString()
+  arrivalInstructionsDe?: string;
   @ApiPropertyOptional({
     description: 'Images for the property',
     type: [NestedImageDto],

@@ -26,6 +26,18 @@ export class CreateResidenceUnitDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  @ApiPropertyOptional({ description: 'Unit name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Unit name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Unit name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
   @ApiPropertyOptional({
     description: 'Typology (T1, T2, T3, etc.)',
     example: 'T3',
@@ -68,6 +80,18 @@ export class CreateResidenceUnitDto {
   @IsOptional()
   @IsString()
   description?: string;
+  @ApiPropertyOptional({ description: 'Unit description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Unit description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Unit description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
   @ApiPropertyOptional({
     description: 'Number of bedrooms',
     example: 3,

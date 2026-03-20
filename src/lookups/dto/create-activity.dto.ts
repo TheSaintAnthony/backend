@@ -63,4 +63,28 @@ export class CreateActivityDto {
   @ValidateNested({ each: true })
   @Type(() => NestedImageDto)
   images?: NestedImageDto[];
+  @ApiPropertyOptional({ description: 'Name in English' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Name in French' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Name in German' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
+  @ApiPropertyOptional({ description: 'Description in English' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Description in French' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Description in German' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
 }

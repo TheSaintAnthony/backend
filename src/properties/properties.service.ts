@@ -11,6 +11,10 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { ImagesService } from 'src/images/images.service';
+import {
+  localizeProperty,
+  type SupportedLocale,
+} from 'src/common/utils/localize';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { ActivityPropertyService } from 'src/activity-property/activity-property.service';
 @Injectable()
@@ -47,7 +51,7 @@ export class PropertiesService {
     }
     return this.getPropertyById(createdProperty.id);
   }
-  async getProperties(pagination?: PaginationDto) {
+  async getProperties(pagination?: PaginationDto, locale?: SupportedLocale) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
@@ -76,13 +80,18 @@ export class PropertiesService {
       existing.push(image);
       imagesByPropertyId.set(image.entityId, existing);
     }
-    const propertiesWithImages = data.map((property) => ({
+    let propertiesWithImages = data.map((property) => ({
       ...property,
       images: imagesByPropertyId.get(property.id) || [],
     }));
+    if (locale && locale !== 'pt') {
+      propertiesWithImages = propertiesWithImages.map((p) =>
+        localizeProperty(p as Record<string, unknown>, locale),
+      ) as typeof propertiesWithImages;
+    }
     return createPaginatedResponse(propertiesWithImages, total, page, limit);
   }
-  async getPropertyById(id: string) {
+  async getPropertyById(id: string, locale?: SupportedLocale) {
     const property = await this.db.query.properties.findFirst({
       where: eq(schema.properties.id, id),
       with: {
@@ -93,16 +102,24 @@ export class PropertiesService {
       throw new NotFoundException('Property', id);
     }
     const images = await this.imagesService.getImagesByEntity('property', id);
-    return { ...property, images };
+    const result = { ...property, images };
+    if (locale && locale !== 'pt') {
+      return localizeProperty(
+        result as Record<string, unknown>,
+        locale,
+      ) as typeof result;
+    }
+    return result;
   }
   async getPropertyWithDetails(
     id: string,
     includeRooms = true,
     includeActivities = true,
+    locale?: SupportedLocale,
   ) {
-    const property = await this.getPropertyById(id);
+    const property = await this.getPropertyById(id, locale);
     const [rooms, activities] = await Promise.all([
-      includeRooms ? this.getPropertyRooms(id) : Promise.resolve([]),
+      includeRooms ? this.getPropertyRooms(id, locale) : Promise.resolve([]),
       includeActivities ? this.getPropertyActivities(id) : Promise.resolve([]),
     ]);
     return {
@@ -111,7 +128,7 @@ export class PropertiesService {
       activities: includeActivities ? activities : undefined,
     };
   }
-  async getPropertyBySlug(slug: string) {
+  async getPropertyBySlug(slug: string, locale?: SupportedLocale) {
     let property = await this.db.query.properties.findFirst({
       where: eq(schema.properties.id, slug),
       with: {
@@ -138,13 +155,14 @@ export class PropertiesService {
     if (!property) {
       throw new NotFoundException('Property', slug);
     }
-    return this.getPropertyWithDetails(property.id, true, true);
+    return this.getPropertyWithDetails(property.id, true, true, locale);
   }
-  async getPropertyRooms(propertyId: string) {
-    const response = await this.roomsService.getRoomsByProperty(propertyId, {
-      page: 1,
-      limit: 100,
-    });
+  async getPropertyRooms(propertyId: string, locale?: SupportedLocale) {
+    const response = await this.roomsService.getRoomsByProperty(
+      propertyId,
+      { page: 1, limit: 100 },
+      locale,
+    );
     return response.data;
   }
   async getPropertyActivities(propertyId: string) {

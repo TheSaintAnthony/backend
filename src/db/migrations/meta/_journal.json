@@ -288,6 +288,34 @@
       "when": 1771610011112,
       "tag": "0040_dry_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1772016659968,
+      "tag": "0041_warm_morgan_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1772209897337,
+      "tag": "0042_big_dark_phoenix",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1772209898000,
+      "tag": "0043_restaurant_menu_items_multilang",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1772209899000,
+      "tag": "0044_add_multilanguage_columns",
+      "breakpoints": true
     }
   ]
 }

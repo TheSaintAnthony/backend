@@ -13,4 +13,11 @@ export interface RoomWithDetails {
   maxCapacity: number | null;
   amenities: AmenityHighlight[];
   highlights: AmenityHighlight[];
+  /** Used for localization; not returned in API response */
+  nameEn?: string | null;
+  nameFr?: string | null;
+  nameDe?: string | null;
+  descriptionEn?: string | null;
+  descriptionFr?: string | null;
+  descriptionDe?: string | null;
 }

@@ -10,7 +10,13 @@ import { addresses } from './addresses.schema';
 export const restaurants = pgTable('restaurants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
+  nameEn: varchar('name_en', { length: 255 }),
+  nameFr: varchar('name_fr', { length: 255 }),
+  nameDe: varchar('name_de', { length: 255 }),
   description: text('description'),
+  descriptionEn: text('description_en'),
+  descriptionFr: text('description_fr'),
+  descriptionDe: text('description_de'),
   addressId: uuid('address_id').references(() => addresses.id),
   email: varchar('email', { length: 255 }),
   phoneNumber: varchar('phone_number', { length: 20 }),

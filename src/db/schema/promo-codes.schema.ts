@@ -14,13 +14,11 @@ import { sql } from 'drizzle-orm';
 import { users } from './users.schema';
 import { reservations } from './reservations.schema';
 
-// Discount type enum
 export const discountTypeEnum = pgEnum('discount_type', [
   'percentage',
   'fixed_amount',
 ]);
 
-// Coupons table (synced with Stripe Coupons)
 export const coupons = pgTable(
   'coupons',
   {
@@ -39,7 +37,7 @@ export const coupons = pgTable(
     timesRedeemed: integer('times_redeemed').default(0).notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     isActive: boolean('is_active').default(true).notNull(),
-    metadata: text('metadata'), // JSON string for additional data
+    metadata: text('metadata'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -55,7 +53,6 @@ export const coupons = pgTable(
   }),
 );
 
-// Promo Codes table (synced with Stripe Promotion Codes)
 export const promoCodes = pgTable(
   'promo_codes',
   {
@@ -73,7 +70,7 @@ export const promoCodes = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     isActive: boolean('is_active').default(true).notNull(),
     isVisibleToUsers: boolean('is_visible_to_users').default(false).notNull(),
-    restrictedToProducts: text('restricted_to_products'), // JSON array of product IDs
+    restrictedToProducts: text('restricted_to_products'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -89,7 +86,6 @@ export const promoCodes = pgTable(
   }),
 );
 
-// User Promo Code Redemptions tracking
 export const promoCodeRedemptions = pgTable('promo_code_redemptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   promoCodeId: uuid('promo_code_id')

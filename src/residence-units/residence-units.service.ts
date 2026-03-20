@@ -1,5 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { NotFoundException } from 'src/filters';
+import {
+  localizeResidenceUnit,
+  type SupportedLocale,
+} from 'src/common/utils/localize';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -38,7 +42,11 @@ export class ResidenceUnitsService {
     }
     return this.getResidenceUnitById(createdUnit.id);
   }
-  async getResidenceUnits(pagination?: PaginationDto, residenceId?: string) {
+  async getResidenceUnits(
+    pagination?: PaginationDto,
+    residenceId?: string,
+    locale?: SupportedLocale,
+  ) {
     const page = pagination?.page || 1;
     const limit = Math.min(pagination?.limit || 10, 100);
     const offset = (page - 1) * limit;
@@ -77,13 +85,19 @@ export class ResidenceUnitsService {
       existing.push(image);
       imagesByUnitId.set(image.entityId, existing);
     }
-    const unitsWithImages = data.map((unit) => ({
-      ...unit,
-      images: imagesByUnitId.get(unit.id) || [],
-    }));
+    const unitsWithImages = data.map((unit) => {
+      const withImages = {
+        ...unit,
+        images: imagesByUnitId.get(unit.id) || [],
+      };
+      return localizeResidenceUnit(
+        withImages as Record<string, unknown>,
+        locale,
+      ) as typeof withImages;
+    });
     return createPaginatedResponse(unitsWithImages, total, page, limit);
   }
-  async getResidenceUnitById(id: string) {
+  async getResidenceUnitById(id: string, locale?: SupportedLocale) {
     const unit = await this.db.query.residenceUnits.findFirst({
       where: eq(schema.residenceUnits.id, id),
       with: {
@@ -101,7 +115,11 @@ export class ResidenceUnitsService {
       'residence_unit',
       id,
     );
-    return { ...unit, images };
+    const withImages = { ...unit, images };
+    return localizeResidenceUnit(
+      withImages as Record<string, unknown>,
+      locale,
+    ) as typeof withImages;
   }
   async editResidenceUnit(id: string, data: EditResidenceUnitDto) {
     const [unit] = await this.db

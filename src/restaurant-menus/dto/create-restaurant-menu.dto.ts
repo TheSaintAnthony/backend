@@ -32,6 +32,30 @@ export class CreateRestaurantMenuDto {
   @IsOptional()
   @IsString()
   description?: string;
+  @ApiPropertyOptional({ description: 'Menu name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Menu name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Menu name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
+  @ApiPropertyOptional({ description: 'Menu description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Menu description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Menu description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
   @ApiPropertyOptional({
     description: 'Whether the menu is active',
     example: true,

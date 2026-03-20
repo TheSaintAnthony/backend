@@ -18,6 +18,18 @@ export class CreateResidenceDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  @ApiPropertyOptional({ description: 'Residence name (English)' })
+  @IsOptional()
+  @IsString()
+  nameEn?: string;
+  @ApiPropertyOptional({ description: 'Residence name (French)' })
+  @IsOptional()
+  @IsString()
+  nameFr?: string;
+  @ApiPropertyOptional({ description: 'Residence name (German)' })
+  @IsOptional()
+  @IsString()
+  nameDe?: string;
   @ApiPropertyOptional({
     description: 'Short description',
     example: 'Luxury residences with ocean views',
@@ -32,6 +44,30 @@ export class CreateResidenceDto {
   @IsOptional()
   @IsString()
   about?: string;
+  @ApiPropertyOptional({ description: 'Short description (English)' })
+  @IsOptional()
+  @IsString()
+  descriptionEn?: string;
+  @ApiPropertyOptional({ description: 'Short description (French)' })
+  @IsOptional()
+  @IsString()
+  descriptionFr?: string;
+  @ApiPropertyOptional({ description: 'Short description (German)' })
+  @IsOptional()
+  @IsString()
+  descriptionDe?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (English)' })
+  @IsOptional()
+  @IsString()
+  aboutEn?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (French)' })
+  @IsOptional()
+  @IsString()
+  aboutFr?: string;
+  @ApiPropertyOptional({ description: 'Detailed information (German)' })
+  @IsOptional()
+  @IsString()
+  aboutDe?: string;
   @ApiPropertyOptional({
     description: 'Residence address',
     type: CreateAddressDto,

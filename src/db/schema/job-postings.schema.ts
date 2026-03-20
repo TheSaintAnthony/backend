@@ -10,10 +10,16 @@ import {
 export const jobPostings = pgTable('job_postings', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: varchar('title', { length: 255 }).notNull(),
+  titleEn: varchar('title_en', { length: 255 }),
+  titleFr: varchar('title_fr', { length: 255 }),
+  titleDe: varchar('title_de', { length: 255 }),
   location: varchar('location', { length: 255 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // Full-time, Part-time
+  type: varchar('type', { length: 50 }).notNull(),
   department: varchar('department', { length: 255 }).notNull(),
   description: text('description'),
+  descriptionEn: text('description_en'),
+  descriptionFr: text('description_fr'),
+  descriptionDe: text('description_de'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
@@ -35,7 +41,6 @@ export const jobApplications = pgTable('job_applications', {
   cvFilePath: varchar('cv_file_path', { length: 500 }).notNull(),
   cvOriginalName: varchar('cv_original_name', { length: 255 }).notNull(),
 
-  // New optional fields for expanded application
   address: varchar('address', { length: 500 }),
   birthDate: varchar('birth_date', { length: 10 }),
   qualifications: varchar('qualifications', { length: 100 }),
