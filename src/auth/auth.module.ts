@@ -24,12 +24,13 @@ import { QueuesModule } from 'src/queues/queues.module';
   ],
   providers: [
     AuthService,
+    AuthGuard,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
     },
   ],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, AuthGuard, JwtModule],
 })
 export class AuthModule {}

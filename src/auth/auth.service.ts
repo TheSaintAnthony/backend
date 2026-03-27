@@ -108,8 +108,7 @@ export class AuthService {
           );
         }
       }
-    }
-    else if (data.currentPassword && userId) {
+    } else if (data.currentPassword && userId) {
       const userWithId = await this.usersService.getUserById(userId);
       if (!userWithId) {
         throw new NotFoundException('User', userId);

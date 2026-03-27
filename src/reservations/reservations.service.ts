@@ -324,6 +324,61 @@ export class ReservationsService implements OnModuleInit {
     };
     await this.emailQueue.add('sendReservationConfirmationEmail', payload);
   }
+  private async sendCancellationEmail(
+    userId: string,
+    reservationId: string,
+    refunded: boolean = false,
+  ) {
+    const [user, reservation, reservationRooms] = await Promise.all([
+      this.usersService.getUserById(userId),
+      this.getReservationById(reservationId),
+      this.db
+        .select({
+          roomName: schema.rooms.name,
+          checkIn: schema.reservationRooms.checkIn,
+          checkOut: schema.reservationRooms.checkOut,
+          guestsCount: schema.reservationRooms.guestsCount,
+          propertyName: schema.properties.name,
+        })
+        .from(schema.reservationRooms)
+        .leftJoin(
+          schema.rooms,
+          eq(schema.reservationRooms.roomId, schema.rooms.id),
+        )
+        .leftJoin(
+          schema.properties,
+          eq(schema.rooms.propertyId, schema.properties.id),
+        )
+        .where(eq(schema.reservationRooms.reservationId, reservationId)),
+    ]);
+
+    const baseRooms =
+      reservationRooms.length > 0 ? reservationRooms : reservation.rooms || [];
+
+    const sortedRooms = [...baseRooms].sort((a, b) =>
+      (a.checkIn || '').localeCompare(b.checkIn || ''),
+    );
+    const firstRoom = sortedRooms[0];
+    const lastRoom = sortedRooms[sortedRooms.length - 1];
+
+    await this.emailQueue.add('sendReservationCancellationEmail', {
+      data: {
+        userName: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        propertyName: firstRoom?.propertyName || undefined,
+        checkIn: firstRoom?.checkIn || undefined,
+        checkOut: lastRoom?.checkOut || undefined,
+        totalPrice: reservation.totalPrice,
+        refunded,
+        rooms: sortedRooms.map((room) => ({
+          roomName: room.roomName || undefined,
+          checkIn: room.checkIn || undefined,
+          checkOut: room.checkOut || undefined,
+          guestsCount: room.guestsCount || undefined,
+        })),
+      },
+    });
+  }
   private async createReservationWithRooms(
     tx: NodePgDatabase<typeof schema>,
     userId: string,
@@ -981,6 +1036,7 @@ export class ReservationsService implements OnModuleInit {
         roomDescription: schema.rooms.description,
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
+        invoiceId: schema.invoices.id,
         invoiceUrl: schema.invoices.externalInvoiceUrl,
         invoiceTotalAmount: schema.invoices.totalAmount,
       })
@@ -1031,6 +1087,7 @@ export class ReservationsService implements OnModuleInit {
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
+          invoiceId: row.invoiceId || null,
           invoiceUrl: row.invoiceUrl || null,
           invoiceTotalAmount: row.invoiceTotalAmount || null,
           rooms: [],
@@ -1436,6 +1493,7 @@ export class ReservationsService implements OnModuleInit {
               externalInvoiceId: stripeInvoice.id,
               externalInvoiceNumber: stripeInvoice.number || undefined,
               externalInvoiceUrl: finalUrl || invoice.externalInvoiceUrl,
+              externalInvoicePdfPath: stripeInvoice.invoice_pdf || undefined,
             })
             .where(eq(schema.invoices.id, invoice.id));
 
@@ -1542,7 +1600,7 @@ export class ReservationsService implements OnModuleInit {
     return reservation || null;
   }
   async cancelReservation(reservationId: string, userId: string) {
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -1600,6 +1658,8 @@ export class ReservationsService implements OnModuleInit {
         message: 'Reservation canceled successfully',
       };
     });
+    await this.sendCancellationEmail(userId, reservationId, false);
+    return result;
   }
   async retryPayment(reservationId: string, userId: string) {
     return this.db.transaction(async (tx) => {
@@ -1768,6 +1828,7 @@ export class ReservationsService implements OnModuleInit {
         maxCapacity: schema.roomTypes.maxCapacity,
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
+        invoiceId: schema.invoices.id,
         invoiceUrl: schema.invoices.externalInvoiceUrl,
         invoiceTotalAmount: schema.invoices.totalAmount,
         userEmail: schema.users.email,
@@ -1849,6 +1910,7 @@ export class ReservationsService implements OnModuleInit {
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
+          invoiceId: row.invoiceId || null,
           invoiceUrl: row.invoiceUrl || null,
           invoiceTotalAmount: row.invoiceTotalAmount || null,
           userEmail: row.userEmail || undefined,
@@ -1915,7 +1977,7 @@ export class ReservationsService implements OnModuleInit {
     reservationId: string,
     issueRefund: boolean = false,
   ) {
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const [reservation] = await tx
         .select()
         .from(schema.reservations)
@@ -2025,6 +2087,15 @@ export class ReservationsService implements OnModuleInit {
         message: 'Reservation cancelled successfully',
       };
     });
+    const reservation = await this.getReservationById(reservationId);
+    if (reservation.userId) {
+      await this.sendCancellationEmail(
+        reservation.userId,
+        reservationId,
+        issueRefund,
+      );
+    }
+    return result;
   }
   async updateReservation(reservationId: string, data: UpdateReservationDto) {
     return this.db.transaction(async (tx) => {
@@ -2164,6 +2235,7 @@ export class ReservationsService implements OnModuleInit {
         roomDescription: schema.rooms.description,
         propertyId: schema.properties.id,
         propertyName: schema.properties.name,
+        invoiceId: schema.invoices.id,
         invoiceUrl: schema.invoices.externalInvoiceUrl,
         userEmail: schema.users.email,
         userFirstName: schema.users.firstName,
@@ -2222,6 +2294,7 @@ export class ReservationsService implements OnModuleInit {
           specialRequests: row.specialRequests,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
+          invoiceId: row.invoiceId || null,
           invoiceUrl: row.invoiceUrl || null,
           userEmail: row.userEmail || undefined,
           userFirstName: row.userFirstName || undefined,

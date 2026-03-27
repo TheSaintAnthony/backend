@@ -28,7 +28,8 @@ export interface ContactConfirmationStrings {
 export const emailStrings = {
   pt: {
     reportConfirmation: {
-      subject: 'Confirmação de Receção de Denúncia - The St. Anthony Collection',
+      subject:
+        'Confirmação de Receção de Denúncia - The St. Anthony Collection',
       greeting: 'Olá {name},',
       reference: 'Referência: {reportId}',
       confirmation:
@@ -37,7 +38,8 @@ export const emailStrings = {
         'A investigação seguirá um processo estruturado: receção → avaliação inicial → investigação → ações corretivas → acompanhamento (conforme apropriado).',
       confidence:
         'Tem garantida a confidencialidade total de todas as suas informações pessoais em conformidade com o RGPD.',
-      closing: 'Obrigado por contribuir para a integridade da nossa organização.',
+      closing:
+        'Obrigado por contribuir para a integridade da nossa organização.',
       company: 'The St. Anthony Collection',
     } as ReportConfirmationStrings,
     contactConfirmation: {
@@ -46,11 +48,11 @@ export const emailStrings = {
       confirmation:
         'Obrigado por nos contactar. Recebemos a sua mensagem e entraremos em contacto em breve.',
       reference: 'Referência da sua mensagem: {contactId}',
-      response: 'Geralmente respondemos no prazo de 24 horas durante dias úteis.',
+      response:
+        'Geralmente respondemos no prazo de 24 horas durante dias úteis.',
       contact:
         'Se tiver dúvidas urgentes, pode contactar-nos diretamente em info@thestanthonyhotel.com',
-      closing:
-        'Agradecemos o seu interesse e aguardamos poder ajudar-lhe.',
+      closing: 'Agradecemos o seu interesse e aguardamos poder ajudar-lhe.',
       company: 'The St. Anthony Collection',
     } as ContactConfirmationStrings,
   },
@@ -65,7 +67,8 @@ export const emailStrings = {
         'The investigation will follow a structured process: receipt → initial assessment → investigation → corrective actions → follow-up (as appropriate).',
       confidence:
         'Your personal information is guaranteed complete confidentiality in accordance with GDPR regulations.',
-      closing: 'Thank you for contributing to the integrity of our organization.',
+      closing:
+        'Thank you for contributing to the integrity of our organization.',
       company: 'The St. Anthony Collection',
     } as ReportConfirmationStrings,
     contactConfirmation: {
@@ -75,7 +78,8 @@ export const emailStrings = {
         'Thank you for contacting us. We have received your message and will get back to you shortly.',
       reference: 'Your message reference: {contactId}',
       response: 'We typically respond within 24 hours on business days.',
-      contact: 'For urgent inquiries, you can contact us directly at info@thestanthonyhotel.com',
+      contact:
+        'For urgent inquiries, you can contact us directly at info@thestanthonyhotel.com',
       closing: 'We appreciate your interest and look forward to assisting you.',
       company: 'The St. Anthony Collection',
     } as ContactConfirmationStrings,
@@ -88,10 +92,10 @@ export const emailStrings = {
       confirmation:
         'Nous confirmons la réception de votre signalement. Votre soumission sera examinée par notre équipe de Conformité en toute confidentialité.',
       nextSteps:
-        'L\'enquête suivra un processus structuré : réception → évaluation initiale → enquête → actions correctives → suivi (le cas échéant).',
+        "L'enquête suivra un processus structuré : réception → évaluation initiale → enquête → actions correctives → suivi (le cas échéant).",
       confidence:
-        'Vos informations personnelles bénéficient d\'une confidentialité totale en conformité avec le RGPD.',
-      closing: 'Merci de contribuer à l\'intégrité de notre organisation.',
+        "Vos informations personnelles bénéficient d'une confidentialité totale en conformité avec le RGPD.",
+      closing: "Merci de contribuer à l'intégrité de notre organisation.",
       company: 'The St. Anthony Collection',
     } as ReportConfirmationStrings,
     contactConfirmation: {
@@ -103,7 +107,8 @@ export const emailStrings = {
       response: 'Nous répondons généralement dans les 24 heures ouvrables.',
       contact:
         'Pour les demandes urgentes, vous pouvez nous contacter directement à info@thestanthonyhotel.com',
-      closing: 'Nous apprécions votre intérêt et attendons avec impatience de vous aider.',
+      closing:
+        'Nous apprécions votre intérêt et attendons avec impatience de vous aider.',
       company: 'The St. Anthony Collection',
     } as ContactConfirmationStrings,
   },
@@ -118,8 +123,7 @@ export const emailStrings = {
         'Die Untersuchung folgt einem strukturierten Prozess: Eingang → Erstbewertung → Untersuchung → Korrekturmaßnahmen → Nachverfolgung (falls erforderlich).',
       confidence:
         'Ihre persönlichen Daten unterliegen vollständiger Vertraulichkeit gemäß DSGVO.',
-      closing:
-        'Danke, dass Sie zur Integrität unserer Organisation beitragen.',
+      closing: 'Danke, dass Sie zur Integrität unserer Organisation beitragen.',
       company: 'The St. Anthony Collection',
     } as ReportConfirmationStrings,
     contactConfirmation: {
@@ -128,7 +132,8 @@ export const emailStrings = {
       confirmation:
         'Danke, dass Sie uns kontaktiert haben. Wir haben Ihre Nachricht erhalten und werden uns bald bei Ihnen melden.',
       reference: 'Referenz Ihrer Nachricht: {contactId}',
-      response: 'Wir antworten normalerweise innerhalb von 24 Stunden an Geschäftstagen.',
+      response:
+        'Wir antworten normalerweise innerhalb von 24 Stunden an Geschäftstagen.',
       contact:
         'Bei dringenden Anfragen können Sie uns direkt unter info@thestanthonyhotel.com kontaktieren',
       closing:

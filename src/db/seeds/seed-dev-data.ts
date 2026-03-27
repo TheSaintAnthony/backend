@@ -134,18 +134,16 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
         nameEn: 'The St. Anthony Hotel',
         nameFr: 'Hôtel The St. Anthony',
         nameDe: 'The St. Anthony Hotel',
-        description:
-          'Um hotel boutique de luxo no coração de Lisboa.',
+        description: 'Um hotel boutique de luxo no coração de Lisboa.',
         descriptionEn: 'A boutique luxury hotel in the heart of Lisbon.',
-        descriptionFr:
-          'Un hôtel boutique de luxe au cœur de Lisbonne.',
+        descriptionFr: 'Un hôtel boutique de luxe au cœur de Lisbonne.',
         descriptionDe: 'Ein Boutique-Luxushotel im Herzen von Lissabon.',
         about:
           'Situado no histórico bairro do Chiado, o Hotel The St. Anthony oferece uma mistura refinada de arquitetura portuguesa clássica e conforto contemporâneo.',
         aboutEn:
           'Nestled in the historic Chiado neighbourhood, The St. Anthony Hotel offers a refined blend of classic Portuguese architecture and contemporary comfort.',
         aboutFr:
-          'Situé dans le quartier historique du Chiado, The St. Anthony Hotel offre un mélange raffiné d\'architecture portugaise classique et de confort contemporain.',
+          "Situé dans le quartier historique du Chiado, The St. Anthony Hotel offre un mélange raffiné d'architecture portugaise classique et de confort contemporain.",
         aboutDe:
           'Eingebettet in der historischen Chiado-Nachbarschaft bietet The St. Anthony Hotel eine raffinierte Mischung aus klassischer portugiesischer Architektur und zeitgenössischem Komfort.',
         addressId: addressHotel[0].id,
@@ -188,8 +186,7 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
       nameEn: 'Superior Double',
       nameFr: 'Double Supérieure',
       nameDe: 'Superior Doppelzimmer',
-      description:
-        'Quarto espaçoso com cama de casal e vista sobre o jardim.',
+      description: 'Quarto espaçoso com cama de casal e vista sobre o jardim.',
       descriptionEn: 'Spacious room with double bed and garden view.',
       descriptionFr: 'Chambre spacieuse avec lit double et vue sur le jardin.',
       descriptionDe: 'Geräumiges Zimmer mit Doppelbett und Gartenblick.',
@@ -308,7 +305,7 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
         aboutFr:
           "Nos résidences allient l'intimité d'une maison privée aux services d'un hôtel cinq étoiles, à quelques pas des monuments les plus emblématiques de Lisbonne.",
         aboutDe:
-          "Unsere Residenzen verbinden die Privatsphäre eines Eigenheims mit dem Service eines Fünf-Sterne-Hotels, nur wenige Schritte von Lissabons bekanntesten Wahrzeichen entfernt.",
+          'Unsere Residenzen verbinden die Privatsphäre eines Eigenheims mit dem Service eines Fünf-Sterne-Hotels, nur wenige Schritte von Lissabons bekanntesten Wahrzeichen entfernt.',
         addressId: addressResidence[0].id,
         email: 'residences@thesaintanthony.com',
         phoneNumber: '+351291600301',
@@ -389,8 +386,7 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
       area: '90.00',
       floor: 1,
       status: 'available',
-      description:
-        'Apartamento T2 luminoso no rés-do-chão com pátio.',
+      description: 'Apartamento T2 luminoso no rés-do-chão com pátio.',
       descriptionEn: 'Bright T2 apartment on the ground floor with patio.',
       descriptionFr: 'Appartement T2 lumineux au rez-de-chaussée avec patio.',
       descriptionDe: 'Helles T2-Apartment im Erdgeschoss mit Patio.',
@@ -444,7 +440,8 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
       nameDe: 'Terreiro do António',
       description:
         'Gastronomia refinada com vistas deslumbrantes sobre o rio Tejo.',
-      descriptionEn: 'Fine dining with breathtaking views over the Tagus river.',
+      descriptionEn:
+        'Fine dining with breathtaking views over the Tagus river.',
       descriptionFr:
         'Gastronomie raffinée avec une vue imprenable sur le fleuve Tage.',
       descriptionDe: 'Feines Essen mit atemberaubendem Blick auf den Tejo.',
@@ -617,7 +614,7 @@ export async function seedDevData(db: NodePgDatabase<typeof schema>) {
       descriptionEn:
         'Support daily restaurant and bar operations, including customer service, table preparation and team support.',
       descriptionFr:
-        'Soutien aux opérations quotidiennes du restaurant et du bar, incluant le service client, la préparation des tables et le soutien à l\'équipe.',
+        "Soutien aux opérations quotidiennes du restaurant et du bar, incluant le service client, la préparation des tables et le soutien à l'équipe.",
       descriptionDe:
         'Unterstützung der täglichen Restaurant- und Barbetriebe, einschließlich Kundenservice, Tischvorbereitung und Teamunterstützung.',
     },

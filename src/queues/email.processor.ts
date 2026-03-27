@@ -2,7 +2,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { BadRequestException, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { EmailService } from 'src/email/email.service';
-import { EmailConfirmation } from 'src/reservations/interfaces';
+import {
+  CancellationEmail,
+  EmailConfirmation,
+} from 'src/reservations/interfaces';
 import {
   CheckInReminderEmail,
   CheckOutReminderEmail,
@@ -32,6 +35,11 @@ export class EmailConsumer extends WorkerHost {
         case 'sendReservationConfirmationEmail':
           await this.emailsService.sendReservationConfirmationEmail(
             jobData as EmailConfirmation,
+          );
+          break;
+        case 'sendReservationCancellationEmail':
+          await this.emailsService.sendReservationCancellationEmail(
+            jobData as CancellationEmail,
           );
           break;
         case 'sendResetPasswordLink':

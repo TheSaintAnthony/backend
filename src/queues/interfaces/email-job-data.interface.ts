@@ -1,4 +1,7 @@
-import { EmailConfirmation } from 'src/reservations/interfaces';
+import {
+  CancellationEmail,
+  EmailConfirmation,
+} from 'src/reservations/interfaces';
 import {
   CheckInReminderEmail,
   CheckOutReminderEmail,
@@ -9,6 +12,7 @@ import { ReportConfirmationData } from 'src/email/templates';
 export interface EmailJobData {
   data:
     | EmailConfirmation
+    | CancellationEmail
     | CheckInReminderEmail
     | CheckOutReminderEmail
     | PostStayEmail

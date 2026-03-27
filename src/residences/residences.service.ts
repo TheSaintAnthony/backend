@@ -87,7 +87,10 @@ export class ResidencesService {
         ...residence,
         images: imagesByResidenceId.get(residence.id) || [],
       };
-      return localizeResidence(withImages as Record<string, unknown>, locale) as typeof withImages;
+      return localizeResidence(
+        withImages as Record<string, unknown>,
+        locale,
+      ) as typeof withImages;
     });
     return createPaginatedResponse(residencesWithImages, total, page, limit);
   }
@@ -103,7 +106,10 @@ export class ResidencesService {
     }
     const images = await this.imagesService.getImagesByEntity('residence', id);
     const withImages = { ...residence, images };
-    return localizeResidence(withImages as Record<string, unknown>, locale) as typeof withImages;
+    return localizeResidence(
+      withImages as Record<string, unknown>,
+      locale,
+    ) as typeof withImages;
   }
   async editResidence(id: string, data: EditResidenceDto) {
     const [residence] = await this.db

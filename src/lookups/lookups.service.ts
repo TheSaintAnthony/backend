@@ -21,11 +21,29 @@ export class LookupsService {
   private getTableName(): string {
     return 'lookup table';
   }
+
+  private getDeletedAtColumn(table: LookupTable) {
+    return (table as any).deletedAt;
+  }
+
+  private hasDeletedAt(table: LookupTable): boolean {
+    return Boolean(this.getDeletedAtColumn(table));
+  }
+
+  private hasSystemManaged(table: LookupTable): boolean {
+    return Boolean((table as any).isSystemManaged);
+  }
   private async ensureNotExists(table: LookupTable, name: string) {
+    const deletedAtColumn = this.getDeletedAtColumn(table);
     const existing = await this.db
       .select()
       .from(table)
-      .where(and(eq(table.name, name), isNull((table as any).deletedAt)))
+      .where(
+        and(
+          eq(table.name, name),
+          deletedAtColumn ? isNull(deletedAtColumn) : undefined,
+        ),
+      )
       .limit(1);
     if (existing.length > 0) {
       throw new ConflictException(
@@ -34,10 +52,16 @@ export class LookupsService {
     }
   }
   private async ensureExistsById(table: LookupTable, id: string) {
+    const deletedAtColumn = this.getDeletedAtColumn(table);
     const record = await this.db
       .select()
       .from(table)
-      .where(and(eq(table.id, id), isNull((table as any).deletedAt)))
+      .where(
+        and(
+          eq(table.id, id),
+          deletedAtColumn ? isNull(deletedAtColumn) : undefined,
+        ),
+      )
       .limit(1);
     if (record.length === 0) {
       throw new NotFoundException(`Record on ${this.getTableName()} not found`);
@@ -46,6 +70,9 @@ export class LookupsService {
   }
 
   private async ensureNotSystemManaged(table: LookupTable, id: string) {
+    if (!this.hasSystemManaged(table)) {
+      return;
+    }
     const record = await this.ensureExistsById(table, id);
     if ('isSystemManaged' in record && record.isSystemManaged === true) {
       throw new ConflictException(
@@ -61,15 +88,18 @@ export class LookupsService {
   }
   async getAll(table: LookupTable, includeSystemManaged = true) {
     let whereClause: any;
-    const isSystemManagedColumn = (table as any).isSystemManaged;
+    const isSystemManagedColumn = this.hasSystemManaged(table)
+      ? (table as any).isSystemManaged
+      : undefined;
+    const deletedAtColumn = this.getDeletedAtColumn(table);
 
     if (!includeSystemManaged && isSystemManagedColumn) {
       whereClause = and(
-        isNull((table as any).deletedAt),
+        deletedAtColumn ? isNull(deletedAtColumn) : undefined,
         eq(isSystemManagedColumn, false),
       );
     } else {
-      whereClause = isNull((table as any).deletedAt);
+      whereClause = deletedAtColumn ? isNull(deletedAtColumn) : undefined;
     }
 
     return this.db.select().from(table).where(whereClause);
@@ -134,7 +164,12 @@ export class LookupsService {
       roles,
     };
   }
-  addAmenity(dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string }) {
+  addAmenity(dto: {
+    name: string;
+    nameEn?: string;
+    nameFr?: string;
+    nameDe?: string;
+  }) {
     return this.addValue(schema.amenities, dto);
   }
   getAmenities() {
@@ -200,7 +235,12 @@ export class LookupsService {
   deleteRoomType(id: string) {
     return this.deleteValue(schema.roomTypes, id);
   }
-  addHighlight(dto: { name: string; nameEn?: string; nameFr?: string; nameDe?: string }) {
+  addHighlight(dto: {
+    name: string;
+    nameEn?: string;
+    nameFr?: string;
+    nameDe?: string;
+  }) {
     return this.addValue(schema.highlights, dto);
   }
   getHighlights() {
@@ -380,7 +420,7 @@ export class LookupsService {
     return this.getActivityById(id);
   }
   deleteActivity(id: string) {
-    return this.deleteValue(schema.activities, id);
+    return this.deleteActivityWithRelations(id);
   }
   addActivityCategory(dto: {
     name: string;
@@ -422,6 +462,23 @@ export class LookupsService {
   }
   deleteActivityCategory(id: string) {
     return this.deleteValue(schema.activityCategories, id);
+  }
+
+  private async deleteActivityWithRelations(id: string) {
+    await this.ensureExistsById(schema.activities, id);
+
+    const existingImages = await this.imagesService.getImagesByEntity(
+      'activity',
+      id,
+    );
+
+    await Promise.all(
+      existingImages.map((image) => this.imagesService.deleteImage(image.id)),
+    );
+
+    return this.db
+      .delete(schema.activities)
+      .where(eq(schema.activities.id, id));
   }
   async addMenuCategory(dto: {
     name: string;

@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DB_PROVIDER } from 'src/db/drizzle.module';
 import * as schema from '../db/schema';
@@ -14,12 +19,15 @@ import {
   createPaginatedResponse,
 } from 'src/common/dto/pagination.dto';
 import { InvoiceStrategyFactory } from './invoice-strategy.factory';
+import { StripeService } from 'src/payments/stripe/stripe.service';
+import { UserRole } from 'src/constants';
 @Injectable()
 export class InvoicesService {
   constructor(
     @Inject(DB_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private _invoiceStrategyFactory: InvoiceStrategyFactory,
+    private stripeService: StripeService,
   ) {}
   async generateInvoiceNumber(prefix: string = 'INV'): Promise<string> {
     return this.db.transaction(async (tx) => {
@@ -141,6 +149,23 @@ export class InvoicesService {
       .offset(offset);
     return createPaginatedResponse(data, total, page, limit);
   }
+  async getInvoicesByUser(userId: string, pagination?: PaginationDto) {
+    const page = pagination?.page || 1;
+    const limit = Math.min(pagination?.limit || 10, 100);
+    const offset = (page - 1) * limit;
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.invoices)
+      .where(eq(schema.invoices.userId, userId));
+    const total = totalResult.count;
+    const data = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.userId, userId))
+      .limit(limit)
+      .offset(offset);
+    return createPaginatedResponse(data, total, page, limit);
+  }
   async getInvoiceById(id: string) {
     const [invoice] = await this.db
       .select()
@@ -167,6 +192,35 @@ export class InvoicesService {
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.reservationId, reservationId))
+      .limit(limit)
+      .offset(offset);
+    return createPaginatedResponse(data, total, page, limit);
+  }
+  async getInvoicesByReservationForUser(
+    reservationId: string,
+    userId: string,
+    roles: UserRole[],
+    pagination?: PaginationDto,
+  ) {
+    if (roles.includes(UserRole.ADMIN)) {
+      return this.getInvoicesByReservation(reservationId, pagination);
+    }
+    const page = pagination?.page || 1;
+    const limit = Math.min(pagination?.limit || 10, 100);
+    const offset = (page - 1) * limit;
+    const whereClause = and(
+      eq(schema.invoices.reservationId, reservationId),
+      eq(schema.invoices.userId, userId),
+    );
+    const [totalResult] = await this.db
+      .select({ count: count() })
+      .from(schema.invoices)
+      .where(whereClause);
+    const total = totalResult.count;
+    const data = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(whereClause)
       .limit(limit)
       .offset(offset);
     return createPaginatedResponse(data, total, page, limit);
@@ -234,6 +288,57 @@ export class InvoicesService {
       .delete(schema.invoices)
       .where(eq(schema.invoices.id, id))
       .returning();
+  }
+  async getAccessibleInvoiceById(
+    id: string,
+    userId: string,
+    roles: UserRole[],
+  ) {
+    const [invoice] = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.id, id));
+    if (!invoice) {
+      throw new NotFoundException('Invoice', id);
+    }
+    if (!roles.includes(UserRole.ADMIN) && invoice.userId !== userId) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+    return invoice;
+  }
+
+  async downloadInvoicePdf(
+    id: string,
+    userId: string,
+    roles: UserRole[],
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const invoice = await this.getAccessibleInvoiceById(id, userId, roles);
+    let buffer: Buffer | null = null;
+
+    if (invoice.externalInvoicePdfPath) {
+      try {
+        buffer = await this.stripeService.downloadPdfFromUrl(
+          invoice.externalInvoicePdfPath,
+        );
+      } catch {
+        buffer = null;
+      }
+    }
+
+    if (!buffer && invoice.externalInvoiceId) {
+      buffer = await this.stripeService.downloadInvoicePdf(
+        invoice.externalInvoiceId,
+      );
+    }
+
+    if (!buffer) {
+      throw new NotFoundException('Invoice PDF not available');
+    }
+
+    return {
+      buffer,
+      filename: `fatura-${invoice.invoiceNumber || invoice.id}.pdf`,
+    };
   }
   async createLineItem(data: StandaloneCreateInvoiceLineItemDto) {
     return this.db

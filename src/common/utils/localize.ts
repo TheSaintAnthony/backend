@@ -39,7 +39,8 @@ export function localizeResidence<T extends Record<string, unknown>>(
   return {
     ...entity,
     name: getLocalizedValue(entity, 'name', locale) ?? entity.name,
-    description: getLocalizedValue(entity, 'description', locale) ?? entity.description,
+    description:
+      getLocalizedValue(entity, 'description', locale) ?? entity.description,
     about: getLocalizedValue(entity, 'about', locale) ?? entity.about,
   } as T;
 }
@@ -57,7 +58,8 @@ export function localizeResidenceUnit<T extends Record<string, unknown>>(
   return {
     ...entity,
     name: getLocalizedValue(entity, 'name', locale) ?? entity.name,
-    description: getLocalizedValue(entity, 'description', locale) ?? entity.description,
+    description:
+      getLocalizedValue(entity, 'description', locale) ?? entity.description,
   } as T;
 }
 
@@ -74,10 +76,12 @@ export function localizeProperty<T extends Record<string, unknown>>(
   return {
     ...entity,
     name: getLocalizedValue(entity, 'name', locale) ?? entity.name,
-    description: getLocalizedValue(entity, 'description', locale) ?? entity.description,
+    description:
+      getLocalizedValue(entity, 'description', locale) ?? entity.description,
     about: getLocalizedValue(entity, 'about', locale) ?? entity.about,
     arrivalInstructions:
-      getLocalizedValue(entity, 'arrivalInstructions', locale) ?? entity.arrivalInstructions,
+      getLocalizedValue(entity, 'arrivalInstructions', locale) ??
+      entity.arrivalInstructions,
   } as T;
 }
 
@@ -94,7 +98,8 @@ export function localizeRoom<T extends Record<string, unknown>>(
   return {
     ...entity,
     name: getLocalizedValue(entity, 'name', locale) ?? entity.name,
-    description: getLocalizedValue(entity, 'description', locale) ?? entity.description,
+    description:
+      getLocalizedValue(entity, 'description', locale) ?? entity.description,
   } as T;
 }
 
@@ -104,7 +109,10 @@ export function localizeRoom<T extends Record<string, unknown>>(
  */
 export function parseAcceptLanguage(acceptLanguage?: string): SupportedLocale {
   if (!acceptLanguage) return 'pt';
-  const primaryLocale = acceptLanguage.split(',')[0].split('-')[0].toLowerCase();
+  const primaryLocale = acceptLanguage
+    .split(',')[0]
+    .split('-')[0]
+    .toLowerCase();
   return SUPPORTED_LOCALES.includes(primaryLocale as SupportedLocale)
     ? (primaryLocale as SupportedLocale)
     : 'pt';

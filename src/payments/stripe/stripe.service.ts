@@ -422,6 +422,49 @@ export class StripeService {
       return null;
     }
   }
+  async retrieveInvoice(invoiceId: string): Promise<Stripe.Invoice> {
+    return this.stripe.invoices.retrieve(invoiceId);
+  }
+
+  private async waitForInvoicePdf(
+    invoiceId: string,
+    retries: number = 4,
+    delayMs: number = 750,
+  ): Promise<Stripe.Invoice> {
+    let invoice = await this.stripe.invoices.retrieve(invoiceId);
+
+    for (let attempt = 0; attempt < retries; attempt += 1) {
+      if (invoice.invoice_pdf) {
+        return invoice;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      invoice = await this.stripe.invoices.retrieve(invoiceId);
+    }
+
+    return invoice;
+  }
+
+  async downloadPdfFromUrl(pdfUrl: string): Promise<Buffer> {
+    const response = await fetch(pdfUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download invoice PDF (${response.status})`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  async downloadInvoicePdf(invoiceId: string): Promise<Buffer> {
+    const invoice = await this.waitForInvoicePdf(invoiceId);
+    const pdfUrl = invoice.invoice_pdf;
+
+    if (!pdfUrl) {
+      throw new Error(`Stripe invoice ${invoiceId} does not expose a PDF URL`);
+    }
+
+    return this.downloadPdfFromUrl(pdfUrl);
+  }
   async createRefund(
     paymentIntentId: string,
     amount?: number,

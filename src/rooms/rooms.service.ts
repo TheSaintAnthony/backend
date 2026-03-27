@@ -41,10 +41,7 @@ import {
   mapRoomsQueryResults,
 } from './helpers/room-query.helper';
 import { calculateNights } from '../common/utils/date.utils';
-import {
-  localizeRoom,
-  type SupportedLocale,
-} from '../common/utils/localize';
+import { localizeRoom, type SupportedLocale } from '../common/utils/localize';
 import {
   calculateNightlyPrices,
   groupPricesIntoBreakdown,
@@ -370,11 +367,12 @@ export class RoomsService {
     );
     let data = mapRoomsQueryResults(roomsData, propertyId);
     if (locale && locale !== 'pt') {
-      data = data.map((room) =>
-        localizeRoom(
-          room as unknown as Record<string, unknown>,
-          locale,
-        ) as unknown as RoomWithDetails,
+      data = data.map(
+        (room) =>
+          localizeRoom(
+            room as unknown as Record<string, unknown>,
+            locale,
+          ) as unknown as RoomWithDetails,
       );
     }
     const roomsWithImages = await Promise.all(
@@ -625,7 +623,10 @@ export class RoomsService {
         quantity: room.quantity || 1,
       }));
 
-    let roomBreakdownMap = new Map<string, { basePrice: number; tourismFee: number }>();
+    let roomBreakdownMap = new Map<
+      string,
+      { basePrice: number; tourismFee: number }
+    >();
     let totals = {
       basePrice: 0,
       discountAmount: 0,
@@ -663,9 +664,7 @@ export class RoomsService {
       const breakdown = roomBreakdownMap.get(roomQuote.roomId);
       if (breakdown) {
         const roomDiscountProportion =
-          totals.basePrice > 0
-            ? breakdown.basePrice / totals.basePrice
-            : 0;
+          totals.basePrice > 0 ? breakdown.basePrice / totals.basePrice : 0;
         const roomDiscountAmount =
           totals.discountAmount * roomDiscountProportion;
         const roomDiscountedBase = breakdown.basePrice - roomDiscountAmount;

@@ -45,7 +45,10 @@ export abstract class BaseCrudService<
   /**
    * Override this method to add post-creation logic (e.g., sending notifications)
    */
-  protected async afterCreate(entity: TEntity, createData?: TCreateDto): Promise<void> {
+  protected async afterCreate(
+    entity: TEntity,
+    createData?: TCreateDto,
+  ): Promise<void> {
     void entity;
     void createData;
   }

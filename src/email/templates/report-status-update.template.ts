@@ -25,15 +25,18 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_DESCRIPTIONS: Record<string, string> = {
-  reviewed: 'O seu relato está a ser analisado pela nossa equipa. Seremos contactados caso necessitemos de informações adicionais.',
-  resolved: 'O seu relato foi analisado e considerado resolvido pela nossa equipa. Agradecemos a sua colaboração.',
+  reviewed:
+    'O seu relato está a ser analisado pela nossa equipa. Seremos contactados caso necessitemos de informações adicionais.',
+  resolved:
+    'O seu relato foi analisado e considerado resolvido pela nossa equipa. Agradecemos a sua colaboração.',
 };
 
 export function createReportStatusUpdateTemplate(
   data: ReportStatusUpdateData,
 ): string {
   const statusLabel = STATUS_LABELS[data.newStatus] || data.newStatus;
-  const statusDescription = STATUS_DESCRIPTIONS[data.newStatus] ||
+  const statusDescription =
+    STATUS_DESCRIPTIONS[data.newStatus] ||
     'O estado do seu relato foi atualizado.';
 
   const content = `
