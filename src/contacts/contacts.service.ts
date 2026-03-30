@@ -33,7 +33,10 @@ export class ContactsService extends BaseCrudService<
     return { ...data, status: 'pending' };
   }
 
-  protected async afterCreate(contact: Contact, createData?: CreateContactDto): Promise<void> {
+  protected async afterCreate(
+    contact: Contact,
+    createData?: CreateContactDto,
+  ): Promise<void> {
     const adminEmail = process.env.ADMIN_CONTACT_EMAIL;
     if (adminEmail) {
       const adminPanelUrl =

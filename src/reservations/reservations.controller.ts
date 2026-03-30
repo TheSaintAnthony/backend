@@ -123,6 +123,13 @@ export class ReservationsController {
   ) {
     return this.reservationsService.cancelReservation(id, req.user.sub);
   }
+  @Post(':id/cancel')
+  async cancelReservationCompat(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.reservationsService.cancelReservation(id, req.user.sub);
+  }
   @Post(':id/retrypayment')
   @Idempotent()
   async retryPayment(

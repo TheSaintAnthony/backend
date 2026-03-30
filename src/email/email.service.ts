@@ -4,146 +4,149 @@ import { JwtService } from '@nestjs/jwt';
 import * as Mail from 'nodemailer/lib/mailer';
 import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
-import { EmailConfirmation } from 'src/reservations/interfaces';
 import {
-	CheckInReminderEmail,
-	CheckOutReminderEmail,
-	PostStayEmail,
+  CancellationEmail,
+  EmailConfirmation,
+} from 'src/reservations/interfaces';
+import {
+  CheckInReminderEmail,
+  CheckOutReminderEmail,
+  PostStayEmail,
 } from 'src/notifications/interfaces';
 import ical from 'ical-generator';
 import {
-	createBaseEmailTemplate,
-	createEmailButton,
-	createMainTitle,
-	createParagraph,
-	createDivider,
-	createInfoBox,
-	createDetailsTable,
-	createDetailRow,
-	createSectionHeading,
-	EMAIL_STYLES,
-	createContactNotificationTemplate,
-	ContactNotificationData,
-	createReportConfirmationTemplate,
-	ReportConfirmationData,
-	createReportStatusUpdateTemplate,
-	ReportStatusUpdateData,
+  createBaseEmailTemplate,
+  createEmailButton,
+  createMainTitle,
+  createParagraph,
+  createDivider,
+  createInfoBox,
+  createDetailsTable,
+  createDetailRow,
+  createSectionHeading,
+  EMAIL_STYLES,
+  createContactNotificationTemplate,
+  ContactNotificationData,
+  createReportConfirmationTemplate,
+  ReportConfirmationData,
+  createReportStatusUpdateTemplate,
+  ReportStatusUpdateData,
 } from './templates';
 import {
-	buildPasswordResetEmailContent,
-	buildVerifyUserEmailContent,
+  buildPasswordResetEmailContent,
+  buildVerifyUserEmailContent,
 } from './helpers/email-content-builders';
 
 @Injectable()
 export class EmailService {
-	private readonly transporter: Transporter;
-	private readonly frontendUrl: string;
+  private readonly transporter: Transporter;
+  private readonly frontendUrl: string;
 
-	constructor(
-		private readonly configService: ConfigService,
-		private readonly jwtService: JwtService,
-	) {
-		const mailUser = this.configService.get<string>('MAIL_USER');
-		const mailPass = this.configService.get<string>('MAIL_PASS');
-		this.transporter = nodemailer.createTransport({
-			host: this.configService.get<string>('MAIL_HOST'),
-			port: this.configService.get<number>('MAIL_PORT'),
-			secure: false,
-			auth:
-				mailUser && mailPass
-					? {
-						user: mailUser,
-						pass: mailPass,
-					}
-					: undefined,
-		});
-		this.frontendUrl =
-			this.configService.get<string>('FRONTEND_URL') || 'https://stanthony.pt';
-	}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
+  ) {
+    const mailUser = this.configService.get<string>('MAIL_USER');
+    const mailPass = this.configService.get<string>('MAIL_PASS');
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('MAIL_HOST'),
+      port: this.configService.get<number>('MAIL_PORT'),
+      secure: false,
+      auth:
+        mailUser && mailPass
+          ? {
+              user: mailUser,
+              pass: mailPass,
+            }
+          : undefined,
+    });
+    this.frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://stanthony.pt';
+  }
 
-	private async sendEmail(options: Mail.Options): Promise<void> {
-		await this.transporter.sendMail(options);
-	}
+  private async sendEmail(options: Mail.Options): Promise<void> {
+    await this.transporter.sendMail(options);
+  }
 
-	async sendResetPasswordLink(email: string): Promise<void> {
-		const payload = { email };
-		const token = await this.jwtService.signAsync(payload, {
-			secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
-			expiresIn: this.configService.get('JWT_PASSWORD_RESET_EXPIRATION_TIME'),
-		});
+  async sendResetPasswordLink(email: string): Promise<void> {
+    const payload = { email };
+    const token = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('JWT_PASSWORD_RESET_SECRET'),
+      expiresIn: this.configService.get('JWT_PASSWORD_RESET_EXPIRATION_TIME'),
+    });
 
-		const resetUrl = this.configService.get<string>('EMAIL_RESET_PASSWORD_URL');
-		const url = `${resetUrl}?token=${token}`;
+    const resetUrl = this.configService.get<string>('EMAIL_RESET_PASSWORD_URL');
+    const url = `${resetUrl}?token=${token}`;
 
-		const expirationTime =
-			this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
-			'15m';
+    const expirationTime =
+      this.configService.get<string>('JWT_PASSWORD_RESET_EXPIRATION_TIME') ||
+      '15m';
 
-		const { text, html } = buildPasswordResetEmailContent(url, expirationTime);
+    const { text, html } = buildPasswordResetEmailContent(url, expirationTime);
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: email,
-			subject: 'Recuperação de Password - The St. Anthony',
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: email,
+      subject: 'Recuperação de Password - The St. Anthony',
+      text,
+      html,
+    });
+  }
 
-	async sendVerifyUserLink(data: { id: string; email: string }): Promise<void> {
-		const payload = { subb: data.id, email: data.email };
-		const token = await this.jwtService.signAsync(payload, {
-			secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
-			expiresIn: this.configService.get('JWT_USER_VERIFY_EXPIRATION_TIME'),
-		});
+  async sendVerifyUserLink(data: { id: string; email: string }): Promise<void> {
+    const payload = { subb: data.id, email: data.email };
+    const token = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('JWT_USER_VERIFY_SECRET'),
+      expiresIn: this.configService.get('JWT_USER_VERIFY_EXPIRATION_TIME'),
+    });
 
-		const verifyUrl = this.configService.get<string>('USER_VERIFY_ACCOUNT_URL');
-		const url = `${verifyUrl}?token=${token}`;
+    const verifyUrl = this.configService.get<string>('USER_VERIFY_ACCOUNT_URL');
+    const url = `${verifyUrl}?token=${token}`;
 
-		const expirationTime =
-			this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
-			'24h';
+    const expirationTime =
+      this.configService.get<string>('JWT_USER_VERIFY_EXPIRATION_TIME') ||
+      '24h';
 
-		const { text, html } = buildVerifyUserEmailContent(url, expirationTime);
+    const { text, html } = buildVerifyUserEmailContent(url, expirationTime);
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: data.email,
-			subject: 'Verifique a sua Conta - The St. Anthony',
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: data.email,
+      subject: 'Verifique a sua Conta - The St. Anthony',
+      text,
+      html,
+    });
+  }
 
-	async sendReservationConfirmationEmail(
-		emailPayload: EmailConfirmation,
-	): Promise<void> {
-		const calendarEvents: Array<{
-			filename: string;
-			content: string;
-			contentType: string;
-			method: string;
-		}> = [];
+  async sendReservationConfirmationEmail(
+    emailPayload: EmailConfirmation,
+  ): Promise<void> {
+    const calendarEvents: Array<{
+      filename: string;
+      content: string;
+      contentType: string;
+      method: string;
+    }> = [];
 
-		const roomDetailsHtml = emailPayload.rooms
-			.map((room, index) => {
-				const icsContent = this.createCalendarEvent(
-					room.checkIn,
-					room.checkOut,
-					emailPayload.userName,
-					emailPayload.email,
-				);
-				calendarEvents.push({
-					filename: `reserva-quarto-${index + 1}.ics`,
-					content: icsContent,
-					contentType: 'text/calendar; charset=utf-8',
-					method: 'PUBLISH',
-				});
+    const roomDetailsHtml = emailPayload.rooms
+      .map((room, index) => {
+        const icsContent = this.createCalendarEvent(
+          room.checkIn,
+          room.checkOut,
+          emailPayload.userName,
+          emailPayload.email,
+        );
+        calendarEvents.push({
+          filename: `reserva-quarto-${index + 1}.ics`,
+          content: icsContent,
+          contentType: 'text/calendar; charset=utf-8',
+          method: 'PUBLISH',
+        });
 
-				const checkInDate = this.formatDate(room.checkIn);
-				const checkOutDate = this.formatDate(room.checkOut);
+        const checkInDate = this.formatDate(room.checkIn);
+        const checkOutDate = this.formatDate(room.checkOut);
 
-				return `
+        return `
           <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; margin-bottom: 15px; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
             <h3 style="margin: 0 0 15px 0; font-size: 14px; font-weight: 600; color: ${EMAIL_STYLES.colors.accent}; text-transform: uppercase; letter-spacing: 1px;">
               Quarto ${index + 1}
@@ -156,25 +159,25 @@ export class EmailService {
             `)}
           </div>
         `;
-			})
-			.join('');
+      })
+      .join('');
 
-		const roomDetailsText = emailPayload.rooms
-			.map((room, index) => {
-				return `
+    const roomDetailsText = emailPayload.rooms
+      .map((room, index) => {
+        return `
 Quarto ${index + 1}:
   - Check-in: ${this.formatDate(room.checkIn)}
   - Check-out: ${this.formatDate(room.checkOut)}
   - Hóspedes: ${room.guestsCount}
   - Preço: €${Number(room.price).toFixed(2)}`;
-			})
-			.join('\n');
+      })
+      .join('\n');
 
-		const specialRequestsText = emailPayload.specialRequests
-			? `\nPedidos Especiais: ${emailPayload.specialRequests}`
-			: '';
+    const specialRequestsText = emailPayload.specialRequests
+      ? `\nPedidos Especiais: ${emailPayload.specialRequests}`
+      : '';
 
-		const text = `The St. Anthony
+    const text = `The St. Anthony
 
 Confirmação de Reserva
 
@@ -205,7 +208,7 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-		const content = `
+    const content = `
       ${createMainTitle('Confirmação de Reserva')}
       
       ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
@@ -218,15 +221,16 @@ Este é um email automático. Por favor, não responda.`;
       
       ${roomDetailsHtml}
       
-      ${emailPayload.specialRequests
-				? `
+      ${
+        emailPayload.specialRequests
+          ? `
         <div style="margin-top: 25px;">
           ${createSectionHeading('Pedidos Especiais')}
           ${createParagraph(emailPayload.specialRequests, 'muted')}
         </div>
       `
-				: ''
-			}
+          : ''
+      }
       
       ${createDivider()}
       
@@ -270,28 +274,139 @@ Este é um email automático. Por favor, não responda.`;
       ${createParagraph('Se tiver alguma questão sobre a sua reserva, não hesite em contactar-nos. Teremos todo o gosto em ajudar.', 'muted')}
     `;
 
-		const html = createBaseEmailTemplate(content, {
-			preheaderText: `Reserva confirmada para ${emailPayload.userName} - The St. Anthony`,
-			showFooterLinks: true,
-		});
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Reserva confirmada para ${emailPayload.userName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: emailPayload.email,
-			subject: 'Confirmação de Reserva - The St. Anthony',
-			text,
-			attachments: calendarEvents,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: 'Confirmação de Reserva - The St. Anthony',
+      text,
+      attachments: calendarEvents,
+      html,
+    });
+  }
 
-	async sendCheckInReminderEmail(
-		emailPayload: CheckInReminderEmail,
-	): Promise<void> {
-		const checkInDate = this.formatDate(emailPayload.checkInDate);
-		const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+  async sendReservationCancellationEmail(
+    emailPayload: CancellationEmail,
+  ): Promise<void> {
+    const reservationDetails = (emailPayload.rooms || [])
+      .map((room, index) => {
+        const roomLabel = room.roomName || `Quarto ${index + 1}`;
+        const parts = [roomLabel];
 
-		const text = `The St. Anthony
+        if (room.checkIn && room.checkOut) {
+          parts.push(
+            `${this.formatDate(room.checkIn)} - ${this.formatDate(room.checkOut)}`,
+          );
+        }
+
+        if (room.guestsCount) {
+          parts.push(
+            `${room.guestsCount} ${room.guestsCount === 1 ? 'hóspede' : 'hóspedes'}`,
+          );
+        }
+
+        return parts.join(' | ');
+      })
+      .filter(Boolean);
+
+    const reservationDetailsHtml = reservationDetails
+      .map((detail) => `<li style="margin-bottom: 8px;">${detail}</li>`)
+      .join('');
+
+    const reservationDetailsText = reservationDetails
+      .map((detail) => `- ${detail}`)
+      .join('\n');
+
+    const detailsRows = [
+      emailPayload.propertyName
+        ? createDetailRow('Propriedade', emailPayload.propertyName)
+        : '',
+      emailPayload.checkIn
+        ? createDetailRow('Check-in', this.formatDate(emailPayload.checkIn))
+        : '',
+      emailPayload.checkOut
+        ? createDetailRow('Check-out', this.formatDate(emailPayload.checkOut))
+        : '',
+      emailPayload.totalPrice
+        ? createDetailRow(
+            'Valor',
+            `€${Number(emailPayload.totalPrice).toFixed(2)}`,
+          )
+        : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    const refundText = emailPayload.refunded
+      ? 'O respetivo reembolso foi processado, quando aplicável ao método de pagamento utilizado.'
+      : 'Se existir algum montante elegível para devolução, a nossa equipa fará o respetivo seguimento de acordo com a política aplicável.';
+
+    const text = `The St. Anthony
+
+Cancelamento de Reserva
+
+Olá ${emailPayload.userName},
+
+Confirmamos o cancelamento da sua reserva.
+
+${emailPayload.propertyName ? `- Propriedade: ${emailPayload.propertyName}` : ''}
+${emailPayload.checkIn ? `- Check-in: ${this.formatDate(emailPayload.checkIn)}` : ''}
+${emailPayload.checkOut ? `- Check-out: ${this.formatDate(emailPayload.checkOut)}` : ''}
+${emailPayload.totalPrice ? `- Valor: €${Number(emailPayload.totalPrice).toFixed(2)}` : ''}
+
+${reservationDetailsText ? `Detalhes da reserva:\n${reservationDetailsText}\n` : ''}
+
+${refundText}
+
+Se necessitar de apoio adicional, contacte a nossa equipa.
+
+Com os melhores cumprimentos,
+The St. Anthony Collection`;
+
+    const content = `
+      ${createMainTitle('Cancelamento de Reserva')}
+      ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
+      ${createParagraph('Confirmamos o cancelamento da sua reserva.')}
+      ${createDivider()}
+      ${createSectionHeading('Detalhes do Cancelamento')}
+      ${createInfoBox(createDetailsTable(detailsRows))}
+      ${
+        reservationDetailsHtml
+          ? `
+        ${createSectionHeading('Detalhes da Reserva')}
+        <ul style="margin: 0 0 20px 18px; padding: 0; color: ${EMAIL_STYLES.colors.textDark}; font-size: 14px; line-height: 1.6;">
+          ${reservationDetailsHtml}
+        </ul>
+      `
+          : ''
+      }
+      ${createParagraph(refundText)}
+      ${createParagraph('Se necessitar de apoio adicional, contacte a nossa equipa.', 'muted')}
+    `;
+
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: 'Cancelamento de Reserva - The St. Anthony',
+      text,
+      html: createBaseEmailTemplate(content, {
+        preheaderText: 'A sua reserva foi cancelada',
+        showFooterLinks: true,
+      }),
+    });
+  }
+
+  async sendCheckInReminderEmail(
+    emailPayload: CheckInReminderEmail,
+  ): Promise<void> {
+    const checkInDate = this.formatDate(emailPayload.checkInDate);
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+
+    const text = `The St. Anthony
 
 Lembrete de Check-in
 
@@ -324,7 +439,7 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-		const content = `
+    const content = `
       ${createMainTitle('Lembrete de Check-in')}
       
       ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
@@ -358,8 +473,9 @@ Este é um email automático. Por favor, não responda.`;
         </p>
       `)}
       
-      ${emailPayload.arrivalInstructions
-				? `
+      ${
+        emailPayload.arrivalInstructions
+          ? `
         <div style="margin-top: 25px;">
           ${createSectionHeading('Instruções de Chegada')}
           <div style="background-color: ${EMAIL_STYLES.colors.gold}; padding: 20px 25px; border-left: 4px solid ${EMAIL_STYLES.colors.accent};">
@@ -369,8 +485,8 @@ Este é um email automático. Por favor, não responda.`;
           </div>
         </div>
       `
-				: ''
-			}
+          : ''
+      }
       
       ${createDivider()}
       
@@ -381,15 +497,16 @@ Este é um email automático. Por favor, não responda.`;
         ${createDetailRow('Email', emailPayload.propertyEmail)}
       `)}
       
-      ${emailPayload.specialRequests
-				? `
+      ${
+        emailPayload.specialRequests
+          ? `
         <div style="margin-top: 25px;">
           ${createSectionHeading('Os Seus Pedidos Especiais')}
           ${createParagraph(emailPayload.specialRequests, 'muted')}
         </div>
       `
-				: ''
-			}
+          : ''
+      }
       
       ${createDivider()}
       
@@ -400,26 +517,26 @@ Este é um email automático. Por favor, não responda.`;
       ${createParagraph('Se tiver alguma questão ou precisar de alterar a sua reserva, não hesite em contactar-nos.', 'muted')}
     `;
 
-		const html = createBaseEmailTemplate(content, {
-			preheaderText: `Lembrete: Check-in em ${emailPayload.propertyName} - The St. Anthony`,
-			showFooterLinks: true,
-		});
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Lembrete: Check-in em ${emailPayload.propertyName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: emailPayload.email,
-			subject: `Lembrete de Check-in - ${emailPayload.propertyName}`,
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Lembrete de Check-in - ${emailPayload.propertyName}`,
+      text,
+      html,
+    });
+  }
 
-	async sendCheckOutReminderEmail(
-		emailPayload: CheckOutReminderEmail,
-	): Promise<void> {
-		const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+  async sendCheckOutReminderEmail(
+    emailPayload: CheckOutReminderEmail,
+  ): Promise<void> {
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-		const text = `The St. Anthony
+    const text = `The St. Anthony
 
 Lembrete de Check-out
 
@@ -440,7 +557,7 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-		const content = `
+    const content = `
       ${createMainTitle('Lembrete de Check-out')}
       
       ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
@@ -472,25 +589,25 @@ Este é um email automático. Por favor, não responda.`;
       </div>
     `;
 
-		const html = createBaseEmailTemplate(content, {
-			preheaderText: `Lembrete: Check-out hoje em ${emailPayload.propertyName}`,
-			showFooterLinks: true,
-		});
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Lembrete: Check-out hoje em ${emailPayload.propertyName}`,
+      showFooterLinks: true,
+    });
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: emailPayload.email,
-			subject: `Lembrete de Check-out - ${emailPayload.propertyName}`,
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Lembrete de Check-out - ${emailPayload.propertyName}`,
+      text,
+      html,
+    });
+  }
 
-	async sendPostStayEmail(emailPayload: PostStayEmail): Promise<void> {
-		const checkInDate = this.formatDate(emailPayload.checkInDate);
-		const checkOutDate = this.formatDate(emailPayload.checkOutDate);
+  async sendPostStayEmail(emailPayload: PostStayEmail): Promise<void> {
+    const checkInDate = this.formatDate(emailPayload.checkInDate);
+    const checkOutDate = this.formatDate(emailPayload.checkOutDate);
 
-		const text = `The St. Anthony
+    const text = `The St. Anthony
 
 Obrigado pela sua estadia!
 
@@ -510,7 +627,7 @@ The St. Anthony Collection
 ---
 Este é um email automático. Por favor, não responda.`;
 
-		const content = `
+    const content = `
       ${createMainTitle('Obrigado pela sua estadia!')}
       
       ${createParagraph(`Olá <strong>${emailPayload.userName}</strong>,`)}
@@ -548,98 +665,98 @@ Este é um email automático. Por favor, não responda.`;
       `)}
     `;
 
-		const html = createBaseEmailTemplate(content, {
-			preheaderText: `Obrigado pela sua estadia em ${emailPayload.propertyName} - The St. Anthony`,
-			showFooterLinks: true,
-		});
+    const html = createBaseEmailTemplate(content, {
+      preheaderText: `Obrigado pela sua estadia em ${emailPayload.propertyName} - The St. Anthony`,
+      showFooterLinks: true,
+    });
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: emailPayload.email,
-			subject: `Obrigado pela sua estadia - ${emailPayload.propertyName}`,
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: emailPayload.email,
+      subject: `Obrigado pela sua estadia - ${emailPayload.propertyName}`,
+      text,
+      html,
+    });
+  }
 
-	async sendContactNotification(
-		contactData: ContactNotificationData,
-	): Promise<void> {
-		const html = createContactNotificationTemplate(contactData);
+  async sendContactNotification(
+    contactData: ContactNotificationData,
+  ): Promise<void> {
+    const html = createContactNotificationTemplate(contactData);
 
-		const adminEmail = this.configService.get<string>('ADMIN_CONTACT_EMAIL');
+    const adminEmail = this.configService.get<string>('ADMIN_CONTACT_EMAIL');
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: adminEmail,
-			subject: `Novo Contacto: ${contactData.subject || 'Sem Assunto'}`,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: adminEmail,
+      subject: `Novo Contacto: ${contactData.subject || 'Sem Assunto'}`,
+      html,
+    });
+  }
 
-	async sendReportConfirmation(data: ReportConfirmationData): Promise<void> {
-		const html = createReportConfirmationTemplate(data);
-		const text = `Olá ${data.reporterName},\n\nConfirmamos a receção do seu relato (Ref: ${data.reportId}).\nA sua submissão será analisada pela nossa equipa com a máxima confidencialidade.\n\nEntraremos em contacto caso necessitemos de informações adicionais.\n\nObrigado,\nThe St. Anthony`;
+  async sendReportConfirmation(data: ReportConfirmationData): Promise<void> {
+    const html = createReportConfirmationTemplate(data);
+    const text = `Olá ${data.reporterName},\n\nConfirmamos a receção do seu relato (Ref: ${data.reportId}).\nA sua submissão será analisada pela nossa equipa com a máxima confidencialidade.\n\nEntraremos em contacto caso necessitemos de informações adicionais.\n\nObrigado,\nThe St. Anthony`;
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: data.reporterEmail,
-			subject: 'Confirmação de Receção de Relato - The St. Anthony',
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: data.reporterEmail,
+      subject: 'Confirmação de Receção de Relato - The St. Anthony',
+      text,
+      html,
+    });
+  }
 
-	async sendReportStatusUpdate(data: ReportStatusUpdateData): Promise<void> {
-		const STATUS_LABELS: Record<string, string> = {
-			pending: 'Pendente',
-			reviewed: 'Em Revisão',
-			resolved: 'Resolvido',
-		};
-		const statusLabel = STATUS_LABELS[data.newStatus] || data.newStatus;
-		const html = createReportStatusUpdateTemplate(data);
-		const text = `Olá ${data.reporterName},\n\nO estado do seu relato (Ref: ${data.reportId}) foi atualizado para: ${statusLabel}.\n\nPara mais informações, entre em contacto connosco.\n\nObrigado,\nThe St. Anthony`;
+  async sendReportStatusUpdate(data: ReportStatusUpdateData): Promise<void> {
+    const STATUS_LABELS: Record<string, string> = {
+      pending: 'Pendente',
+      reviewed: 'Em Revisão',
+      resolved: 'Resolvido',
+    };
+    const statusLabel = STATUS_LABELS[data.newStatus] || data.newStatus;
+    const html = createReportStatusUpdateTemplate(data);
+    const text = `Olá ${data.reporterName},\n\nO estado do seu relato (Ref: ${data.reportId}) foi atualizado para: ${statusLabel}.\n\nPara mais informações, entre em contacto connosco.\n\nObrigado,\nThe St. Anthony`;
 
-		await this.sendEmail({
-			from: this.configService.get<string>('MAIL_FROM'),
-			to: data.reporterEmail,
-			subject: `Atualização do seu Relato: ${statusLabel} - The St. Anthony`,
-			text,
-			html,
-		});
-	}
+    await this.sendEmail({
+      from: this.configService.get<string>('MAIL_FROM'),
+      to: data.reporterEmail,
+      subject: `Atualização do seu Relato: ${statusLabel} - The St. Anthony`,
+      text,
+      html,
+    });
+  }
 
-	private formatDate(dateString: string): string {
-		const date = new Date(dateString);
-		return date.toLocaleDateString('pt-PT', {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-		});
-	}
+  private formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-PT', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
 
-	private createCalendarEvent(
-		checkIn: string,
-		checkOut: string,
-		userName: string,
-		userEmail: string,
-	): string {
-		const calendar = ical({ name: 'The St. Anthony' });
-		const hotelEmail =
-			this.configService.get<string>('MAIL_FROM') || 'reservas@stanthony.pt';
+  private createCalendarEvent(
+    checkIn: string,
+    checkOut: string,
+    userName: string,
+    userEmail: string,
+  ): string {
+    const calendar = ical({ name: 'The St. Anthony' });
+    const hotelEmail =
+      this.configService.get<string>('MAIL_FROM') || 'reservas@stanthony.pt';
 
-		calendar.createEvent({
-			start: checkIn,
-			end: checkOut,
-			summary: 'Estadia no The St. Anthony',
-			description: `A sua reserva no The St. Anthony está confirmada.\n\nCheck-in: ${this.formatDate(checkIn)}\nCheck-out: ${this.formatDate(checkOut)}\n\nEsperamos por si!`,
-			location: 'The St. Anthony, Portugal',
-			url: this.frontendUrl,
-			organizer: { name: 'The St. Anthony', email: hotelEmail },
-			attendees: [{ name: userName, email: userEmail }],
-		});
+    calendar.createEvent({
+      start: checkIn,
+      end: checkOut,
+      summary: 'Estadia no The St. Anthony',
+      description: `A sua reserva no The St. Anthony está confirmada.\n\nCheck-in: ${this.formatDate(checkIn)}\nCheck-out: ${this.formatDate(checkOut)}\n\nEsperamos por si!`,
+      location: 'The St. Anthony, Portugal',
+      url: this.frontendUrl,
+      organizer: { name: 'The St. Anthony', email: hotelEmail },
+      attendees: [{ name: userName, email: userEmail }],
+    });
 
-		return calendar.toString();
-	}
+    return calendar.toString();
+  }
 }

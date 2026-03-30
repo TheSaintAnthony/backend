@@ -73,7 +73,7 @@ export class JobPostingsController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Patch(':id')
+  @Patch('admin/:id')
   async updateJobPosting(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateJobPostingDto,
@@ -82,8 +82,23 @@ export class JobPostingsController {
   }
 
   @Roles(UserRole.ADMIN)
-  @Delete(':id')
+  @Delete('admin/:id')
   async deactivateJobPosting(@Param('id', ParseUUIDPipe) id: string) {
+    return this.jobPostingsService.deactivateJobPosting(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  async updateJobPostingLegacy(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateJobPostingDto,
+  ) {
+    return this.jobPostingsService.updateJobPosting(id, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  async deactivateJobPostingLegacy(@Param('id', ParseUUIDPipe) id: string) {
     return this.jobPostingsService.deactivateJobPosting(id);
   }
 

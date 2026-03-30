@@ -9,7 +9,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { CreateReportDto, UpdateReportDto, GetReportsDto } from './dto';
+import {
+  CreateReportDto,
+  UpdateReportDto,
+  GetReportsDto,
+  DateRangeDto,
+  DailyOperationsDto,
+  MonthlyReservationsDto,
+  FinancialSummaryDto,
+  OccurrencesReportDto,
+} from './dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/user-roles/roles.guard';
 import { Roles } from 'src/decorators/role.decorator';
@@ -31,6 +40,69 @@ export class ReportsController {
   @Get()
   async getAll(@Query() query: GetReportsDto) {
     return this.reportsService.getReports(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('all')
+  async getAnalytics(@Query() query: DateRangeDto) {
+    return this.reportsService.getAnalytics(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('revenue')
+  async getRevenue(@Query() query: DateRangeDto) {
+    return this.reportsService.getRevenueReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('bookings')
+  async getBookings(@Query() query: DateRangeDto) {
+    return this.reportsService.getBookingsReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('occupancy')
+  async getOccupancy(@Query() query: DateRangeDto) {
+    return this.reportsService.getOccupancyReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('customers')
+  async getCustomers(@Query() query: DateRangeDto) {
+    return this.reportsService.getCustomersReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('daily-operations')
+  async getDailyOperations(@Query() query: DailyOperationsDto) {
+    return this.reportsService.getDailyOperationsReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('monthly-reservations')
+  async getMonthlyReservations(@Query() query: MonthlyReservationsDto) {
+    return this.reportsService.getMonthlyReservationsReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('financial-summary')
+  async getFinancialSummary(@Query() query: FinancialSummaryDto) {
+    return this.reportsService.getFinancialSummaryReport(query);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('occurrences')
+  async getOccurrences(@Query() query: OccurrencesReportDto) {
+    return this.reportsService.getOccurrencesReport(query);
   }
 
   @UseGuards(AuthGuard, RolesGuard)

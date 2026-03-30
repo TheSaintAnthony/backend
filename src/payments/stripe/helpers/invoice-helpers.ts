@@ -8,6 +8,8 @@ interface InvoiceLineItem {
     product: string;
     unitAmount: number;
   };
+  amount?: number;
+  currency?: string;
   quantity: number;
   description: string;
 }
@@ -58,6 +60,18 @@ export async function createInvoiceItems(
             description: item.description,
           } as Stripe.InvoiceItemCreateParams);
         }
+      } else if (
+        typeof item.amount === 'number' &&
+        item.currency &&
+        item.currency.trim() !== ''
+      ) {
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          invoice: invoiceId,
+          amount: item.amount,
+          currency: item.currency,
+          description: item.description,
+        });
       }
     } catch (error) {
       logger.error(

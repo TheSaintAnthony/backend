@@ -37,6 +37,8 @@ interface StripeLineItem {
     product: string;
     unitAmount: number;
   };
+  amount?: number;
+  currency?: string;
   quantity: number;
   description: string;
 }
@@ -74,11 +76,6 @@ export async function prepareStripeInvoiceLineItems(
           `Invalid price for room ${roomValidation.roomId}: ${roomBasePrice}`,
         );
       }
-      if (!room.stripePriceId && !room.stripeProductId) {
-        throw new Error(
-          `Room ${roomValidation.roomId} is missing Stripe product or price configuration`,
-        );
-      }
 
       if (room.stripeProductId) {
         return {
@@ -90,11 +87,14 @@ export async function prepareStripeInvoiceLineItems(
           quantity: nights,
           description: `${room.name} - ${nights} night(s)`,
         } as StripeLineItem;
-      } else {
-        throw new Error(
-          `Room ${roomValidation.roomId} is missing Stripe product configuration`,
-        );
       }
+
+      return {
+        amount: Math.round(roomBasePrice * 100),
+        currency: 'eur',
+        quantity: 1,
+        description: `${room.name} - ${nights} night(s)`,
+      } as StripeLineItem;
     }),
   );
 
@@ -103,32 +103,50 @@ export async function prepareStripeInvoiceLineItems(
   const storedDiscountAmount = storedPricing.discountAmount;
   const storedVatAmount = storedPricing.vatAmount;
 
-  if (storedDiscountAmount > 0 && firstRoom.stripeProductId) {
+  if (storedDiscountAmount > 0) {
     const discountDescription = discountInfo?.promoCode
       ? `Desconto - Código ${discountInfo.promoCode}`
       : 'Desconto';
 
-    stripeLineItems.push({
-      priceData: {
+    if (firstRoom.stripeProductId) {
+      stripeLineItems.push({
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: -Math.round(storedDiscountAmount * 100),
+        },
+        quantity: 1,
+        description: discountDescription,
+      } as StripeLineItem);
+    } else {
+      stripeLineItems.push({
+        amount: -Math.round(storedDiscountAmount * 100),
         currency: 'eur',
-        product: firstRoom.stripeProductId,
-        unitAmount: -Math.round(storedDiscountAmount * 100),
-      },
-      quantity: 1,
-      description: discountDescription,
-    } as StripeLineItem);
+        quantity: 1,
+        description: discountDescription,
+      } as StripeLineItem);
+    }
   }
 
-  if (firstRoom.stripeProductId && storedVatAmount > 0) {
-    stripeLineItems.push({
-      priceData: {
+  if (storedVatAmount > 0) {
+    if (firstRoom.stripeProductId) {
+      stripeLineItems.push({
+        priceData: {
+          currency: 'eur',
+          product: firstRoom.stripeProductId,
+          unitAmount: Math.round(storedVatAmount * 100),
+        },
+        quantity: 1,
+        description: 'IVA (23%)',
+      } as StripeLineItem);
+    } else {
+      stripeLineItems.push({
+        amount: Math.round(storedVatAmount * 100),
         currency: 'eur',
-        product: firstRoom.stripeProductId,
-        unitAmount: Math.round(storedVatAmount * 100),
-      },
-      quantity: 1,
-      description: 'IVA (23%)',
-    } as StripeLineItem);
+        quantity: 1,
+        description: 'IVA (23%)',
+      } as StripeLineItem);
+    }
   }
 
   const tourismFeeStripeItems = await Promise.all(
@@ -138,9 +156,6 @@ export async function prepareStripeInvoiceLineItems(
         return null;
       }
       const room = await roomsService.getRoomById(roomValidation.roomId);
-      if (!room.stripeProductId) {
-        return null;
-      }
       const checkIn = new Date(roomValidation.checkIn);
       const checkOut = new Date(roomValidation.checkOut);
       const nights = roomBreakdown.nights;
@@ -150,13 +165,22 @@ export async function prepareStripeInvoiceLineItems(
         nights > 0 && guestsCount > 0
           ? tourismFeeTotal / (guestsCount * nights)
           : 0;
+      if (room.stripeProductId) {
+        return {
+          priceData: {
+            currency: 'eur',
+            product: room.stripeProductId,
+            unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
+          },
+          quantity: guestsCount * nights,
+          description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
+        } as StripeLineItem;
+      }
+
       return {
-        priceData: {
-          currency: 'eur',
-          product: room.stripeProductId,
-          unitAmount: Math.round(tourismFeePerPersonPerNight * 100),
-        },
-        quantity: guestsCount * nights,
+        amount: Math.round(tourismFeeTotal * 100),
+        currency: 'eur',
+        quantity: 1,
         description: `Imposto turístico - ${guestsCount} ${guestsCount === 1 ? 'pessoa' : 'pessoas'}, ${nights} ${nights === 1 ? 'noite' : 'noites'}`,
       } as StripeLineItem;
     }),
